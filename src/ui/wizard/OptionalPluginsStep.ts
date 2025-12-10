@@ -28,49 +28,38 @@ export class OptionalPluginsStep extends BaseWizardStep {
 			text: 'Select which plugins to enable:' 
 		});
 
-		const allPlugins = [
-			'astro-composer',
-			'bases-cms',
-			'insert-unsplash-image',
-			'homepage',
-			'new-tab-default-page',
-			'custom-save',
-			'title-only-tab',
-			'seo',
-			'property-over-file-name',
-			'settings-search',
-			'statusbar-organizer',
-			'zenmode',
-			'cmdr',
-			'obsidian-paste-image-rename',
-			'obsidian42-brat',
-			'editing-toolbar',
-			'simple-focus',
-			'tag-wrangler',
-			'obsidian-minimal-settings',
-			'obsidian-hider',
-			'disable-tabs',
-			'obsidian-style-settings',
-			'mdx-as-md-obsidian'
+		// Only optional plugins - core plugins are not listed here
+		// Map of plugin IDs to their display names
+		const optionalPlugins: { id: string; name: string }[] = [
+			{ id: 'insert-unsplash-image', name: 'Image Inserter' },
+			{ id: 'title-only-tab', name: 'Title Only Tab' },
+			{ id: 'obsidian-paste-image-rename', name: 'Paste Image Rename' },
+			{ id: 'obsidian42-brat', name: 'BRAT' },
+			{ id: 'obsidian-style-settings', name: 'Style Settings' },
+			{ id: 'simple-banner', name: 'Simple Banner' },
+			{ id: 'alias-file-name-history', name: 'Alias File Name History' },
+			{ id: 'folder-notes', name: 'Folder notes' },
+			{ id: 'iconic', name: 'Iconic' }
 		];
 
-		for (const pluginId of allPlugins) {
-			const isEnabled = this.state.enabledPlugins.includes(pluginId);
+		for (const plugin of optionalPlugins) {
+			const isEnabled = this.state.enabledPlugins.includes(plugin.id);
 			
 			new Setting(containerEl)
-				.setName(pluginId)
+				.setName(plugin.name)
+				.setDesc(`Plugin ID: ${plugin.id}`)
 				.addToggle(toggle => toggle
 					.setValue(isEnabled)
 					.onChange(value => {
 						if (value) {
-							if (!this.state.enabledPlugins.includes(pluginId)) {
-								this.state.enabledPlugins.push(pluginId);
+							if (!this.state.enabledPlugins.includes(plugin.id)) {
+								this.state.enabledPlugins.push(plugin.id);
 							}
-							this.state.disabledPlugins = this.state.disabledPlugins.filter(p => p !== pluginId);
+							this.state.disabledPlugins = this.state.disabledPlugins.filter(p => p !== plugin.id);
 						} else {
-							this.state.enabledPlugins = this.state.enabledPlugins.filter(p => p !== pluginId);
-							if (!this.state.disabledPlugins.includes(pluginId)) {
-								this.state.disabledPlugins.push(pluginId);
+							this.state.enabledPlugins = this.state.enabledPlugins.filter(p => p !== plugin.id);
+							if (!this.state.disabledPlugins.includes(plugin.id)) {
+								this.state.disabledPlugins.push(plugin.id);
 							}
 						}
 					}));

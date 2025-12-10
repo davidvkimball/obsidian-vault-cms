@@ -25,7 +25,7 @@ export abstract class BaseWizardStep {
 		this.onCancel = onCancel;
 	}
 
-	abstract display(): void;
+	abstract display(): void | Promise<void>;
 	abstract validate(): boolean;
 	abstract getTitle(): string;
 	abstract getDescription(): string;

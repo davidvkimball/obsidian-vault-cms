@@ -19,7 +19,7 @@ export class CorePluginManager {
 		}
 	}
 
-	async configureCorePlugins(preset: 'default' | 'minimal' | 'custom'): Promise<void> {
+	async configureCorePlugins(preset: 'vanilla' | 'opinionated' | 'custom'): Promise<void> {
 		// Core plugins are generally enabled by default for both presets
 		// This can be extended if specific core plugin configurations are needed
 	}

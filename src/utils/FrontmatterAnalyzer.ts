@@ -100,5 +100,43 @@ export class FrontmatterAnalyzer {
 		
 		return null;
 	}
+
+	autoDetectTagsProperty(frontmatter: { [key: string]: any }): string | null {
+		const tagsProperties = ['tags', 'tag', 'categories', 'category'];
+		
+		for (const prop of tagsProperties) {
+			if (frontmatter.hasOwnProperty(prop)) {
+				return prop;
+			}
+		}
+		
+		return null;
+	}
+
+	autoDetectDraftProperty(frontmatter: { [key: string]: any }): { property: string; logic: 'true-draft' | 'false-draft' } | null {
+		if (frontmatter.hasOwnProperty('draft')) {
+			// If property is "draft", logic should be "true-draft"
+			return { property: 'draft', logic: 'true-draft' };
+		}
+		
+		if (frontmatter.hasOwnProperty('published')) {
+			// If property is "published", logic should be "false-draft"
+			return { property: 'published', logic: 'false-draft' };
+		}
+		
+		return null;
+	}
+
+	autoDetectImageProperty(frontmatter: { [key: string]: any }): string | null {
+		const imageProperties = ['image', 'cover', 'coverImage', 'thumbnail', 'featuredImage'];
+		
+		for (const prop of imageProperties) {
+			if (frontmatter.hasOwnProperty(prop)) {
+				return prop;
+			}
+		}
+		
+		return null;
+	}
 }
 

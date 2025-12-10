@@ -4,13 +4,19 @@ export interface ContentTypeConfig {
 	folder: string;
 	organizationMode: 'file' | 'folder';
 	indexFileName?: string;
+	attachmentsFolder?: string; // For file-based organization
 	enabled: boolean;
 }
 
 export interface FrontmatterProperties {
-	titleProperty: string;
-	dateProperty: string;
+	titleProperty?: string; // If blank, uses file.name
+	dateProperty?: string; // If blank, uses file.ctime
 	descriptionProperty?: string;
+	tagsProperty?: string;
+	draftProperty?: string;
+	draftLogic?: 'true-draft' | 'false-draft'; // true-draft means true = draft, false-draft means false = draft. Blank draftProperty means underscore prefix
+	imageProperty?: string; // Property for cover image
+	template?: string; // Template for Astro Composer
 }
 
 export interface ProjectDetectionResult {
@@ -24,7 +30,9 @@ export interface WizardState {
 	projectDetection?: ProjectDetectionResult;
 	contentTypes: ContentTypeConfig[];
 	frontmatterProperties: { [contentTypeId: string]: FrontmatterProperties };
-	preset: 'default' | 'minimal' | 'custom';
+	defaultContentTypeId?: string; // ID of the default content type
+	sharedAttachmentsFolder?: string; // Shared attachments folder for file-based content types
+	preset: 'vanilla' | 'opinionated' | 'custom';
 	enableWYSIWYG: boolean;
 	enabledPlugins: string[];
 	disabledPlugins: string[];

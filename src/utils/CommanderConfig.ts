@@ -9,20 +9,43 @@ export class CommanderConfigurator {
 	}
 
 	generateCommanderConfig(enableWYSIWYG: boolean): CommanderConfig {
+		// WYSIWYG is now handled by toggling the command directly, not via commander
+		// This config is kept for compatibility but won't add commander buttons
 		const config: CommanderConfig = {
 			pageHeaderCommands: []
 		};
 
-		if (enableWYSIWYG) {
-			config.pageHeaderCommands.push({
-				id: 'editing-toolbar:hide-show-menu',
-				icon: 'lucide-chevrons-up-down',
-				name: 'Toggle editing toolbar',
-				mode: 'desktop'
-			});
-		}
-
 		return config;
+	}
+
+	/**
+	 * Enable/disable the editing toolbar plugin (not via commander button)
+	 * When enabled, the toolbar will be available via its own "Show/hide toolbar" command
+	 */
+	async toggleEditingToolbarCommand(app: App, enable: boolean): Promise<void> {
+		try {
+			const plugins = (app as any).plugins;
+			if (!plugins) {
+				console.warn('Plugins API not available');
+				return;
+			}
+
+			const editingToolbarPlugin = plugins.plugins?.['editing-toolbar'];
+			if (!editingToolbarPlugin) {
+				console.warn('Editing Toolbar plugin not found');
+				return;
+			}
+
+			// Enable or disable the plugin itself
+			// The plugin's "Show/hide toolbar" command will be available when enabled
+			if (enable && !editingToolbarPlugin.enabled) {
+				await plugins.enablePlugin('editing-toolbar');
+			} else if (!enable && editingToolbarPlugin.enabled) {
+				await plugins.disablePlugin('editing-toolbar');
+			}
+		} catch (error) {
+			console.error('Failed to toggle editing toolbar plugin:', error);
+		}
 	}
 
 	async saveConfig(config: CommanderConfig): Promise<void> {

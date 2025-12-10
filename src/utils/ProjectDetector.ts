@@ -1,5 +1,6 @@
 import { App, TFile } from 'obsidian';
 import * as path from 'path';
+import * as fs from 'fs';
 import { ProjectDetectionResult } from '../types';
 
 export class ProjectDetector {
@@ -18,29 +19,85 @@ export class ProjectDetector {
 			return null;
 		}
 
-		// Check if vault is in content folder
-		const vaultLocation = this.detectVaultLocation(vaultPath);
+		// Search upward from vault path for astro.config files
+		const configResult = await this.searchUpwardForConfig(vaultPath);
 		
-		// Determine project root
-		const projectRoot = this.determineProjectRoot(vaultPath, vaultLocation);
-		
-		// Find config file
-		const configFilePath = await this.findConfigFile(projectRoot);
-		
-		if (!configFilePath) {
+		if (!configResult) {
 			return null;
 		}
 
+		// Determine vault location relative to project
+		const vaultLocation = this.detectVaultLocation(vaultPath, configResult.projectRoot);
+
 		return {
-			projectRoot,
-			configFilePath,
+			projectRoot: configResult.projectRoot,
+			configFilePath: configResult.configFilePath,
 			vaultLocation
 		};
 	}
 
-	private detectVaultLocation(vaultPath: string): 'content' | 'nested-content' | 'root' {
-		const normalizedPath = path.normalize(vaultPath);
-		const pathParts = normalizedPath.split(path.sep);
+	/**
+	 * Search upward from the vault path to find an Astro config file.
+	 * This allows the vault to be anywhere within the Astro project structure.
+	 */
+	private async searchUpwardForConfig(startPath: string): Promise<{ projectRoot: string; configFilePath: string } | null> {
+		const configFileNames = [
+			'astro.config.ts',
+			'astro.config.mjs',
+			'astro.config.js',
+			'astro.config.mts',
+			'astro.config.cjs'
+		];
+
+		let currentDir = path.resolve(startPath);
+		const root = path.parse(currentDir).root; // Get root directory (C:\ on Windows, / on Unix)
+
+		// Walk up the directory tree
+		while (currentDir !== root) {
+			// Check for config files in current directory
+			for (const fileName of configFileNames) {
+				const configPath = path.join(currentDir, fileName);
+				
+				// Use Node.js fs to check if file exists (works outside vault)
+				try {
+					if (fs.existsSync(configPath) && fs.statSync(configPath).isFile()) {
+						return {
+							projectRoot: currentDir,
+							configFilePath: configPath
+						};
+					}
+				} catch (error) {
+					// Continue searching if file check fails
+				}
+			}
+
+			// Move up one directory
+			const parentDir = path.dirname(currentDir);
+			if (parentDir === currentDir) {
+				// Reached root, stop searching
+				break;
+			}
+			currentDir = parentDir;
+		}
+
+		return null;
+	}
+
+	/**
+	 * Determine vault location relative to the detected project root.
+	 */
+	private detectVaultLocation(vaultPath: string, projectRoot: string): 'content' | 'nested-content' | 'root' {
+		const normalizedVaultPath = path.normalize(vaultPath);
+		const normalizedProjectRoot = path.normalize(projectRoot);
+		
+		// Check if vault is within project root
+		if (!normalizedVaultPath.startsWith(normalizedProjectRoot)) {
+			return 'root';
+		}
+
+		// Get relative path from project root to vault
+		const relativePath = path.relative(normalizedProjectRoot, normalizedVaultPath);
+		const pathParts = relativePath.split(path.sep).filter(part => part.length > 0);
 		
 		// Check if vault is in a folder named "content" with parent "src"
 		const contentIndex = pathParts.findIndex(part => part.toLowerCase() === 'content');
@@ -61,57 +118,6 @@ export class ProjectDetector {
 		}
 		
 		return 'root';
-	}
-
-	private determineProjectRoot(vaultPath: string, vaultLocation: 'content' | 'nested-content' | 'root'): string {
-		const normalizedPath = path.normalize(vaultPath);
-		const pathParts = normalizedPath.split(path.sep);
-		
-		if (vaultLocation === 'content' || vaultLocation === 'nested-content') {
-			// Find src folder and get its parent
-			const srcIndex = pathParts.findIndex(part => part.toLowerCase() === 'src');
-			if (srcIndex > 0) {
-				return pathParts.slice(0, srcIndex).join(path.sep);
-			}
-		}
-		
-		// If in root, project root is vault root
-		return vaultPath;
-	}
-
-	private async findConfigFile(projectRoot: string): Promise<string | null> {
-		const configFileNames = ['astro.config.ts', 'astro.config.mjs', 'config.ts'];
-		
-		for (const fileName of configFileNames) {
-			const filePath = path.join(projectRoot, fileName);
-			try {
-				const file = this.app.vault.getAbstractFileByPath(this.relativePath(filePath));
-				if (file instanceof TFile) {
-					return filePath;
-				}
-			} catch (error) {
-				// File doesn't exist, try next
-			}
-		}
-		
-		return null;
-	}
-
-	private relativePath(absolutePath: string): string {
-		const adapter = this.app.vault.adapter as any;
-		const vaultPath = adapter.basePath || adapter.path;
-		if (!vaultPath) {
-			return absolutePath;
-		}
-		
-		const vaultNormalized = path.normalize(vaultPath);
-		const absoluteNormalized = path.normalize(absolutePath);
-		
-		if (absoluteNormalized.startsWith(vaultNormalized)) {
-			return absoluteNormalized.slice(vaultNormalized.length + 1);
-		}
-		
-		return absolutePath;
 	}
 }
 

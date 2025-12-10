@@ -16,31 +16,33 @@ export class PluginPresetStep extends BaseWizardStep {
 			.setName('Preset')
 			.setDesc('Choose a preset configuration')
 			.addDropdown(dropdown => dropdown
-				.addOption('default', 'Default')
-				.addOption('minimal', 'Minimal')
+				.addOption('vanilla', 'Vanilla')
+				.addOption('opinionated', 'Opinionated')
 				.addOption('custom', 'Custom')
 				.setValue(this.state.preset)
 				.onChange(value => {
-					this.state.preset = value as 'default' | 'minimal' | 'custom';
+					this.state.preset = value as 'vanilla' | 'opinionated' | 'custom';
 					
-					if (value === 'default') {
+					if (value === 'vanilla') {
 						this.state.theme = '';
-					} else if (value === 'minimal') {
-						this.state.theme = 'obsidian-minimal';
+					} else if (value === 'opinionated') {
+						this.state.theme = 'obsidian-oxygen';
+					} else {
+						// Custom - don't change theme
 					}
 				}));
 
-		if (this.state.preset === 'default') {
+		if (this.state.preset === 'vanilla') {
 			containerEl.createEl('p', { 
-				text: 'Default preset: Uses default Obsidian theme with all common plugins enabled.' 
+				text: 'Vanilla preset: Uses default Obsidian theme, look, and UI with all common plugins enabled.' 
 			});
-		} else if (this.state.preset === 'minimal') {
+		} else if (this.state.preset === 'opinionated') {
 			containerEl.createEl('p', { 
-				text: 'Minimal preset: Uses Minimal theme with minimal-specific plugins enabled.' 
+				text: 'Opinionated preset: Uses Oxygen theme with its settings enabled and optimized plugin configuration.' 
 			});
 		} else {
 			containerEl.createEl('p', { 
-				text: 'Custom preset: You will be able to select individual plugins in the next step.' 
+				text: 'Custom preset: You will be able to select individual plugins in the next step. No theme changes will be made.' 
 			});
 		}
 	}

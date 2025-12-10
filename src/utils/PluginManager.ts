@@ -43,48 +43,52 @@ export class PluginManager {
 		}
 	}
 
-	getPresetPlugins(preset: 'default' | 'minimal' | 'custom'): { enabled: string[]; disabled: string[] } {
-		const allPlugins = [
+	getPresetPlugins(preset: 'vanilla' | 'opinionated' | 'custom'): { enabled: string[]; disabled: string[] } {
+		// Core plugins that should always be enabled (not optional)
+		const corePlugins = [
 			'astro-composer',
 			'bases-cms',
-			'insert-unsplash-image',
 			'homepage',
 			'new-tab-default-page',
-			'custom-save',
-			'title-only-tab',
 			'seo',
 			'property-over-file-name',
 			'settings-search',
 			'statusbar-organizer',
 			'zenmode',
 			'cmdr',
-			'obsidian-paste-image-rename',
-			'obsidian42-brat',
 			'editing-toolbar',
 			'simple-focus',
-			'tag-wrangler',
-			'obsidian-minimal-settings',
+			'tag-wrangler'
+		];
+
+		// Optional plugins that can be enabled/disabled
+		const optionalPlugins = [
+			'insert-unsplash-image',
+			'custom-save',
+			'title-only-tab',
+			'obsidian-paste-image-rename',
+			'obsidian42-brat',
 			'obsidian-hider',
 			'disable-tabs',
 			'obsidian-style-settings',
 			'mdx-as-md-obsidian'
 		];
 
-		const minimalPlugins = [
-			'obsidian-minimal-settings',
-			'obsidian-hider',
-			'disable-tabs'
+		// Opinionated-specific plugins
+		const opinionatedPlugins = [
+			'obsidian-oxygen',
+			'obsidian-style-settings'
 		];
 
-		if (preset === 'default') {
+		if (preset === 'vanilla') {
 			return {
-				enabled: allPlugins.filter(p => !minimalPlugins.includes(p)),
-				disabled: minimalPlugins
+				enabled: [...corePlugins, ...optionalPlugins.filter(p => !opinionatedPlugins.includes(p))],
+				disabled: opinionatedPlugins
 			};
-		} else if (preset === 'minimal') {
+		} else if (preset === 'opinionated') {
 			return {
-				enabled: minimalPlugins,
-				disabled: allPlugins.filter(p => !minimalPlugins.includes(p))
+				enabled: [...corePlugins, ...optionalPlugins],
+				disabled: []
 			};
 		} else {
 			// Custom - return all as available

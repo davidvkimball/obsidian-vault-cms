@@ -60,10 +60,10 @@ export class ContentTypeDetector {
 		let enabled = false;
 		
 		if (folderName === 'posts' || folderName === 'post' || folderName === 'blog') {
-			name = 'Blog Posts';
+			name = 'Posts';
 			enabled = true;
 		} else if (folderName === 'pages' || folderName === 'page') {
-			name = 'Standard Pages';
+			name = 'Pages';
 			enabled = true;
 		} else {
 			// Custom content type

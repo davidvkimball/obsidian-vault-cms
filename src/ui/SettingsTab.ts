@@ -1,5 +1,5 @@
 import { App, PluginSettingTab, Setting } from 'obsidian';
-import VaultCMSPlugin from '../../main';
+import VaultCMSPlugin from '../main';
 import { SetupWizardModal } from './SetupWizardModal';
 
 export class SettingsTab extends PluginSettingTab {
@@ -24,7 +24,7 @@ export class SettingsTab extends PluginSettingTab {
 				.setButtonText('Open Wizard')
 				.setCta()
 				.onClick(() => {
-					new SetupWizardModal(this.app, this.plugin.settings).open();
+					new SetupWizardModal(this.app, this.plugin.settings, this.plugin).open();
 				}));
 
 		new Setting(containerEl)

@@ -5,7 +5,9 @@ export interface VaultCMSSettings {
 	configFilePath: string;
 	contentTypes: ContentTypeConfig[];
 	frontmatterProperties: { [contentTypeId: string]: FrontmatterProperties };
-	preset: 'default' | 'minimal' | 'custom';
+	defaultContentTypeId?: string;
+	sharedAttachmentsFolder?: string;
+	preset: 'vanilla' | 'opinionated' | 'custom';
 	enableWYSIWYG: boolean;
 	enabledPlugins: string[];
 	disabledPlugins: string[];
@@ -25,7 +27,7 @@ export const DEFAULT_SETTINGS: VaultCMSSettings = {
 	configFilePath: '',
 	contentTypes: [],
 	frontmatterProperties: {},
-	preset: 'default',
+	preset: 'vanilla',
 	enableWYSIWYG: false,
 	enabledPlugins: [],
 	disabledPlugins: [],
