@@ -69,15 +69,21 @@ export class FinalizeStep extends BaseWizardStep {
 		}
 
 		try {
+			console.log('FinalizeStep: Starting configuration application');
+			console.log('FinalizeStep: Enabled content types:', this.state.contentTypes.filter(ct => ct.enabled).map(ct => ct.name));
+			
 			// Configure plugins
+			console.log('FinalizeStep: Configuring plugin states');
 			await this.pluginManager.setPluginStates(this.state.enabledPlugins, this.state.disabledPlugins);
 
 			// Configure Bases CMS
+			console.log('FinalizeStep: Configuring Bases CMS');
 			await this.basesCMSConfigurator.createOrUpdateBaseFile(
 				this.state.contentTypes,
 				this.state.frontmatterProperties,
 				this.state.defaultContentTypeId
 			);
+			console.log('FinalizeStep: Bases CMS configuration complete');
 
 			// Configure Astro Composer
 			if (this.state.projectDetection) {
@@ -133,53 +139,56 @@ export class FinalizeStep extends BaseWizardStep {
 				await this.imageInserterConfigurator.saveConfig(this.state.imageInserter, imageProperty);
 			}
 
-			// Configure default content type
+			// Configure default content type and Obsidian settings (following astro-modular-settings pattern)
 			if (this.state.defaultContentTypeId) {
 				const defaultType = this.state.contentTypes.find(ct => ct.id === this.state.defaultContentTypeId);
 				if (defaultType) {
-					// Set Obsidian's default location for new notes
-					const vault = this.app.vault as any;
-					const obsidianConfig = vault.config || {};
+					console.log('FinalizeStep: Configuring Obsidian settings for default content type:', defaultType.name);
+					const app = this.app as any;
 					
-					obsidianConfig.newFileLocation = 'folder';
-					obsidianConfig.newFileFolderPath = defaultType.folder;
-					
-					// Set attachments folder if configured
-					const attachmentsFolder = defaultType.attachmentsFolder || this.state.sharedAttachmentsFolder;
-					if (attachmentsFolder) {
-						// Convert absolute path to relative if needed
-						const vaultPath = (this.app.vault.adapter as any).basePath || (this.app.vault.adapter as any).path;
-						if (vaultPath && attachmentsFolder.startsWith(vaultPath)) {
-							const relativePath = attachmentsFolder.slice(vaultPath.length).replace(/^[\/\\]+/, '');
-							obsidianConfig.attachmentFolderPath = `./${relativePath}`;
-						} else {
-							obsidianConfig.attachmentFolderPath = attachmentsFolder;
-						}
+					// Set attachments folder based on attachment handling mode
+					let targetPath = './';
+					if (defaultType.attachmentHandlingMode === 'same-folder') {
+						targetPath = './';
+					} else if (defaultType.attachmentHandlingMode === 'subfolder') {
+						const folderName = defaultType.attachmentFolderName || 'images';
+						targetPath = `./${folderName}`;
+					} else if (defaultType.attachmentHandlingMode === 'specified-folder') {
+						const folderName = defaultType.attachmentFolderName || 'images';
+						targetPath = folderName;
 					}
 					
-					// Update vault config
-					vault.config = obsidianConfig;
-					
-					// Save Obsidian settings
-					if (typeof vault.saveConfig === 'function') {
-						await vault.saveConfig();
+					// Method 1: Try to use the app's settings manager if available (following astro-modular-settings pattern)
+					if (app.setting && typeof app.setting.set === 'function') {
+						console.log('FinalizeStep: Using app.setting API');
+						await app.setting.set('newFileLocation', 'folder');
+						await app.setting.set('newFileFolderPath', defaultType.folder);
+						await app.setting.set('attachmentFolderPath', targetPath);
+						await app.setting.set('newLinkFormat', 'relative');
+						
+						// Save the settings
+						if (typeof app.setting.save === 'function') {
+							await app.setting.save();
+							console.log('FinalizeStep: Obsidian settings saved via app.setting.save()');
+						}
 					} else {
-						// Fallback: try to save via app settings
-						const app = this.app as any;
-						if (app.setting && typeof app.setting.set === 'function') {
-							await app.setting.set('newFileLocation', 'folder');
-							await app.setting.set('newFileFolderPath', defaultType.folder);
-							if (attachmentsFolder) {
-								const vaultPath = (this.app.vault.adapter as any).basePath || (this.app.vault.adapter as any).path;
-								if (vaultPath && attachmentsFolder.startsWith(vaultPath)) {
-									const relativePath = attachmentsFolder.slice(vaultPath.length).replace(/^[\/\\]+/, '');
-									await app.setting.set('attachmentFolderPath', `./${relativePath}`);
-								} else {
-									await app.setting.set('attachmentFolderPath', attachmentsFolder);
-								}
-							}
-							if (typeof app.setting.save === 'function') {
-								await app.setting.save();
+						// Method 2: Fallback to vault config (following astro-modular-settings pattern)
+						console.log('FinalizeStep: Using vault.config API');
+						const obsidianSettings = (this.app.vault as any).config;
+						
+						if (!obsidianSettings) {
+							console.error('FinalizeStep: vault.config is not available');
+						} else {
+							obsidianSettings.newFileLocation = 'folder';
+							obsidianSettings.newFileFolderPath = defaultType.folder;
+							obsidianSettings.attachmentFolderPath = targetPath;
+							obsidianSettings.newLinkFormat = 'relative';
+							
+							if (typeof (this.app.vault as any).saveConfig === 'function') {
+								await (this.app.vault as any).saveConfig();
+								console.log('FinalizeStep: Obsidian settings saved via vault.saveConfig()');
+							} else {
+								console.error('FinalizeStep: vault.saveConfig() is not available');
 							}
 						}
 					}

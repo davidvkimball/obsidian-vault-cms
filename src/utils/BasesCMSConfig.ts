@@ -15,43 +15,77 @@ export class BasesCMSConfigurator {
 		defaultContentTypeId?: string
 	): Promise<void> {
 		const baseFilePath = 'bases/Home.base';
+		
+		// Ensure bases directory exists
+		const basesFolder = this.app.vault.getAbstractFileByPath('bases');
+		if (!basesFolder) {
+			try {
+				await this.app.vault.createFolder('bases');
+			} catch (error: any) {
+				// Folder might already exist, ignore error
+				if (!error.message || !error.message.includes('already exists')) {
+					console.warn('BasesCMSConfig: Could not create bases folder:', error);
+				}
+			}
+		}
+
+		// Check if file exists (re-check after folder creation)
 		let baseFile = this.app.vault.getAbstractFileByPath(baseFilePath) as TFile;
 
 		// Read existing base file if it exists
 		let existingBase: any = null;
-		if (baseFile) {
+		if (baseFile && baseFile instanceof TFile) {
 			try {
 				const content = await this.app.vault.read(baseFile);
 				existingBase = yaml.load(content) as any;
 			} catch (error) {
-				console.error('Failed to parse existing base file:', error);
+				console.error('BasesCMSConfig: Failed to parse existing base file:', error);
 			}
 		}
 
+		const enabledTypes = contentTypes.filter(ct => ct.enabled);
+		console.log('BasesCMSConfig: Generating base content for', contentTypes.length, 'content types');
+		console.log('BasesCMSConfig: Enabled content types:', enabledTypes.map(ct => ct.name));
+		
 		const baseContent = this.generateBaseContent(contentTypes, frontmatterProperties, defaultContentTypeId, existingBase);
-
-		if (baseFile) {
+		
+		// Count views in generated content to verify they're being created
+		const viewMatches = baseContent.match(/^\s*-\s+type:\s+bases-cms/gm);
+		const viewCount = viewMatches ? viewMatches.length : 0;
+		console.log('BasesCMSConfig: Generated', viewCount, 'views in base content');
+		
+		// Always modify if file exists, create if it doesn't
+		if (baseFile && baseFile instanceof TFile) {
+			console.log('BasesCMSConfig: Modifying existing Home.base file');
 			await this.app.vault.modify(baseFile, baseContent);
+			console.log('BasesCMSConfig: Successfully modified Home.base file');
 		} else {
-			// Create the bases directory if it doesn't exist
-			const basesFolder = this.app.vault.getAbstractFileByPath('bases');
-			if (!basesFolder) {
-				try {
-					await this.app.vault.createFolder('bases');
-				} catch (error) {
-					// Folder might already exist, continue
-				}
-			}
+			console.log('BasesCMSConfig: Creating new Home.base file');
 			try {
 				await this.app.vault.create(baseFilePath, baseContent);
+				console.log('BasesCMSConfig: Successfully created Home.base file');
+				// Verify the file was created by reading it back
+				const createdFile = this.app.vault.getAbstractFileByPath(baseFilePath) as TFile;
+				if (createdFile && createdFile instanceof TFile) {
+					console.log('BasesCMSConfig: Verified Home.base file exists');
+				} else {
+					console.warn('BasesCMSConfig: File created but cannot be verified - this may be a timing issue');
+				}
 			} catch (error: any) {
-				// File might already exist, try to modify it instead
+				// File might have been created between check and create, try to modify
 				if (error.message && error.message.includes('already exists')) {
+					// Re-check for the file
 					const existingFile = this.app.vault.getAbstractFileByPath(baseFilePath) as TFile;
-					if (existingFile) {
+					if (existingFile && existingFile instanceof TFile) {
+						console.log('BasesCMSConfig: File existed, modifying instead');
 						await this.app.vault.modify(existingFile, baseContent);
+						console.log('BasesCMSConfig: Successfully modified existing Home.base file');
+					} else {
+						console.error('BasesCMSConfig: File should exist but cannot be found');
+						throw error;
 					}
 				} else {
+					console.error('BasesCMSConfig: Failed to create base file:', error);
 					throw error;
 				}
 			}

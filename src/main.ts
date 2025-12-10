@@ -33,7 +33,6 @@ export default class VaultCMSPlugin extends Plugin {
 							this.settings.contentTypes = state.contentTypes;
 							this.settings.frontmatterProperties = state.frontmatterProperties;
 							this.settings.defaultContentTypeId = state.defaultContentTypeId;
-							this.settings.sharedAttachmentsFolder = state.sharedAttachmentsFolder;
 							this.settings.preset = state.preset;
 							this.settings.enableWYSIWYG = state.enableWYSIWYG;
 							this.settings.enabledPlugins = state.enabledPlugins;

@@ -39,7 +39,6 @@ export class SetupWizardModal extends Modal {
 			frontmatterProperties: initialState?.frontmatterProperties || pluginInstance?.settings?.frontmatterProperties || {},
 			projectDetection: savedProjectDetection,
 			defaultContentTypeId: initialState?.defaultContentTypeId || pluginInstance?.settings?.defaultContentTypeId,
-			sharedAttachmentsFolder: initialState?.sharedAttachmentsFolder || pluginInstance?.settings?.sharedAttachmentsFolder,
 			preset: initialState?.preset || pluginInstance?.settings?.preset || 'vanilla',
 			enableWYSIWYG: initialState?.enableWYSIWYG ?? pluginInstance?.settings?.enableWYSIWYG ?? false,
 			enabledPlugins: initialState?.enabledPlugins || pluginInstance?.settings?.enabledPlugins || [],
@@ -191,7 +190,6 @@ export class SetupWizardModal extends Modal {
 				this.pluginInstance.settings.contentTypes = this.state.contentTypes;
 				this.pluginInstance.settings.frontmatterProperties = this.state.frontmatterProperties;
 				this.pluginInstance.settings.defaultContentTypeId = this.state.defaultContentTypeId;
-				this.pluginInstance.settings.sharedAttachmentsFolder = this.state.sharedAttachmentsFolder;
 				this.pluginInstance.settings.preset = this.state.preset;
 				this.pluginInstance.settings.enableWYSIWYG = this.state.enableWYSIWYG;
 				this.pluginInstance.settings.enabledPlugins = this.state.enabledPlugins;

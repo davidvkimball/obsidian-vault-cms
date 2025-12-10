@@ -14,7 +14,6 @@ export function registerCommands(plugin: VaultCMSPlugin): void {
 				plugin.settings.contentTypes = state.contentTypes;
 				plugin.settings.frontmatterProperties = state.frontmatterProperties;
 				plugin.settings.defaultContentTypeId = state.defaultContentTypeId;
-				plugin.settings.sharedAttachmentsFolder = state.sharedAttachmentsFolder;
 				plugin.settings.preset = state.preset;
 				plugin.settings.enableWYSIWYG = state.enableWYSIWYG;
 				plugin.settings.enabledPlugins = state.enabledPlugins;

@@ -6,7 +6,6 @@ export interface VaultCMSSettings {
 	contentTypes: ContentTypeConfig[];
 	frontmatterProperties: { [contentTypeId: string]: FrontmatterProperties };
 	defaultContentTypeId?: string;
-	sharedAttachmentsFolder?: string;
 	preset: 'vanilla' | 'opinionated' | 'custom';
 	enableWYSIWYG: boolean;
 	enabledPlugins: string[];

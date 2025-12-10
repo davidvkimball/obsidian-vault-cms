@@ -27,8 +27,9 @@ export class AstroComposerStep extends BaseWizardStep {
 		for (const contentType of enabledTypes) {
 			const props = this.state.frontmatterProperties[contentType.id];
 			if (props) {
+				const modeLabel = contentType.attachmentHandlingMode === 'same-folder' ? 'folder-based' : 'file-based';
 				list.createEl('li', { 
-					text: `${contentType.name} (${contentType.folder}): ${contentType.organizationMode} mode` 
+					text: `${contentType.name} (${contentType.folder}): ${modeLabel}` 
 				});
 			}
 		}
