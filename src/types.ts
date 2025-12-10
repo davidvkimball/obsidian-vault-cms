@@ -2,9 +2,8 @@ export interface ContentTypeConfig {
 	id: string;
 	name: string;
 	folder: string;
-	attachmentHandlingMode: 'specified-folder' | 'same-folder' | 'subfolder';
-	attachmentFolderName?: string; // Folder name for specified-folder or subfolder modes
-	indexFileName?: string; // For folder-based organization (when attachmentHandlingMode is 'same-folder')
+	fileOrganization: 'file' | 'folder'; // File-based or folder-based organization
+	indexFileName?: string; // For folder-based organization
 	enabled: boolean;
 }
 
@@ -31,6 +30,8 @@ export interface WizardState {
 	contentTypes: ContentTypeConfig[];
 	frontmatterProperties: { [contentTypeId: string]: FrontmatterProperties };
 	defaultContentTypeId?: string; // ID of the default content type
+	attachmentHandlingMode: 'specified-folder' | 'same-folder' | 'subfolder'; // Global attachment handling
+	attachmentFolderName?: string; // Folder name for specified-folder or subfolder modes (defaults to "attachments")
 	preset: 'vanilla' | 'opinionated' | 'custom';
 	enableWYSIWYG: boolean;
 	enabledPlugins: string[];

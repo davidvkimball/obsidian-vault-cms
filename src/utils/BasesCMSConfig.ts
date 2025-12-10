@@ -54,40 +54,60 @@ export class BasesCMSConfigurator {
 		const viewCount = viewMatches ? viewMatches.length : 0;
 		console.log('BasesCMSConfig: Generated', viewCount, 'views in base content');
 		
-		// Always modify if file exists, create if it doesn't
+		// Always try to modify first - if file doesn't exist, modify will throw, then we create
+		// This avoids race conditions with getAbstractFileByPath
+		baseFile = this.app.vault.getAbstractFileByPath(baseFilePath) as TFile;
+		
 		if (baseFile && baseFile instanceof TFile) {
 			console.log('BasesCMSConfig: Modifying existing Home.base file');
-			await this.app.vault.modify(baseFile, baseContent);
-			console.log('BasesCMSConfig: Successfully modified Home.base file');
-		} else {
-			console.log('BasesCMSConfig: Creating new Home.base file');
 			try {
-				await this.app.vault.create(baseFilePath, baseContent);
-				console.log('BasesCMSConfig: Successfully created Home.base file');
-				// Verify the file was created by reading it back
-				const createdFile = this.app.vault.getAbstractFileByPath(baseFilePath) as TFile;
-				if (createdFile && createdFile instanceof TFile) {
-					console.log('BasesCMSConfig: Verified Home.base file exists');
-				} else {
-					console.warn('BasesCMSConfig: File created but cannot be verified - this may be a timing issue');
-				}
-			} catch (error: any) {
-				// File might have been created between check and create, try to modify
-				if (error.message && error.message.includes('already exists')) {
-					// Re-check for the file
-					const existingFile = this.app.vault.getAbstractFileByPath(baseFilePath) as TFile;
-					if (existingFile && existingFile instanceof TFile) {
-						console.log('BasesCMSConfig: File existed, modifying instead');
-						await this.app.vault.modify(existingFile, baseContent);
-						console.log('BasesCMSConfig: Successfully modified existing Home.base file');
+				await this.app.vault.modify(baseFile, baseContent);
+				console.log('BasesCMSConfig: Successfully modified Home.base file');
+				return; // Success, exit early
+			} catch (error) {
+				console.error('BasesCMSConfig: Failed to modify file:', error);
+				throw error;
+			}
+		}
+		
+		// File doesn't exist (or can't be found), try to create it
+		console.log('BasesCMSConfig: Creating new Home.base file');
+		try {
+			await this.app.vault.create(baseFilePath, baseContent);
+			console.log('BasesCMSConfig: Successfully created Home.base file');
+		} catch (error: any) {
+			// If create fails because file exists, the file was created between check and create
+			// Try to modify it directly using the path string
+			if (error.message && (error.message.includes('already exists') || error.message.includes('File already exists'))) {
+				console.log('BasesCMSConfig: File existed, attempting direct modify via path');
+				// Use adapter to write directly - this bypasses the indexing issue
+				try {
+					const adapter = this.app.vault.adapter;
+					if (adapter && typeof adapter.write === 'function') {
+						await adapter.write(baseFilePath, baseContent);
+						console.log('BasesCMSConfig: Successfully wrote Home.base file via adapter');
 					} else {
-						console.error('BasesCMSConfig: File should exist but cannot be found');
-						throw error;
+						// Fallback: retry getAbstractFileByPath with longer delays
+						console.log('BasesCMSConfig: Adapter write not available, retrying getAbstractFileByPath');
+						for (let i = 0; i < 10; i++) {
+							await new Promise(resolve => setTimeout(resolve, 200));
+							const retryFile = this.app.vault.getAbstractFileByPath(baseFilePath) as TFile;
+							if (retryFile && retryFile instanceof TFile) {
+								await this.app.vault.modify(retryFile, baseContent);
+								console.log(`BasesCMSConfig: Successfully modified Home.base file on retry ${i + 1}`);
+								return;
+							}
+						}
+						console.error('BasesCMSConfig: File exists but cannot be found after all retries');
+						throw new Error('File exists but cannot be accessed. Please try again or manually edit bases/Home.base');
 					}
-				} else {
-					console.error('BasesCMSConfig: Failed to create base file:', error);
-					throw error;
+				} catch (writeError) {
+					console.error('BasesCMSConfig: Failed to write file via adapter:', writeError);
+					throw writeError;
 				}
+			} else {
+				console.error('BasesCMSConfig: Failed to create base file:', error);
+				throw error;
 			}
 		}
 	}
@@ -184,13 +204,70 @@ export class BasesCMSConfigurator {
 		const defaultContentType = defaultContentTypeId ? 
 			contentTypes.find(ct => ct.id === defaultContentTypeId && ct.enabled) : null;
 		
-		// Update or create "All Content" view
-		const allContentView = existingBase?.views?.find((v: any) => v.name === 'All Content');
+		// Get default props (for "All Content" view)
 		const defaultProps = defaultContentType ? frontmatterProperties[defaultContentType.id] : 
 			(frontmatterProperties[Object.keys(frontmatterProperties)[0]]);
 		
+		// FIRST: Add the default content type's view (if it exists and is enabled)
+		if (defaultContentType) {
+			const defaultViewProps = frontmatterProperties[defaultContentType.id];
+			if (defaultViewProps) {
+				const existingDefaultView = existingBase?.views?.find((v: any) => v.name === defaultContentType.name);
+				
+				lines.push('  - type: bases-cms');
+				lines.push(`    name: ${defaultContentType.name}`);
+				lines.push('    filters:');
+				lines.push('      and:');
+				lines.push(`        - file.folder.startsWith("${defaultContentType.folder}")`);
+				lines.push(`    imageFormat: cover`);
+				// Handle blank title/date properties
+				if (defaultViewProps.titleProperty) {
+					lines.push(`    titleProperty: note.${defaultViewProps.titleProperty}`);
+				} else {
+					lines.push(`    titleProperty: file.name`);
+				}
+				if (defaultViewProps.dateProperty) {
+					lines.push(`    dateProperty: note.${defaultViewProps.dateProperty}`);
+				} else {
+					lines.push(`    dateProperty: file.ctime`);
+				}
+				if (defaultViewProps.descriptionProperty) {
+					lines.push(`    descriptionProperty: note.${defaultViewProps.descriptionProperty}`);
+				}
+				if (defaultViewProps.imageProperty) {
+					lines.push(`    imageProperty: note.${defaultViewProps.imageProperty}`);
+				}
+				lines.push(`    showTags: ${defaultViewProps.tagsProperty ? 'true' : 'false'}`);
+				if (defaultViewProps.tagsProperty) {
+					lines.push(`    tagsProperty: note.${defaultViewProps.tagsProperty}`);
+				}
+				lines.push(`    showDate: true`);
+				lines.push(`    showDraftStatus: ${defaultViewProps.draftProperty ? 'true' : 'false'}`);
+				if (defaultViewProps.draftProperty) {
+					lines.push(`    draftStatusProperty: note.${defaultViewProps.draftProperty}`);
+				}
+				lines.push(`    customizeNewButton: true`);
+				lines.push(`    newNoteLocation: "${defaultContentType.folder}"`);
+				lines.push(`    fallbackToEmbeds: if-empty`);
+				lines.push(`    propertyDisplay1: file.name`);
+				lines.push(`    showTextPreview: true`);
+				lines.push(`    propertyLabels: above`);
+				// Sort by date property (newest to oldest)
+				lines.push(`    sort:`);
+				if (defaultViewProps.dateProperty) {
+					lines.push(`      - property: note.${defaultViewProps.dateProperty}`);
+				} else {
+					lines.push(`      - property: file.ctime`);
+				}
+				lines.push(`        direction: DESC`);
+			}
+		}
+		
+		// SECOND: Update or create "All Content" view
+		const allContentView = existingBase?.views?.find((v: any) => v.name === 'All Content');
+		
 		if (defaultProps) {
-			// Always update/create "All Content" view
+			// Always update/create "All Content" view (but it's not first anymore)
 			lines.push('  - type: bases-cms');
 			lines.push(`    name: All Content`);
 			lines.push('    filters:');
@@ -269,7 +346,7 @@ export class BasesCMSConfigurator {
 			lines.push(`    dateIncludeTime: ${allContentView?.dateIncludeTime ? 'true' : 'false'}`);
 		}
 		
-		// Add views for each enabled content type
+		// THIRD: Add views for each enabled content type (excluding default, which is already first)
 		for (const contentType of contentTypes) {
 			if (!contentType.enabled) {
 				continue;
@@ -280,11 +357,9 @@ export class BasesCMSConfigurator {
 				continue;
 			}
 
-			// Check if this view already exists (preserve existing views)
-			const existingView = existingBase?.views?.find((v: any) => v.name === contentType.name);
-			if (existingView) {
-				// Update existing view instead of skipping
-				// We'll add it anyway to ensure it has the latest properties
+			// Skip default content type - it's already created first
+			if (defaultContentType && contentType.id === defaultContentType.id) {
+				continue;
 			}
 
 			const props = frontmatterProperties[contentType.id];

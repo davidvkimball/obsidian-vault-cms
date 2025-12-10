@@ -33,7 +33,7 @@ export class AstroComposerConfigurator {
 		if (postsType) {
 			const props = frontmatterProperties[postsType.id];
 			config.postsFolder = postsType.folder;
-			config.postsCreationMode = this.getCreationModeFromAttachmentHandling(postsType.attachmentHandlingMode);
+			config.postsCreationMode = postsType.fileOrganization;
 			config.postsIndexFileName = postsType.indexFileName || 'index';
 			// Use template from props if available, otherwise generate
 			config.defaultTemplate = props?.template || this.generateTemplate(props, true);
@@ -43,7 +43,7 @@ export class AstroComposerConfigurator {
 			const props = frontmatterProperties[pagesType.id];
 			config.enablePages = true;
 			config.pagesFolder = pagesType.folder;
-			config.pagesCreationMode = this.getCreationModeFromAttachmentHandling(pagesType.attachmentHandlingMode);
+			config.pagesCreationMode = pagesType.fileOrganization;
 			config.pagesIndexFileName = pagesType.indexFileName || 'index';
 			// Use template from props if available, otherwise generate
 			config.pageTemplate = props?.template || this.generateTemplate(props, false);
@@ -63,7 +63,7 @@ export class AstroComposerConfigurator {
 					template: props?.template || this.generateTemplate(props, true),
 					enabled: true,
 					linkBasePath: `/${contentType.folder}/`,
-					creationMode: this.getCreationModeFromAttachmentHandling(contentType.attachmentHandlingMode),
+					creationMode: contentType.fileOrganization,
 					indexFileName: contentType.indexFileName || 'index'
 				});
 			}
@@ -124,124 +124,131 @@ export class AstroComposerConfigurator {
 	}
 
 	async saveConfig(config: AstroComposerConfig): Promise<void> {
-		const pluginId = 'astro-composer';
-		const pluginDataPath = `.obsidian/plugins/${pluginId}/data.json`;
-		
 		try {
-			let existingData: any = {};
-			const dataFile = this.app.vault.getAbstractFileByPath(pluginDataPath);
+			// Use plugin's saveSettings method like astro-modular-settings does
+			const plugins = (this.app as any).plugins;
+			const astroComposerPlugin = plugins?.plugins?.['astro-composer'];
 			
-			// Always read existing data if file exists
-			if (dataFile && dataFile instanceof TFile) {
-				try {
-					existingData = JSON.parse(await this.app.vault.read(dataFile));
-				} catch (error) {
-					console.warn('Failed to parse existing Astro Composer data.json, starting fresh:', error);
-					existingData = {};
-				}
+			if (!astroComposerPlugin) {
+				console.warn('AstroComposerConfig: Astro Composer plugin not found, using fallback file method');
+				await this.saveConfigFallback(config);
+				return;
 			}
+			
+			if (!astroComposerPlugin.settings) {
+				console.warn('AstroComposerConfig: Astro Composer plugin settings not available, using fallback file method');
+				await this.saveConfigFallback(config);
+				return;
+			}
+			
+			const pluginSettings = astroComposerPlugin.settings;
 			
 			// Update templates from config
 			if (config.defaultTemplate) {
-				existingData.defaultTemplate = config.defaultTemplate;
+				pluginSettings.defaultTemplate = config.defaultTemplate;
 			}
 			if (config.pageTemplate) {
-				existingData.pageTemplate = config.pageTemplate;
+				pluginSettings.pageTemplate = config.pageTemplate;
 			}
 			
 			// Update posts/pages folder settings
 			if (config.postsFolder) {
-				existingData.postsFolder = config.postsFolder;
+				pluginSettings.postsFolder = config.postsFolder;
 			}
 			if (config.postsCreationMode) {
-				existingData.creationMode = config.postsCreationMode;
+				pluginSettings.creationMode = config.postsCreationMode;
 			}
 			if (config.postsIndexFileName) {
-				existingData.indexFileName = config.postsIndexFileName;
+				pluginSettings.indexFileName = config.postsIndexFileName;
 			}
 			if (config.enablePages !== undefined) {
-				existingData.enablePages = config.enablePages;
+				pluginSettings.enablePages = config.enablePages;
 			}
 			if (config.pagesFolder) {
-				existingData.pagesFolder = config.pagesFolder;
+				pluginSettings.pagesFolder = config.pagesFolder;
 			}
 			if (config.pagesCreationMode) {
-				existingData.pagesCreationMode = config.pagesCreationMode;
+				pluginSettings.pagesCreationMode = config.pagesCreationMode;
 			}
 			if (config.pagesIndexFileName) {
-				existingData.pagesIndexFileName = config.pagesIndexFileName;
+				pluginSettings.pagesIndexFileName = config.pagesIndexFileName;
 			}
 			
 			// Update config paths
 			if (config.configFilePath) {
-				existingData.configFilePath = config.configFilePath;
+				pluginSettings.configFilePath = config.configFilePath;
 			}
 			if (config.terminalProjectRootPath) {
-				existingData.terminalProjectRootPath = config.terminalProjectRootPath;
+				pluginSettings.terminalProjectRootPath = config.terminalProjectRootPath;
 			}
 			
 			// Merge customContentTypes properly - update existing ones, add new ones
-			existingData.customContentTypes = this.mergeCustomContentTypes(
-				existingData.customContentTypes || [],
+			pluginSettings.customContentTypes = this.mergeCustomContentTypes(
+				pluginSettings.customContentTypes || [],
 				config.customContentTypes || []
 			);
 			
-			// Always modify if file exists, create if it doesn't
-			if (dataFile && dataFile instanceof TFile) {
-				await this.app.vault.modify(dataFile, JSON.stringify(existingData, null, 2));
+			// Save the settings using plugin's saveSettings method
+			if (typeof astroComposerPlugin.saveSettings === 'function') {
+				await astroComposerPlugin.saveSettings();
+				console.log('AstroComposerConfig: Successfully saved via plugin.saveSettings()');
 			} else {
-				// Ensure plugin directory exists
-				const pluginDir = `.obsidian/plugins/${pluginId}`;
-				const pluginDirFile = this.app.vault.getAbstractFileByPath(pluginDir);
-				if (!pluginDirFile) {
-					try {
-						await this.app.vault.createFolder(pluginDir);
-					} catch (error: any) {
-						// Folder might already exist, ignore error
-						if (!error.message || !error.message.includes('already exists')) {
-							console.warn('AstroComposerConfig: Could not create plugin directory:', error);
-						}
-					}
-				}
-				// Create file if it doesn't exist
-				try {
-					await this.app.vault.create(pluginDataPath, JSON.stringify(existingData, null, 2));
-				} catch (error: any) {
-					// File might have been created between check and create, try to modify
-					if (error.message && error.message.includes('already exists')) {
-						const existingFile = this.app.vault.getAbstractFileByPath(pluginDataPath) as TFile;
-						if (existingFile) {
-							await this.app.vault.modify(existingFile, JSON.stringify(existingData, null, 2));
-						} else {
-							throw error;
-						}
-					} else {
-						throw error;
-					}
-				}
+				console.warn('AstroComposerConfig: Plugin saveSettings not available, using fallback');
+				await this.saveConfigFallback(config);
 			}
-		} catch (error: any) {
-			console.error('Failed to save Astro Composer config:', error);
-			// If file already exists error, try to modify instead
-			if (error.message && error.message.includes('already exists')) {
-				const existingFile = this.app.vault.getAbstractFileByPath(pluginDataPath);
-				if (existingFile) {
-					try {
-						const existingData = JSON.parse(await this.app.vault.read(existingFile as TFile));
-						// Merge config into existing data
-						const mergedData = { ...existingData, ...config };
-						mergedData.customContentTypes = this.mergeCustomContentTypes(
-							existingData.customContentTypes || [],
-							config.customContentTypes || []
-						);
-						await this.app.vault.modify(existingFile as TFile, JSON.stringify(mergedData, null, 2));
-					} catch (modifyError) {
-						console.error('Failed to modify Astro Composer config after create error:', modifyError);
-					}
-				}
-			} else {
-				throw error;
+		} catch (error) {
+			console.error('Failed to save Astro Composer config via plugin method:', error);
+			// Fallback to file method
+			await this.saveConfigFallback(config);
+		}
+	}
+
+	private async saveConfigFallback(config: AstroComposerConfig): Promise<void> {
+		const pluginId = 'astro-composer';
+		const pluginDataPath = `.obsidian/plugins/${pluginId}/data.json`;
+		
+		let existingData: any = {};
+		const dataFile = this.app.vault.getAbstractFileByPath(pluginDataPath);
+		
+		// Read existing data if file exists
+		if (dataFile && dataFile instanceof TFile) {
+			try {
+				existingData = JSON.parse(await this.app.vault.read(dataFile));
+			} catch (error) {
+				console.warn('Failed to parse existing Astro Composer data.json, starting fresh:', error);
+				existingData = {};
 			}
+		}
+		
+		// Merge config into existing data
+		if (config.defaultTemplate) existingData.defaultTemplate = config.defaultTemplate;
+		if (config.pageTemplate) existingData.pageTemplate = config.pageTemplate;
+		if (config.postsFolder) existingData.postsFolder = config.postsFolder;
+		if (config.postsCreationMode) existingData.creationMode = config.postsCreationMode;
+		if (config.postsIndexFileName) existingData.indexFileName = config.postsIndexFileName;
+		if (config.enablePages !== undefined) existingData.enablePages = config.enablePages;
+		if (config.pagesFolder) existingData.pagesFolder = config.pagesFolder;
+		if (config.pagesCreationMode) existingData.pagesCreationMode = config.pagesCreationMode;
+		if (config.pagesIndexFileName) existingData.pagesIndexFileName = config.pagesIndexFileName;
+		if (config.configFilePath) existingData.configFilePath = config.configFilePath;
+		if (config.terminalProjectRootPath) existingData.terminalProjectRootPath = config.terminalProjectRootPath;
+		existingData.customContentTypes = this.mergeCustomContentTypes(
+			existingData.customContentTypes || [],
+			config.customContentTypes || []
+		);
+		
+		// Try to modify first, if file doesn't exist it will throw, then create
+		if (dataFile && dataFile instanceof TFile) {
+			await this.app.vault.modify(dataFile, JSON.stringify(existingData, null, 2));
+		} else {
+			// Ensure plugin directory exists
+			const pluginDir = `.obsidian/plugins/${pluginId}`;
+			const pluginDirFile = this.app.vault.getAbstractFileByPath(pluginDir);
+			if (!pluginDirFile) {
+				await this.app.vault.createFolder(pluginDir);
+			}
+			// Create the file
+			await this.app.vault.create(pluginDataPath, JSON.stringify(existingData, null, 2));
 		}
 	}
 

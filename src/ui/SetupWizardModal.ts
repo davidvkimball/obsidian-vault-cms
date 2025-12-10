@@ -39,6 +39,8 @@ export class SetupWizardModal extends Modal {
 			frontmatterProperties: initialState?.frontmatterProperties || pluginInstance?.settings?.frontmatterProperties || {},
 			projectDetection: savedProjectDetection,
 			defaultContentTypeId: initialState?.defaultContentTypeId || pluginInstance?.settings?.defaultContentTypeId,
+			attachmentHandlingMode: initialState?.attachmentHandlingMode || 'subfolder',
+			attachmentFolderName: initialState?.attachmentFolderName,
 			preset: initialState?.preset || pluginInstance?.settings?.preset || 'vanilla',
 			enableWYSIWYG: initialState?.enableWYSIWYG ?? pluginInstance?.settings?.enableWYSIWYG ?? false,
 			enabledPlugins: initialState?.enabledPlugins || pluginInstance?.settings?.enabledPlugins || [],

@@ -134,9 +134,21 @@ export class FinalizeStep extends BaseWizardStep {
 				await this.simpleBannerConfigurator.saveConfig(imageProperty);
 			}
 
-			// Configure Image Inserter (if enabled)
+			// Configure Image Inserter (if enabled) - use global attachment handling mode
 			if (imageProperty && this.state.enabledPlugins.includes('insert-unsplash-image')) {
-				await this.imageInserterConfigurator.saveConfig(this.state.imageInserter, imageProperty);
+				// Determine format based on global attachment handling mode
+				let imageInserterConfig = { ...this.state.imageInserter };
+				// If same-folder, use simple format; otherwise use attachments folder format
+				if (this.state.attachmentHandlingMode === 'same-folder') {
+					imageInserterConfig.valueFormat = '[[{image-url}]]';
+					imageInserterConfig.insertFormat = '[[{image-url}]]';
+				} else {
+					// For subfolder or specified-folder, use attachments folder
+					const folderName = this.state.attachmentFolderName || 'attachments';
+					imageInserterConfig.valueFormat = `[[${folderName}/{image-url}]]`;
+					imageInserterConfig.insertFormat = `[[${folderName}/{image-url}]]`;
+				}
+				await this.imageInserterConfigurator.saveConfig(imageInserterConfig, imageProperty);
 			}
 
 			// Configure default content type and Obsidian settings (following astro-modular-settings pattern)
@@ -146,15 +158,15 @@ export class FinalizeStep extends BaseWizardStep {
 					console.log('FinalizeStep: Configuring Obsidian settings for default content type:', defaultType.name);
 					const app = this.app as any;
 					
-					// Set attachments folder based on attachment handling mode
+					// Set attachments folder based on global attachment handling mode
 					let targetPath = './';
-					if (defaultType.attachmentHandlingMode === 'same-folder') {
+					if (this.state.attachmentHandlingMode === 'same-folder') {
 						targetPath = './';
-					} else if (defaultType.attachmentHandlingMode === 'subfolder') {
-						const folderName = defaultType.attachmentFolderName || 'images';
+					} else if (this.state.attachmentHandlingMode === 'subfolder') {
+						const folderName = this.state.attachmentFolderName || 'attachments';
 						targetPath = `./${folderName}`;
-					} else if (defaultType.attachmentHandlingMode === 'specified-folder') {
-						const folderName = defaultType.attachmentFolderName || 'images';
+					} else if (this.state.attachmentHandlingMode === 'specified-folder') {
+						const folderName = this.state.attachmentFolderName || 'attachments';
 						targetPath = folderName;
 					}
 					
@@ -204,7 +216,8 @@ export class FinalizeStep extends BaseWizardStep {
 	}
 
 	validate(): boolean {
-		return this.applied;
+		// Always return true for finalize step - validation happens when Apply is clicked
+		return true;
 	}
 
 	getTitle(): string {
