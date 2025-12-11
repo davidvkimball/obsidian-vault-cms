@@ -66,9 +66,12 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 				const detectedTags = example ? this.frontmatterAnalyzer.autoDetectTagsProperty(example.frontmatter) : null;
 				const detectedImage = example ? this.frontmatterAnalyzer.autoDetectImageProperty(example.frontmatter) : null;
 				const detectedDesc = example ? this.frontmatterAnalyzer.autoDetectDescriptionProperty(example.frontmatter) : null;
+				const detectedTitle = example ? (example.frontmatter.hasOwnProperty('title') ? 'title' : null) : null;
+				const detectedDate = example ? this.frontmatterAnalyzer.autoDetectDateProperty(example.frontmatter) : null;
+				
 				this.state.frontmatterProperties[contentType.id] = {
-					titleProperty: example ? 'title' : '',
-					dateProperty: example ? this.frontmatterAnalyzer.autoDetectDateProperty(example.frontmatter) : '',
+					titleProperty: detectedTitle || undefined, // Only set if detected, otherwise blank
+					dateProperty: detectedDate || undefined, // Only set if detected, otherwise blank
 					descriptionProperty: detectedDesc || undefined,
 					tagsProperty: detectedTags || undefined,
 					draftProperty: detectedDraft?.property,
@@ -428,7 +431,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 			// Template editor
 			contentTypeWrapper.createEl('h4', { text: 'Template' });
 			contentTypeWrapper.createEl('p', { 
-				text: 'Edit the template that will be used when creating new files of this content type. Use {{title}} and {{date}} as placeholders.' 
+				text: 'Edit the template that will be used when creating new files of this content type. Use {{title}} and {{date}} as variables. Note: {{title}} should be in quotes (e.g., title: "{{title}}"), while {{date}} should not be in quotes (e.g., date: {{date}}).' 
 			});
 
 			// Initialize template if not exists
@@ -454,6 +457,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 	}
 
 	private generateDefaultTemplate(props: any, includeDate: boolean, example: any): string {
+		// Note: includeDate parameter is kept for backwards compatibility but we check props.dateProperty instead
 		let template = '---\n';
 		
 		// Parse the original YAML to maintain order
@@ -462,25 +466,27 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 			const lines = example.rawYaml.split('\n');
 			const processedProps = new Set<string>();
 			
-			// First, add title property (replace if exists in original)
+			// First, add title property if it's detected/enabled (ALWAYS include it)
 			let titleAdded = false;
-			for (const line of lines) {
-				const trimmed = line.trim();
-				if (!trimmed || trimmed.startsWith('#')) continue;
-				
-				const colonIndex = trimmed.indexOf(':');
-				if (colonIndex > 0) {
-					const prop = trimmed.substring(0, colonIndex).trim();
-					if (prop === props.titleProperty) {
-						template += `${props.titleProperty}: "{{title}}"\n`;
-						titleAdded = true;
-						processedProps.add(prop);
-						continue;
+			if (props.titleProperty) {
+				for (const line of lines) {
+					const trimmed = line.trim();
+					if (!trimmed || trimmed.startsWith('#')) continue;
+					
+					const colonIndex = trimmed.indexOf(':');
+					if (colonIndex > 0) {
+						const prop = trimmed.substring(0, colonIndex).trim();
+						if (prop === props.titleProperty) {
+							template += `${props.titleProperty}: "{{title}}"\n`;
+							titleAdded = true;
+							processedProps.add(prop);
+							continue;
+						}
 					}
 				}
-			}
-			if (!titleAdded) {
-				template += `${props.titleProperty}: "{{title}}"\n`;
+				if (!titleAdded) {
+					template += `${props.titleProperty}: "{{title}}"\n`;
+				}
 			}
 			
 			// Then process other lines in order
@@ -502,8 +508,8 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 						continue;
 					}
 					
-					// Handle date property
-					if (prop === props.dateProperty && includeDate) {
+					// Handle date property - ALWAYS include if detected/enabled
+					if (prop === props.dateProperty && props.dateProperty) {
 						template += `${props.dateProperty}: {{date}}\n`;
 						processedProps.add(prop);
 						continue;
@@ -525,6 +531,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 					} else if (typeof value === 'boolean') {
 						template += `${prop}: ${value}\n`;
 					} else if (typeof value === 'number') {
+						// Mirror the actual numeric value from the scanned document
 						template += `${prop}: ${value}\n`;
 					} else if (typeof value === 'string') {
 						// Check if it looks like a date (YYYY-MM-DD format)
@@ -545,16 +552,23 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 				}
 			}
 		} else {
-			// Default template if no example
-			template += `${props.titleProperty}: "{{title}}"\n`;
-			if (includeDate && props.dateProperty) {
+			// Default template if no example - only include properties that are set
+			if (props.titleProperty) {
+				template += `${props.titleProperty}: "{{title}}"\n`;
+			}
+			if (props.dateProperty) {
 				template += `${props.dateProperty}: {{date}}\n`;
 			}
 			if (props.descriptionProperty) {
 				template += `${props.descriptionProperty}: ""\n`;
 			}
-			template += 'tags: []\n';
-			template += 'draft: true\n';
+			if (props.tagsProperty) {
+				template += `${props.tagsProperty}: []\n`;
+			}
+			if (props.draftProperty) {
+				const draftValue = props.draftLogic === 'false-draft' ? 'false' : 'true';
+				template += `${props.draftProperty}: ${draftValue}\n`;
+			}
 		}
 		
 		template += '---\n';
@@ -562,14 +576,9 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 	}
 
 	validate(): boolean {
-		for (const contentType of this.state.contentTypes) {
-			if (contentType.enabled) {
-				const props = this.state.frontmatterProperties[contentType.id];
-				if (!props || !props.titleProperty || !props.dateProperty) {
-					return false;
-				}
-			}
-		}
+		// Validation: titleProperty is required (but can be empty string, will use file.name)
+		// Actually, titleProperty can be blank - if blank, it will use file.name as fallback
+		// So validation should always pass - the step is optional
 		return true;
 	}
 

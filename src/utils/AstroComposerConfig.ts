@@ -22,7 +22,7 @@ export class AstroComposerConfigurator {
 			terminalProjectRootPath: this.relativePath(projectRoot)
 		};
 
-		// Find posts and pages content types
+		// Find posts and pages content types (for legacy support)
 		const postsType = contentTypes.find(ct => 
 			ct.name === 'Posts' && ct.enabled
 		);
@@ -49,20 +49,27 @@ export class AstroComposerConfigurator {
 			config.pageTemplate = props?.template || this.generateTemplate(props, false);
 		}
 
-		// Add custom content types
+		// Add all enabled content types to customContentTypes (new unified structure)
 		for (const contentType of contentTypes) {
-			if (contentType.name !== 'Posts' && 
-				contentType.name !== 'Pages' && 
-				contentType.enabled) {
+			if (contentType.enabled) {
 				const props = frontmatterProperties[contentType.id];
+				// Determine linkBasePath: use specified, or default to /folderName/
+				// If blank, default to /folderName/. If "/", use "/" for root.
+				let linkBasePath = contentType.linkBasePath;
+				if (linkBasePath === undefined || linkBasePath === '') {
+					// Default: use folder name
+					linkBasePath = `/${contentType.folder}/`;
+				}
+				// If user specified "/", keep it as "/" for root
+				
 				config.customContentTypes.push({
 					id: contentType.id,
 					name: contentType.name,
 					folder: contentType.folder,
 					// Use template from props if available, otherwise generate
-					template: props?.template || this.generateTemplate(props, true),
+					template: props?.template || this.generateTemplate(props, contentType.name === 'Posts' || contentType.name === 'Pages'),
 					enabled: true,
-					linkBasePath: `/${contentType.folder}/`,
+					linkBasePath: linkBasePath,
 					creationMode: contentType.fileOrganization,
 					indexFileName: contentType.indexFileName || 'index'
 				});
@@ -182,7 +189,48 @@ export class AstroComposerConfigurator {
 				pluginSettings.terminalProjectRootPath = config.terminalProjectRootPath;
 			}
 			
-			// Merge customContentTypes properly - update existing ones, add new ones
+			// Update contentTypes array (new unified structure)
+			// Initialize contentTypes array if it doesn't exist
+			if (!Array.isArray(pluginSettings.contentTypes)) {
+				pluginSettings.contentTypes = [];
+			}
+			
+			// Merge/update contentTypes array - match by name AND folder to find existing entries
+			for (const newType of config.customContentTypes) {
+				// Find existing entry by name AND folder (not just id, since ids might differ)
+				const existingIndex = pluginSettings.contentTypes.findIndex((ct: any) => 
+					ct.name === newType.name && ct.folder === newType.folder
+				);
+				if (existingIndex >= 0) {
+					// Update existing entry - preserve other properties like ignoreSubfolders, enableUnderscorePrefix, and existing id
+					pluginSettings.contentTypes[existingIndex] = {
+						...pluginSettings.contentTypes[existingIndex],
+						name: newType.name,
+						folder: newType.folder,
+						linkBasePath: newType.linkBasePath,
+						template: newType.template,
+						enabled: newType.enabled,
+						creationMode: newType.creationMode,
+						indexFileName: newType.indexFileName
+					};
+				} else {
+					// Add new entry with all required properties
+					pluginSettings.contentTypes.push({
+						id: newType.id,
+						name: newType.name,
+						folder: newType.folder,
+						linkBasePath: newType.linkBasePath,
+						template: newType.template,
+						enabled: newType.enabled,
+						creationMode: newType.creationMode,
+						indexFileName: newType.indexFileName,
+						ignoreSubfolders: false,
+						enableUnderscorePrefix: false
+					});
+				}
+			}
+			
+			// Also update legacy customContentTypes for backwards compatibility
 			pluginSettings.customContentTypes = this.mergeCustomContentTypes(
 				pluginSettings.customContentTypes || [],
 				config.customContentTypes || []
@@ -232,6 +280,48 @@ export class AstroComposerConfigurator {
 		if (config.pagesIndexFileName) existingData.pagesIndexFileName = config.pagesIndexFileName;
 		if (config.configFilePath) existingData.configFilePath = config.configFilePath;
 		if (config.terminalProjectRootPath) existingData.terminalProjectRootPath = config.terminalProjectRootPath;
+		
+		// Update contentTypes array (new unified structure)
+		if (!Array.isArray(existingData.contentTypes)) {
+			existingData.contentTypes = [];
+		}
+		
+		// Merge/update contentTypes array - match by name AND folder to find existing entries
+		for (const newType of config.customContentTypes) {
+			// Find existing entry by name AND folder (not just id, since ids might differ)
+			const existingIndex = existingData.contentTypes.findIndex((ct: any) => 
+				ct.name === newType.name && ct.folder === newType.folder
+			);
+			if (existingIndex >= 0) {
+				// Update existing entry - preserve other properties and existing id
+				existingData.contentTypes[existingIndex] = {
+					...existingData.contentTypes[existingIndex],
+					name: newType.name,
+					folder: newType.folder,
+					linkBasePath: newType.linkBasePath,
+					template: newType.template,
+					enabled: newType.enabled,
+					creationMode: newType.creationMode,
+					indexFileName: newType.indexFileName
+				};
+			} else {
+				// Add new entry
+				existingData.contentTypes.push({
+					id: newType.id,
+					name: newType.name,
+					folder: newType.folder,
+					linkBasePath: newType.linkBasePath,
+					template: newType.template,
+					enabled: newType.enabled,
+					creationMode: newType.creationMode,
+					indexFileName: newType.indexFileName,
+					ignoreSubfolders: false,
+					enableUnderscorePrefix: false
+				});
+			}
+		}
+		
+		// Also update legacy customContentTypes for backwards compatibility
 		existingData.customContentTypes = this.mergeCustomContentTypes(
 			existingData.customContentTypes || [],
 			config.customContentTypes || []

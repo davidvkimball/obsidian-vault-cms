@@ -4,6 +4,7 @@ export interface ContentTypeConfig {
 	folder: string;
 	fileOrganization: 'file' | 'folder'; // File-based or folder-based organization
 	indexFileName?: string; // For folder-based organization
+	linkBasePath?: string; // Link base path for Astro Composer (e.g., "/posts/" or "/" for root)
 	enabled: boolean;
 }
 

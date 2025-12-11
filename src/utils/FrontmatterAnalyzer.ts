@@ -102,12 +102,9 @@ export class FrontmatterAnalyzer {
 	}
 
 	autoDetectTagsProperty(frontmatter: { [key: string]: any }): string | null {
-		const tagsProperties = ['tags', 'tag', 'categories', 'category'];
-		
-		for (const prop of tagsProperties) {
-			if (frontmatter.hasOwnProperty(prop)) {
-				return prop;
-			}
+		// Only match "tags" - strict matching, no fuzzy matching
+		if (frontmatter.hasOwnProperty('tags')) {
+			return 'tags';
 		}
 		
 		return null;

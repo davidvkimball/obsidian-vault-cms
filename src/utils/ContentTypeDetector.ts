@@ -57,26 +57,23 @@ export class ContentTypeDetector {
 		
 		// Smart detection based on folder name
 		let name: string;
-		let enabled = false;
 		
 		if (folderName === 'posts' || folderName === 'post' || folderName === 'blog') {
 			name = 'Posts';
-			enabled = true;
 		} else if (folderName === 'pages' || folderName === 'page') {
 			name = 'Pages';
-			enabled = true;
 		} else {
 			// Custom content type
 			name = this.capitalizeFirst(folder.name);
-			enabled = false;
 		}
 		
+		// All discovered content folders are enabled by default
 		return {
 			id: `content-type-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
 			name,
 			folder: folder.name,
 			fileOrganization: 'file',
-			enabled,
+			enabled: true, // Enable all discovered content types by default
 			indexFileName: 'index'
 		};
 	}

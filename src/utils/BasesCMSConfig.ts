@@ -274,13 +274,16 @@ export class BasesCMSConfigurator {
 			lines.push('      and:');
 			lines.push(`        - file.ext == "md"`);
 			
-			// Preserve groupBy if it exists (for folder grouping)
-			if (allContentView?.groupBy) {
-				lines.push(`    groupBy:`);
-				if (typeof allContentView.groupBy === 'object' && allContentView.groupBy.property) {
-					lines.push(`      property: ${allContentView.groupBy.property}`);
-					lines.push(`      direction: ${allContentView.groupBy.direction || 'ASC'}`);
-				}
+			// Always include groupBy for folder grouping
+			lines.push(`    groupBy:`);
+			if (allContentView?.groupBy && typeof allContentView.groupBy === 'object' && allContentView.groupBy.property) {
+				// Preserve existing groupBy if it exists
+				lines.push(`      property: ${allContentView.groupBy.property}`);
+				lines.push(`      direction: ${allContentView.groupBy.direction || 'ASC'}`);
+			} else {
+				// Default: group by folder
+				lines.push(`      property: file.folder`);
+				lines.push(`      direction: ASC`);
 			}
 			
 			// Preserve order if it exists

@@ -201,6 +201,18 @@ export class ContentTypeStep extends BaseWizardStep {
 							contentType.indexFileName = value || 'index';
 						}));
 			}
+
+			// Link base path for Astro Composer
+			const defaultLinkBasePath = `/${contentType.folder}/`;
+			new Setting(stepContentWrapper)
+				.setName(`${contentType.name} - Link Base Path`)
+				.setDesc(`URL path for this content type (e.g., "/posts/" or "/" for root). Leave blank to use default: ${defaultLinkBasePath}`)
+				.addText(text => text
+					.setPlaceholder(defaultLinkBasePath)
+					.setValue(contentType.linkBasePath || '')
+					.onChange(value => {
+						contentType.linkBasePath = value || undefined;
+					}));
 		}
 
 		// Add Additional Content Type button
