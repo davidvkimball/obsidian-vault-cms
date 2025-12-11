@@ -18,13 +18,13 @@ export default class VaultCMSPlugin extends Plugin {
 		this.addSettingTab(new SettingsTab(this.app, this));
 
 		// Open wizard on startup if configured
-		if (this.settings.runWizardOnStartup && !this.settings.wizardCompleted) {
+		if (this.settings.runWizardOnStartup) {
 			this.app.workspace.onLayoutReady(() => {
 				// Delay the wizard to let Obsidian fully load (like astro-modular-settings)
 				this.startupTimeoutId = window.setTimeout(async () => {
 					// Reload settings to check if user disabled the setting
 					await this.loadSettings();
-					if (this.settings.runWizardOnStartup && !this.settings.wizardCompleted) {
+					if (this.settings.runWizardOnStartup) {
 						const wizard = new SetupWizardModal(this.app, this.settings, this);
 						wizard.setSaveCallback(async (state) => {
 							// Save wizard state to settings

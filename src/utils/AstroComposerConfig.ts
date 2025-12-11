@@ -113,21 +113,30 @@ export class AstroComposerConfigurator {
 		return mode === 'same-folder' ? 'folder' : 'file';
 	}
 
-	private relativePath(absolutePath: string): string {
+	private relativePath(inputPath: string): string {
+		// If path is already relative, return as-is
+		if (!path.isAbsolute(inputPath)) {
+			return inputPath;
+		}
+		
+		// Convert absolute path to relative from vault root
 		const adapter = this.app.vault.adapter as any;
 		const vaultPath = adapter.basePath || adapter.path;
 		if (!vaultPath) {
-			return absolutePath;
+			return inputPath;
 		}
 		
 		const vaultNormalized = path.normalize(vaultPath);
-		const absoluteNormalized = path.normalize(absolutePath);
+		const absoluteNormalized = path.normalize(inputPath);
 		
 		if (absoluteNormalized.startsWith(vaultNormalized)) {
-			return absoluteNormalized.slice(vaultNormalized.length + 1);
+			const relative = absoluteNormalized.slice(vaultNormalized.length);
+			// Remove leading path separator
+			return relative.startsWith(path.sep) ? relative.slice(1) : relative;
 		}
 		
-		return absolutePath;
+		// Path is outside vault, return as-is
+		return inputPath;
 	}
 
 	async saveConfig(config: AstroComposerConfig): Promise<void> {

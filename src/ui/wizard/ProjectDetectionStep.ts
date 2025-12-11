@@ -240,7 +240,8 @@ export class ProjectDetectionStep extends BaseWizardStep {
 			});
 
 			if (result && result.length > 0) {
-				return path.normalize(result[0]);
+				const absolutePath = path.normalize(result[0]);
+				return this.toRelativePath(absolutePath);
 			}
 		} catch (error) {
 			console.error('Error opening folder picker:', error);
@@ -304,10 +305,8 @@ export class ProjectDetectionStep extends BaseWizardStep {
 			});
 
 			if (result && result.length > 0) {
-				const selectedPath = path.normalize(result[0]);
-				// Accept any file selected - user knows what they're doing
-				// The file picker already filters for common config extensions
-				return selectedPath;
+				const absolutePath = path.normalize(result[0]);
+				return this.toRelativePath(absolutePath);
 			}
 		} catch (error) {
 			console.error('Error opening file picker:', error);
@@ -327,6 +326,37 @@ export class ProjectDetectionStep extends BaseWizardStep {
 		return vaultPath ? path.resolve(vaultPath) : process.cwd();
 	}
 
+	/**
+	 * Convert absolute path to relative path from vault root
+	 */
+	private toRelativePath(absolutePath: string): string {
+		const adapter = this.app.vault.adapter as any;
+		const vaultPath = adapter.basePath || adapter.path;
+		if (!vaultPath) {
+			return absolutePath;
+		}
+		
+		const vaultNormalized = path.normalize(vaultPath);
+		const absoluteNormalized = path.normalize(absolutePath);
+		
+		// If the absolute path is within the vault, return relative path
+		if (absoluteNormalized.startsWith(vaultNormalized)) {
+			const relative = absoluteNormalized.slice(vaultNormalized.length);
+			// Remove leading path separator
+			return relative.startsWith(path.sep) ? relative.slice(1) : relative;
+		}
+		
+		// If path is outside vault, use path.relative() to get relative path
+		try {
+			const relative = path.relative(vaultNormalized, absoluteNormalized);
+			// Normalize to use forward slashes (works on Windows too)
+			return relative.split(path.sep).join('/');
+		} catch (error) {
+			// If relative path calculation fails, return absolute path
+			return absolutePath;
+		}
+	}
+
 	validate(): boolean {
 		if (this.detected) {
 			return true;
@@ -340,12 +370,16 @@ export class ProjectDetectionStep extends BaseWizardStep {
 			return false;
 		}
 
-		// Check if paths exist
+		// Check if paths exist (resolve relative paths to absolute)
 		try {
-			if (!fs.existsSync(projectRoot) || !fs.statSync(projectRoot).isDirectory()) {
+			const vaultPath = this.getVaultPath();
+			const resolvedProjectRoot = path.isAbsolute(projectRoot) ? projectRoot : path.join(vaultPath, projectRoot);
+			const resolvedConfigFilePath = path.isAbsolute(configFilePath) ? configFilePath : path.join(vaultPath, configFilePath);
+			
+			if (!fs.existsSync(resolvedProjectRoot) || !fs.statSync(resolvedProjectRoot).isDirectory()) {
 				return false;
 			}
-			if (!fs.existsSync(configFilePath) || !fs.statSync(configFilePath).isFile()) {
+			if (!fs.existsSync(resolvedConfigFilePath) || !fs.statSync(resolvedConfigFilePath).isFile()) {
 				return false;
 			}
 			return true;
