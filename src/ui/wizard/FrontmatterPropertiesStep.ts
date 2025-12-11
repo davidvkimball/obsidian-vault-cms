@@ -50,10 +50,21 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 
 			if (example) {
 				contentTypeWrapper.createEl('p', { text: `Example file: ${example.file}` });
-				contentTypeWrapper.createEl('pre', { 
+				const preEl = contentTypeWrapper.createEl('pre', { 
 					text: example.rawYaml,
 					cls: 'frontmatter-example'
 				});
+				// Style the pre element for better display
+				preEl.style.fontFamily = 'var(--font-monospace)';
+				preEl.style.fontSize = '0.85em';
+				preEl.style.whiteSpace = 'pre-wrap';
+				preEl.style.wordWrap = 'break-word';
+				preEl.style.overflowWrap = 'break-word';
+				preEl.style.maxWidth = '100%';
+				preEl.style.padding = '10px';
+				preEl.style.backgroundColor = 'var(--background-secondary)';
+				preEl.style.borderRadius = '4px';
+				preEl.style.border = '1px solid var(--background-modifier-border)';
 
 				// Auto-detect properties
 				const dateProp = this.frontmatterAnalyzer.autoDetectDateProperty(example.frontmatter);
@@ -98,8 +109,8 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 				.setName('Date Property')
 				.setDesc('The frontmatter property that contains the date (e.g., date, pubDate, publishedDate, publishDate). Leave blank to use file created date instead.')
 				.addText(text => {
-					const detected = example ? this.frontmatterAnalyzer.autoDetectDateProperty(example.frontmatter) : 'date';
-					text.setPlaceholder(detected)
+					const detected = example ? this.frontmatterAnalyzer.autoDetectDateProperty(example.frontmatter) : null;
+					text.setPlaceholder(detected || 'date')
 						.setValue(props.dateProperty || '')
 						.onChange(value => {
 							props.dateProperty = value.trim() || undefined;

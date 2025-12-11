@@ -9,7 +9,6 @@ import { CommanderConfigurator } from '../../utils/CommanderConfig';
 import { PropertyOverFileNameConfigurator } from '../../utils/PropertyOverFileNameConfig';
 import { ImageInserterConfigurator } from '../../utils/ImageInserterConfig';
 import { SimpleBannerConfigurator } from '../../utils/SimpleBannerConfig';
-import { GuideFileUpdater } from '../../utils/GuideFileUpdater';
 
 export class FinalizeStep extends BaseWizardStep {
 	private pluginManager: PluginManager;
@@ -20,7 +19,6 @@ export class FinalizeStep extends BaseWizardStep {
 	private propertyOverFileNameConfigurator: PropertyOverFileNameConfigurator;
 	private imageInserterConfigurator: ImageInserterConfigurator;
 	private simpleBannerConfigurator: SimpleBannerConfigurator;
-	private guideFileUpdater: GuideFileUpdater;
 	private applied: boolean = false;
 
 	constructor(app: App, containerEl: HTMLElement, state: WizardState, onNext: () => void, onBack: () => void, onCancel: () => void) {
@@ -33,7 +31,6 @@ export class FinalizeStep extends BaseWizardStep {
 		this.propertyOverFileNameConfigurator = new PropertyOverFileNameConfigurator(app);
 		this.imageInserterConfigurator = new ImageInserterConfigurator(app);
 		this.simpleBannerConfigurator = new SimpleBannerConfigurator(app);
-		this.guideFileUpdater = new GuideFileUpdater(app);
 	}
 
 	display(): void {
@@ -48,12 +45,27 @@ export class FinalizeStep extends BaseWizardStep {
 		const summary = containerEl.createEl('div', { cls: 'finalize-summary' });
 		
 		summary.createEl('h3', { text: 'Summary' });
-		summary.createEl('p', { text: `Preset: ${this.state.preset}` });
-		summary.createEl('p', { text: `Theme: ${this.state.theme || 'Default'}` });
-		summary.createEl('p', { text: `Content Types: ${this.state.contentTypes.filter(ct => ct.enabled).length}` });
+		
+		// Content Types
+		const enabledContentTypes = this.state.contentTypes.filter(ct => ct.enabled);
+		summary.createEl('p', { text: `Content Types: ${enabledContentTypes.length}` });
+		
+		// WYSIWYG Toolbar
 		summary.createEl('p', { text: `WYSIWYG Toolbar: ${this.state.enableWYSIWYG ? 'Enabled' : 'Disabled'}` });
+		
+		// Bases CMS Views (count enabled content types as views to be created)
+		const basesViewsCount = enabledContentTypes.length;
+		summary.createEl('p', { text: `Bases CMS Views: ${basesViewsCount} new view${basesViewsCount !== 1 ? 's' : ''} to be created` });
+		
+		// SEO Scan Directories
+		const seoDirectories = enabledContentTypes.map(ct => ct.folder);
+		const seoDirectoriesCount = seoDirectories.length;
+		summary.createEl('p', { text: `SEO Scan Directories: ${seoDirectoriesCount} director${seoDirectoriesCount !== 1 ? 'ies' : 'y'} (${seoDirectories.join(', ')})` });
 
-		const applyButton = containerEl.createEl('button', { 
+		const applyButtonContainer = containerEl.createDiv();
+		applyButtonContainer.style.marginBottom = '30px';
+		
+		const applyButton = applyButtonContainer.createEl('button', { 
 			text: 'Apply Configuration',
 			cls: 'mod-cta'
 		});
@@ -91,7 +103,8 @@ export class FinalizeStep extends BaseWizardStep {
 					this.state.contentTypes,
 					this.state.frontmatterProperties,
 					this.state.projectDetection.projectRoot,
-					this.state.projectDetection.configFilePath
+					this.state.projectDetection.configFilePath,
+					this.state.defaultContentTypeId
 				);
 				this.state.astroComposerConfig = astroConfig;
 				await this.astroComposerConfigurator.saveConfig(astroConfig);
@@ -106,9 +119,9 @@ export class FinalizeStep extends BaseWizardStep {
 			await this.seoConfigurator.saveConfig(seoConfig);
 
 			// Configure WYSIWYG Toolbar (toggle command directly, not via commander)
-			if (this.state.enableWYSIWYG) {
-				await this.commanderConfigurator.toggleEditingToolbarCommand(this.app, true);
-			}
+			// Always call this to ensure cMenuVisibility is set correctly, even if disabled
+			console.log(`FinalizeStep: Configuring editing toolbar, enableWYSIWYG=${this.state.enableWYSIWYG}`);
+			await this.commanderConfigurator.toggleEditingToolbarCommand(this.app, this.state.enableWYSIWYG);
 
 			// Configure Commander (no toolbar button)
 			const commanderConfig = this.commanderConfigurator.generateCommanderConfig(this.state.enableWYSIWYG);
@@ -121,11 +134,6 @@ export class FinalizeStep extends BaseWizardStep {
 			if (firstProps && firstProps.titleProperty) {
 				this.state.propertyOverFileName.propertyKey = firstProps.titleProperty;
 				await this.propertyOverFileNameConfigurator.saveConfig(this.state.propertyOverFileName);
-			}
-
-			// Update guide file with detected properties
-			if (firstProps) {
-				await this.guideFileUpdater.updateGuideFile(firstProps);
 			}
 
 			// Configure Simple Banner (if enabled)

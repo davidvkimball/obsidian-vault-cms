@@ -197,23 +197,27 @@ export class BasesCMSConfigurator {
 			lines.push('');
 		}
 
-		// Views section - preserve existing views and update/add new ones
+		// Views section - preserve existing views (except "All Content") and add new content type views
 		lines.push('views:');
 		
 		// Find default content type
 		const defaultContentType = defaultContentTypeId ? 
 			contentTypes.find(ct => ct.id === defaultContentTypeId && ct.enabled) : null;
 		
-		// Get default props (for "All Content" view)
-		const defaultProps = defaultContentType ? frontmatterProperties[defaultContentType.id] : 
-			(frontmatterProperties[Object.keys(frontmatterProperties)[0]]);
+		// Separate existing views: content type views, "All Content", "Guide", and others
+		const existingViews = existingBase?.views || [];
+		const existingContentTypeNames = new Set(contentTypes.filter(ct => ct.enabled).map(ct => ct.name));
+		const guideView = existingViews.find((v: any) => v.name === 'Guide');
+		const otherViews = existingViews.filter((v: any) => 
+			v.name !== 'All Content' && 
+			v.name !== 'Guide' && 
+			!existingContentTypeNames.has(v.name)
+		);
 		
 		// FIRST: Add the default content type's view (if it exists and is enabled)
 		if (defaultContentType) {
 			const defaultViewProps = frontmatterProperties[defaultContentType.id];
 			if (defaultViewProps) {
-				const existingDefaultView = existingBase?.views?.find((v: any) => v.name === defaultContentType.name);
-				
 				lines.push('  - type: bases-cms');
 				lines.push(`    name: ${defaultContentType.name}`);
 				lines.push('    filters:');
@@ -254,108 +258,18 @@ export class BasesCMSConfigurator {
 				lines.push(`    propertyLabels: above`);
 				// Sort by date property (newest to oldest)
 				lines.push(`    sort:`);
-				if (defaultViewProps.dateProperty) {
-					lines.push(`      - property: note.${defaultViewProps.dateProperty}`);
-				} else {
-					lines.push(`      - property: file.ctime`);
-				}
+				lines.push(`      - property: ${defaultViewProps.dateProperty ? `note.${defaultViewProps.dateProperty}` : 'file.ctime'}`);
 				lines.push(`        direction: DESC`);
 			}
 		}
 		
-		// SECOND: Update or create "All Content" view
-		const allContentView = existingBase?.views?.find((v: any) => v.name === 'All Content');
-		
-		if (defaultProps) {
-			// Always update/create "All Content" view (but it's not first anymore)
-			lines.push('  - type: bases-cms');
-			lines.push(`    name: All Content`);
-			lines.push('    filters:');
-			lines.push('      and:');
-			lines.push(`        - file.ext == "md"`);
-			
-			// Always include groupBy for folder grouping
-			lines.push(`    groupBy:`);
-			if (allContentView?.groupBy && typeof allContentView.groupBy === 'object' && allContentView.groupBy.property) {
-				// Preserve existing groupBy if it exists
-				lines.push(`      property: ${allContentView.groupBy.property}`);
-				lines.push(`      direction: ${allContentView.groupBy.direction || 'ASC'}`);
-			} else {
-				// Default: group by folder
-				lines.push(`      property: file.folder`);
-				lines.push(`      direction: ASC`);
-			}
-			
-			// Preserve order if it exists
-			if (allContentView?.order) {
-				lines.push(`    order:`);
-				for (const orderItem of allContentView.order) {
-					lines.push(`      - ${orderItem}`);
-				}
-			} else {
-				lines.push(`    order:`);
-				lines.push(`      - file.name`);
-			}
-			
-			lines.push(`    sort:`);
-			if (defaultProps.dateProperty) {
-				lines.push(`      - property: note.${defaultProps.dateProperty}`);
-			} else {
-				lines.push(`      - property: file.ctime`);
-			}
-			lines.push(`        direction: DESC`);
-			lines.push(`    fallbackToEmbeds: ${allContentView?.fallbackToEmbeds || 'if-empty'}`);
-			lines.push(`    propertyDisplay1: file.name`);
-			lines.push(`    showTextPreview: ${allContentView?.showTextPreview !== false ? 'true' : 'false'}`);
-			lines.push(`    imageFormat: cover`);
-			lines.push(`    showDate: true`);
-			lines.push(`    showDraftStatus: ${defaultProps.draftProperty ? 'true' : (allContentView?.showDraftStatus ? 'true' : 'false')}`);
-			lines.push(`    propertyLabels: above`);
-			// Handle blank title/date properties
-			if (defaultProps.titleProperty) {
-				lines.push(`    titleProperty: note.${defaultProps.titleProperty}`);
-			} else {
-				lines.push(`    titleProperty: file.name`);
-			}
-			if (defaultProps.dateProperty) {
-				lines.push(`    dateProperty: note.${defaultProps.dateProperty}`);
-			} else {
-				lines.push(`    dateProperty: file.ctime`);
-			}
-			if (defaultProps.descriptionProperty) {
-				lines.push(`    descriptionProperty: note.${defaultProps.descriptionProperty}`);
-			}
-			if (defaultProps.imageProperty) {
-				lines.push(`    imageProperty: note.${defaultProps.imageProperty}`);
-			}
-			lines.push(`    propertyLayout12SideBySide: ${allContentView?.propertyLayout12SideBySide ? 'true' : 'false'}`);
-			lines.push(`    propertyLayout34SideBySide: ${allContentView?.propertyLayout34SideBySide ? 'true' : 'false'}`);
-			lines.push(`    showTags: ${defaultProps.tagsProperty ? 'true' : 'false'}`);
-			if (defaultProps.tagsProperty) {
-				lines.push(`    tagsProperty: note.${defaultProps.tagsProperty}`);
-			}
-			if (defaultProps.draftProperty) {
-				lines.push(`    draftStatusProperty: note.${defaultProps.draftProperty}`);
-			}
-			lines.push(`    customizeNewButton: true`);
-			if (defaultContentType) {
-				lines.push(`    newNoteLocation: "${defaultContentType.folder}"`);
-			} else {
-				lines.push(`    newNoteLocation: ""`);
-			}
-			lines.push(`    cardSize: ${allContentView?.cardSize || 250}`);
-			lines.push(`    imageAspectRatio: ${allContentView?.imageAspectRatio || 0.55}`);
-			lines.push(`    maxTagsToShow: ${allContentView?.maxTagsToShow || 2}`);
-			lines.push(`    dateIncludeTime: ${allContentView?.dateIncludeTime ? 'true' : 'false'}`);
-		}
-		
-		// THIRD: Add views for each enabled content type (excluding default, which is already first)
+		// SECOND: Add views for each enabled content type (excluding default, which is already first)
 		for (const contentType of contentTypes) {
 			if (!contentType.enabled) {
 				continue;
 			}
 
-			// Skip "All Content" view - it's already handled above
+			// Skip "All Content" view - don't process it
 			if (contentType.name === 'All Content') {
 				continue;
 			}
@@ -410,22 +324,106 @@ export class BasesCMSConfigurator {
 			lines.push(`    propertyLabels: above`);
 			// Sort by date property (newest to oldest)
 			lines.push(`    sort:`);
-			if (props.dateProperty) {
-				lines.push(`      - property: note.${props.dateProperty}`);
-			} else {
-				lines.push(`      - property: file.ctime`);
-			}
+			lines.push(`      - property: ${props.dateProperty ? `note.${props.dateProperty}` : 'file.ctime'}`);
 			lines.push(`        direction: DESC`);
 		}
 
-		// Set default view (first view is default)
-		// The "All Content" view should be first, so it's already the default
+		// THIRD: Preserve other existing views (excluding "All Content", "Guide", and content type views)
+		for (const view of otherViews) {
+			lines.push(...this.serializeView(view));
+		}
+
+		// FOURTH: Add "Guide" view last (if it exists)
+		if (guideView) {
+			lines.push(...this.serializeView(guideView));
+		}
 		
 		return lines.join('\n');
 	}
 
 	private capitalizeFirst(str: string): string {
 		return str.charAt(0).toUpperCase() + str.slice(1);
+	}
+
+	/**
+	 * Serialize a view object to YAML lines (with proper indentation)
+	 */
+	private serializeView(view: any): string[] {
+		const viewLines: string[] = [];
+		viewLines.push('  - type: bases-cms');
+		viewLines.push(`    name: ${view.name}`);
+		
+		if (view.filters) {
+			viewLines.push('    filters:');
+			if (view.filters.and) {
+				viewLines.push('      and:');
+				for (const filter of view.filters.and) {
+					if (typeof filter === 'string') {
+						viewLines.push(`        - ${filter}`);
+					} else if (typeof filter === 'object') {
+						// Handle object filters like { "file.folder.startsWith": "posts" }
+						for (const [key, value] of Object.entries(filter)) {
+							viewLines.push(`        - ${key}: ${typeof value === 'string' ? `"${value}"` : value}`);
+						}
+					}
+				}
+			}
+		}
+		
+		if (view.groupBy) {
+			viewLines.push('    groupBy:');
+			if (typeof view.groupBy === 'object') {
+				if (view.groupBy.property) viewLines.push(`      property: ${view.groupBy.property}`);
+				if (view.groupBy.direction) viewLines.push(`      direction: ${view.groupBy.direction}`);
+			}
+		}
+		
+		if (view.order) {
+			viewLines.push('    order:');
+			for (const orderItem of view.order) {
+				viewLines.push(`      - ${orderItem}`);
+			}
+		}
+		
+		if (view.sort) {
+			viewLines.push('    sort:');
+			for (const sortItem of view.sort) {
+				if (typeof sortItem === 'object' && sortItem.property) {
+					viewLines.push(`      - property: ${sortItem.property}`);
+					viewLines.push(`        direction: ${sortItem.direction || 'ASC'}`);
+				}
+			}
+		}
+		
+		// Add all other properties - preserve ALL properties from the original view
+		// This ensures we don't lose any settings like hideQuickEditIcon
+		// Skip properties that are already handled above (type, name, filters, groupBy, order, sort)
+		const skipProps = ['type', 'name', 'filters', 'groupBy', 'order', 'sort'];
+		
+		// Serialize all remaining properties from the view
+		for (const prop of Object.keys(view)) {
+			if (skipProps.includes(prop) || view[prop] === undefined) {
+				continue;
+			}
+			
+			const value = view[prop];
+			if (typeof value === 'boolean') {
+				viewLines.push(`    ${prop}: ${value}`);
+			} else if (typeof value === 'number') {
+				viewLines.push(`    ${prop}: ${value}`);
+			} else if (typeof value === 'string') {
+				// For properties that are note/file references, don't quote them
+				if (prop.includes('Property') && (value.startsWith('note.') || value.startsWith('file.'))) {
+					viewLines.push(`    ${prop}: ${value}`);
+				} else if (prop === 'newNoteLocation') {
+					viewLines.push(`    ${prop}: ${value}`);
+				} else {
+					viewLines.push(`    ${prop}: "${value}"`);
+				}
+			}
+		}
+		
+		return viewLines;
 	}
 }
 

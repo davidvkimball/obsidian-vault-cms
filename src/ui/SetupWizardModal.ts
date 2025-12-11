@@ -103,6 +103,9 @@ export class SetupWizardModal extends Modal {
 		}
 
 		const StepClass = this.steps[this.currentStepIndex];
+		const stepName = StepClass.name || 'Unknown';
+		console.log(`SetupWizardModal: Displaying step ${this.currentStepIndex + 1}/${this.steps.length}: ${stepName}`);
+		
 		this.currentStepInstance = new StepClass(
 			this.app,
 			contentEl,
@@ -152,7 +155,8 @@ export class SetupWizardModal extends Modal {
 			});
 			skipButton.style.opacity = '0.6';
 			skipButton.addEventListener('click', async () => {
-				// Skip without saving current step changes
+				// Skip without saving current step changes to disk
+				// State changes in memory are preserved, but nothing is written to data.json files
 				await this.nextStep();
 			});
 		} else {

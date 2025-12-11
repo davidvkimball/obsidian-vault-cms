@@ -24,10 +24,12 @@ export class DefaultContentTypeStep extends BaseWizardStep {
 			return;
 		}
 
-		// Ensure defaultContentTypeId is set to first enabled type if not set
-		if (!this.state.defaultContentTypeId && enabledTypes.length > 0) {
+		// Always ensure defaultContentTypeId is set to first enabled type
+		if (!this.state.defaultContentTypeId || enabledTypes.findIndex(ct => ct.id === this.state.defaultContentTypeId) === -1) {
 			this.state.defaultContentTypeId = enabledTypes[0].id;
 		}
+
+		const selectedValue = this.state.defaultContentTypeId;
 
 		new Setting(containerEl)
 			.setName('Default Content Type')
@@ -36,7 +38,8 @@ export class DefaultContentTypeStep extends BaseWizardStep {
 				enabledTypes.forEach(ct => {
 					dropdown.addOption(ct.id, ct.name);
 				});
-				dropdown.setValue(this.state.defaultContentTypeId || enabledTypes[0]?.id || '');
+				// Set the value explicitly to ensure it's pre-populated
+				dropdown.setValue(selectedValue);
 				dropdown.onChange(value => {
 					this.state.defaultContentTypeId = value;
 				});

@@ -32,8 +32,16 @@ export class ProjectDetectionStep extends BaseWizardStep {
 			const result = await this.projectDetector.detectProject();
 			
 			if (result) {
-				// Initialize state with detected values
-				this.state.projectDetection = result;
+				// Convert absolute paths to relative paths (like browse button does)
+				const relativeProjectRoot = this.toRelativePath(result.projectRoot);
+				const relativeConfigFilePath = this.toRelativePath(result.configFilePath);
+				
+				// Initialize state with detected values (converted to relative paths)
+				this.state.projectDetection = {
+					projectRoot: relativeProjectRoot,
+					configFilePath: relativeConfigFilePath,
+					vaultLocation: result.vaultLocation
+				};
 				this.detected = true;
 			} else {
 				// No detection, show manual selection
@@ -86,7 +94,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 			// Config File picker (with browse button even when detected)
 			const configFileSetting = new Setting(containerEl)
 				.setName('Config File')
-				.setDesc('Select your Astro config file (astro.config.ts, astro.config.mjs, src/config.ts, etc.)');
+				.setDesc('Select your Astro config file (astro.config.mjs, astro.config.js, src/config.ts, etc.)');
 
 			// Display current selection
 			this.configFileDisplay = configFileSetting.descEl.createDiv({
@@ -160,7 +168,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 			// Config File picker
 			const configFileSetting = new Setting(containerEl)
 				.setName('Config File')
-				.setDesc('Select your Astro config file (astro.config.ts, astro.config.mjs, etc.)');
+				.setDesc('Select your Astro config file (astro.config.mjs, astro.config.js, src/config.ts, etc.)');
 
 			// Display current selection
 			this.configFileDisplay = configFileSetting.descEl.createDiv({
@@ -231,7 +239,12 @@ export class ProjectDetectionStep extends BaseWizardStep {
 			}
 
 			const vaultPath = this.getVaultPath();
-			const defaultPath = this.state.projectDetection?.projectRoot || vaultPath;
+			let defaultPath = this.state.projectDetection?.projectRoot || vaultPath;
+			
+			// Convert relative path to absolute if needed
+			if (defaultPath && !path.isAbsolute(defaultPath)) {
+				defaultPath = path.resolve(vaultPath, defaultPath);
+			}
 
 			const result = dialog.showOpenDialogSync({
 				title: 'Select Astro Project Root Folder',
@@ -292,7 +305,32 @@ export class ProjectDetectionStep extends BaseWizardStep {
 				throw new Error('Electron dialog API not available');
 			}
 
-			const startPath = defaultPath || this.getVaultPath();
+			const vaultPath = this.getVaultPath();
+			let startPath = defaultPath || vaultPath;
+			
+			// If we have a detected config file path, use its directory
+			if (!defaultPath && this.state.projectDetection?.configFilePath) {
+				const configPath = this.state.projectDetection.configFilePath;
+				if (path.isAbsolute(configPath)) {
+					startPath = path.dirname(configPath);
+				} else {
+					startPath = path.dirname(path.resolve(vaultPath, configPath));
+				}
+			} else if (defaultPath && !path.isAbsolute(defaultPath)) {
+				// Convert relative path to absolute if needed
+				startPath = path.resolve(vaultPath, defaultPath);
+				// If it's a file path, use its directory
+				if (path.extname(startPath)) {
+					startPath = path.dirname(startPath);
+				}
+			} else if (defaultPath && path.isAbsolute(defaultPath)) {
+				// If it's a file path, use its directory
+				if (path.extname(defaultPath)) {
+					startPath = path.dirname(defaultPath);
+				} else {
+					startPath = defaultPath;
+				}
+			}
 
 			const result = dialog.showOpenDialogSync({
 				title: 'Select Astro Config File',

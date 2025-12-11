@@ -13,7 +13,8 @@ export class AstroComposerConfigurator {
 		contentTypes: ContentTypeConfig[],
 		frontmatterProperties: { [contentTypeId: string]: FrontmatterProperties },
 		projectRoot: string,
-		configFilePath: string
+		configFilePath: string,
+		defaultContentTypeId?: string
 	): Promise<AstroComposerConfig> {
 		const config: AstroComposerConfig = {
 			customContentTypes: [],
@@ -50,30 +51,53 @@ export class AstroComposerConfigurator {
 		}
 
 		// Add all enabled content types to customContentTypes (new unified structure)
-		for (const contentType of contentTypes) {
-			if (contentType.enabled) {
-				const props = frontmatterProperties[contentType.id];
-				// Determine linkBasePath: use specified, or default to /folderName/
-				// If blank, default to /folderName/. If "/", use "/" for root.
-				let linkBasePath = contentType.linkBasePath;
-				if (linkBasePath === undefined || linkBasePath === '') {
-					// Default: use folder name
-					linkBasePath = `/${contentType.folder}/`;
-				}
-				// If user specified "/", keep it as "/" for root
-				
-				config.customContentTypes.push({
-					id: contentType.id,
-					name: contentType.name,
-					folder: contentType.folder,
-					// Use template from props if available, otherwise generate
-					template: props?.template || this.generateTemplate(props, contentType.name === 'Posts' || contentType.name === 'Pages'),
-					enabled: true,
-					linkBasePath: linkBasePath,
-					creationMode: contentType.fileOrganization,
-					indexFileName: contentType.indexFileName || 'index'
-				});
+		// Separate default content type from others to put it first
+		const defaultContentType = defaultContentTypeId ? contentTypes.find(ct => ct.id === defaultContentTypeId && ct.enabled) : null;
+		const otherContentTypes = contentTypes.filter(ct => ct.enabled && (!defaultContentTypeId || ct.id !== defaultContentTypeId));
+
+		// Add default content type first if it exists
+		if (defaultContentType) {
+			const props = frontmatterProperties[defaultContentType.id];
+			let linkBasePath = defaultContentType.linkBasePath;
+			if (linkBasePath === undefined || linkBasePath === '') {
+				linkBasePath = `/${defaultContentType.folder}/`;
 			}
+			
+			config.customContentTypes.push({
+				id: defaultContentType.id,
+				name: defaultContentType.name,
+				folder: defaultContentType.folder,
+				template: props?.template || this.generateTemplate(props, defaultContentType.name === 'Posts' || defaultContentType.name === 'Pages'),
+				enabled: true,
+				linkBasePath: linkBasePath,
+				creationMode: defaultContentType.fileOrganization,
+				indexFileName: defaultContentType.indexFileName || 'index'
+			});
+		}
+
+		// Add other content types
+		for (const contentType of otherContentTypes) {
+			const props = frontmatterProperties[contentType.id];
+			// Determine linkBasePath: use specified, or default to /folderName/
+			// If blank, default to /folderName/. If "/", use "/" for root.
+			let linkBasePath = contentType.linkBasePath;
+			if (linkBasePath === undefined || linkBasePath === '') {
+				// Default: use folder name
+				linkBasePath = `/${contentType.folder}/`;
+			}
+			// If user specified "/", keep it as "/" for root
+			
+			config.customContentTypes.push({
+				id: contentType.id,
+				name: contentType.name,
+				folder: contentType.folder,
+				// Use template from props if available, otherwise generate
+				template: props?.template || this.generateTemplate(props, contentType.name === 'Posts' || contentType.name === 'Pages'),
+				enabled: true,
+				linkBasePath: linkBasePath,
+				creationMode: contentType.fileOrganization,
+				indexFileName: contentType.indexFileName || 'index'
+			});
 		}
 
 		return config;

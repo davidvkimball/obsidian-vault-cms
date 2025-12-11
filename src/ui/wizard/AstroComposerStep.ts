@@ -34,10 +34,17 @@ export class AstroComposerStep extends BaseWizardStep {
 			}
 		}
 
-		if (this.state.projectDetection?.configFilePath) {
-			containerEl.createEl('p', { 
-				text: `Config file: ${this.state.projectDetection.configFilePath}` 
-			});
+		if (this.state.projectDetection) {
+			if (this.state.projectDetection.projectRoot) {
+				containerEl.createEl('p', { 
+					text: `Project root: ${this.state.projectDetection.projectRoot}` 
+				});
+			}
+			if (this.state.projectDetection.configFilePath) {
+				containerEl.createEl('p', { 
+					text: `Config file: ${this.state.projectDetection.configFilePath}` 
+				});
+			}
 		}
 	}
 

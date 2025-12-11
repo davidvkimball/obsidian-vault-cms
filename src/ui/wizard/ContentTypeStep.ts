@@ -1,8 +1,9 @@
-import { App, Setting, Notice, TFolder, AbstractInputSuggest } from 'obsidian';
+import { App, Setting, Notice, TFolder, TFile, AbstractInputSuggest } from 'obsidian';
 import * as path from 'path';
 import { BaseWizardStep } from './BaseWizardStep';
 import { WizardState, ContentTypeConfig } from '../../types';
 import { ContentTypeDetector } from '../../utils/ContentTypeDetector';
+import { AstroComposerConfigurator } from '../../utils/AstroComposerConfig';
 
 // Folder name suggester for attachment folder
 class FolderNameSuggest extends AbstractInputSuggest<string> {
@@ -73,11 +74,126 @@ class FolderNameSuggest extends AbstractInputSuggest<string> {
 
 export class ContentTypeStep extends BaseWizardStep {
 	private contentTypeDetector: ContentTypeDetector;
+	private astroComposerConfigurator: AstroComposerConfigurator;
 	private detected: boolean = false;
 
 	constructor(app: App, containerEl: HTMLElement, state: WizardState, onNext: () => void, onBack: () => void, onCancel: () => void) {
 		super(app, containerEl, state, onNext, onBack, onCancel);
 		this.contentTypeDetector = new ContentTypeDetector(app);
+		this.astroComposerConfigurator = new AstroComposerConfigurator(app);
+	}
+
+	/**
+	 * Import content types from Astro Composer data.json if it exists
+	 * First tries plugin API, then falls back to file reading
+	 */
+	private async importFromAstroComposer(): Promise<ContentTypeConfig[]> {
+		try {
+			// First try to use plugin API (like how we save)
+			const plugins = (this.app as any).plugins;
+			console.log('ContentTypeStep: Checking plugins API:', !!plugins);
+			
+			if (plugins) {
+				const astroComposerPlugin = plugins.plugins?.['astro-composer'];
+				console.log('ContentTypeStep: Astro Composer plugin found:', !!astroComposerPlugin);
+				
+				if (astroComposerPlugin) {
+					console.log('ContentTypeStep: Plugin settings available:', !!astroComposerPlugin.settings);
+					console.log('ContentTypeStep: Plugin settings keys:', astroComposerPlugin.settings ? Object.keys(astroComposerPlugin.settings) : 'none');
+					
+					if (astroComposerPlugin.settings) {
+						const contentTypes = astroComposerPlugin.settings.contentTypes;
+						console.log('ContentTypeStep: contentTypes from plugin:', contentTypes ? `Array with ${contentTypes.length} items` : 'not found');
+						
+						if (Array.isArray(contentTypes) && contentTypes.length > 0) {
+							console.log('ContentTypeStep: Importing', contentTypes.length, 'content types from Astro Composer (via plugin API)');
+							
+							// Convert Astro Composer content types to our format
+							const importedTypes: ContentTypeConfig[] = contentTypes.map((ct: any) => ({
+								id: ct.id || `content-type-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+								name: ct.name || this.capitalizeFirst(ct.folder),
+								folder: ct.folder,
+								fileOrganization: ct.creationMode === 'folder' ? 'folder' : 'file',
+								indexFileName: ct.indexFileName || 'index',
+								linkBasePath: ct.linkBasePath,
+								enabled: ct.enabled !== false // Default to enabled if not specified
+							}));
+
+							return importedTypes;
+						}
+					}
+				}
+			}
+			
+			// Fallback to file reading
+			const pluginDataPath = '.obsidian/plugins/astro-composer/data.json';
+			console.log('ContentTypeStep: Trying to read file:', pluginDataPath);
+			const dataFile = this.app.vault.getAbstractFileByPath(pluginDataPath);
+			console.log('ContentTypeStep: File found:', !!dataFile, dataFile ? `Type: ${dataFile.constructor.name}` : 'not found');
+			
+			if (!dataFile || !(dataFile instanceof TFile)) {
+				// Try alternative paths
+				const altPaths = [
+					'.obsidian/plugins/astro-composer/data.json',
+					'obsidian/plugins/astro-composer/data.json',
+					'.obsidian/plugins/astro-composer/data.json'
+				];
+				
+				for (const altPath of altPaths) {
+					const altFile = this.app.vault.getAbstractFileByPath(altPath);
+					if (altFile && altFile instanceof TFile) {
+						console.log('ContentTypeStep: Found file at alternative path:', altPath);
+						const content = await this.app.vault.read(altFile);
+						const data = JSON.parse(content);
+						
+						if (data.contentTypes && Array.isArray(data.contentTypes)) {
+							console.log('ContentTypeStep: Importing', data.contentTypes.length, 'content types from Astro Composer (via file at', altPath, ')');
+							
+							const importedTypes: ContentTypeConfig[] = data.contentTypes.map((ct: any) => ({
+								id: ct.id || `content-type-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+								name: ct.name || this.capitalizeFirst(ct.folder),
+								folder: ct.folder,
+								fileOrganization: ct.creationMode === 'folder' ? 'folder' : 'file',
+								indexFileName: ct.indexFileName || 'index',
+								linkBasePath: ct.linkBasePath,
+								enabled: ct.enabled !== false
+							}));
+							
+							return importedTypes;
+						}
+					}
+				}
+				
+				console.log('ContentTypeStep: No Astro Composer data.json found, will scan folders');
+				return [];
+			}
+
+			const content = await this.app.vault.read(dataFile);
+			const data = JSON.parse(content);
+			
+			if (!data.contentTypes || !Array.isArray(data.contentTypes)) {
+				console.log('ContentTypeStep: Astro Composer data.json has no contentTypes array. Data keys:', Object.keys(data));
+				return [];
+			}
+
+			console.log('ContentTypeStep: Importing', data.contentTypes.length, 'content types from Astro Composer (via file)');
+			
+			// Convert Astro Composer content types to our format
+			const importedTypes: ContentTypeConfig[] = data.contentTypes.map((ct: any) => ({
+				id: ct.id || `content-type-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+				name: ct.name || this.capitalizeFirst(ct.folder),
+				folder: ct.folder,
+				fileOrganization: ct.creationMode === 'folder' ? 'folder' : 'file',
+				indexFileName: ct.indexFileName || 'index',
+				linkBasePath: ct.linkBasePath,
+				enabled: ct.enabled !== false // Default to enabled if not specified
+			}));
+
+			return importedTypes;
+		} catch (error) {
+			console.error('ContentTypeStep: Failed to import from Astro Composer:', error);
+			return [];
+		}
 	}
 
 	async display(): Promise<void> {
@@ -101,8 +217,21 @@ export class ContentTypeStep extends BaseWizardStep {
 		});
 
 		if (!this.detected) {
-			const detectedTypes = await this.contentTypeDetector.detectContentTypes();
-			this.state.contentTypes = detectedTypes;
+			// First, try to import from Astro Composer if it exists
+			const importedTypes = await this.importFromAstroComposer();
+			
+			// Then scan for new folders that aren't already mapped
+			const scannedTypes = await this.contentTypeDetector.detectContentTypes();
+			
+			// Merge: use imported types, then add any scanned types that don't exist yet
+			const existingFolders = new Set(importedTypes.map(ct => ct.folder));
+			const newTypes = scannedTypes.filter(ct => !existingFolders.has(ct.folder));
+			
+			// Combine and sort alphabetically by name
+			const allTypes = [...importedTypes, ...newTypes];
+			allTypes.sort((a, b) => a.name.localeCompare(b.name));
+			
+			this.state.contentTypes = allTypes;
 			this.detected = true;
 		}
 

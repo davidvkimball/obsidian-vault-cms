@@ -77,7 +77,7 @@ export class FrontmatterAnalyzer {
 		}
 	}
 
-	autoDetectDateProperty(frontmatter: { [key: string]: any }): string {
+	autoDetectDateProperty(frontmatter: { [key: string]: any }): string | null {
 		const dateProperties = ['date', 'pubDate', 'publishedDate', 'publishDate'];
 		
 		for (const prop of dateProperties) {
@@ -86,7 +86,7 @@ export class FrontmatterAnalyzer {
 			}
 		}
 		
-		return 'date'; // Default
+		return null; // Return null when not found, don't default to 'date'
 	}
 
 	autoDetectDescriptionProperty(frontmatter: { [key: string]: any }): string | null {

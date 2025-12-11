@@ -27,8 +27,17 @@ export class BasesCMSConfigStep extends BaseWizardStep {
 		for (const contentType of enabledTypes) {
 			const props = this.state.frontmatterProperties[contentType.id];
 			if (props) {
+				const properties: string[] = [];
+				if (props.titleProperty) properties.push(`title: ${props.titleProperty}`);
+				if (props.dateProperty) properties.push(`date: ${props.dateProperty}`);
+				if (props.descriptionProperty) properties.push(`description: ${props.descriptionProperty}`);
+				if (props.tagsProperty) properties.push(`tags: ${props.tagsProperty}`);
+				if (props.imageProperty) properties.push(`image: ${props.imageProperty}`);
+				if (props.draftProperty) properties.push(`draft: ${props.draftProperty}`);
+				
+				const propertiesText = properties.length > 0 ? properties.join(', ') : 'default properties';
 				list.createEl('li', { 
-					text: `${contentType.name}: ${props.titleProperty}, ${props.dateProperty}${props.descriptionProperty ? `, ${props.descriptionProperty}` : ''}` 
+					text: `${contentType.name}: ${propertiesText}` 
 				});
 			}
 		}
