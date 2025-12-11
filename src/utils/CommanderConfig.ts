@@ -160,10 +160,11 @@ export class CommanderConfigurator {
 				try {
 					await app.vault.createFolder(pluginDir);
 				} catch (error: any) {
-					// Ignore "already exists" errors
-					if (!error.message || (!error.message.includes('already exists') && !error.message.includes('File already exists'))) {
+					// Ignore "already exists" or "Folder already exists" errors
+					if (error.message && !error.message.includes('already exists') && !error.message.includes('File already exists') && !error.message.includes('Folder already exists')) {
 						throw error;
 					}
+					// Folder exists, continue
 				}
 			}
 			// Create the file

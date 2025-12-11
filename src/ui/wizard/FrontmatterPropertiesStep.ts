@@ -456,7 +456,8 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 				cls: 'template-editor',
 				attr: {
 					rows: '10',
-					style: 'width: 100%; font-family: monospace;'
+					style: 'width: 100%; font-family: monospace;',
+					spellcheck: 'false'
 				}
 			});
 			templateTextArea.value = props.template || '';

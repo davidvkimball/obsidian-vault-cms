@@ -87,8 +87,8 @@ export class OptionalPluginsStep extends BaseWizardStep {
 			for (const plugin of essentialPlugins) {
 				const pluginInstance = plugins?.plugins?.[plugin.id];
 				const isInstalled = !!pluginInstance;
-				// Use enabledPlugins Set to check if plugin is enabled (more reliable than plugin.enabled)
-				const isCurrentlyEnabled = plugins?.enabledPlugins?.has?.(plugin.id) ?? false;
+				// Check if plugin is enabled - use enabledPlugins Set (more reliable)
+				const isCurrentlyEnabled = plugins?.enabledPlugins?.has?.(plugin.id) ?? pluginInstance?.enabled ?? false;
 				
 				console.log(`Plugin ${plugin.id}: installed=${isInstalled}, enabled=${isCurrentlyEnabled}`);
 				
@@ -134,8 +134,8 @@ export class OptionalPluginsStep extends BaseWizardStep {
 			for (const plugin of niceToHavePlugins) {
 				const pluginInstance = plugins?.plugins?.[plugin.id];
 				const isInstalled = !!pluginInstance;
-				// Use enabledPlugins Set to check if plugin is enabled (more reliable than plugin.enabled)
-				const isCurrentlyEnabled = plugins?.enabledPlugins?.has?.(plugin.id) ?? false;
+				// Check if plugin is enabled - use enabledPlugins Set (more reliable)
+				const isCurrentlyEnabled = plugins?.enabledPlugins?.has?.(plugin.id) ?? pluginInstance?.enabled ?? false;
 				
 				console.log(`Plugin ${plugin.id}: installed=${isInstalled}, enabled=${isCurrentlyEnabled}`);
 				
