@@ -1,18 +1,22 @@
 import { App, TFile } from 'obsidian';
-import { BasesCMSView, ContentTypeConfig, FrontmatterProperties } from '../types';
+import { BasesCMSView, ContentTypeConfig, FrontmatterProperties, ProjectDetectionResult } from '../types';
 import * as yaml from 'js-yaml';
+import { PathResolver } from './PathResolver';
 
 export class BasesCMSConfigurator {
 	private app: App;
+	private pathResolver: PathResolver;
 
 	constructor(app: App) {
 		this.app = app;
+		this.pathResolver = new PathResolver(app);
 	}
 
 	async createOrUpdateBaseFile(
 		contentTypes: ContentTypeConfig[],
 		frontmatterProperties: { [contentTypeId: string]: FrontmatterProperties },
-		defaultContentTypeId?: string
+		defaultContentTypeId?: string,
+		projectDetection?: ProjectDetectionResult
 	): Promise<void> {
 		const baseFilePath = 'bases/Home.base';
 		
@@ -47,7 +51,7 @@ export class BasesCMSConfigurator {
 		console.log('BasesCMSConfig: Generating base content for', contentTypes.length, 'content types');
 		console.log('BasesCMSConfig: Enabled content types:', enabledTypes.map(ct => ct.name));
 		
-		const baseContent = this.generateBaseContent(contentTypes, frontmatterProperties, defaultContentTypeId, existingBase);
+		const baseContent = this.generateBaseContent(contentTypes, frontmatterProperties, defaultContentTypeId, existingBase, projectDetection);
 		
 		// Count views in generated content to verify they're being created
 		const viewMatches = baseContent.match(/^\s*-\s+type:\s+bases-cms/gm);
@@ -116,7 +120,8 @@ export class BasesCMSConfigurator {
 		contentTypes: ContentTypeConfig[],
 		frontmatterProperties: { [contentTypeId: string]: FrontmatterProperties },
 		defaultContentTypeId: string | undefined,
-		existingBase: any
+		existingBase: any,
+		projectDetection?: ProjectDetectionResult
 	): string {
 		// Bases uses a specific syntax - we need to generate it manually to match the format
 		const lines: string[] = [];
@@ -218,11 +223,12 @@ export class BasesCMSConfigurator {
 		if (defaultContentType) {
 			const defaultViewProps = frontmatterProperties[defaultContentType.id];
 			if (defaultViewProps) {
+				const folderPath = this.pathResolver.getBasesCMSFolderPath(defaultContentType.folder, projectDetection);
 				lines.push('  - type: bases-cms');
 				lines.push(`    name: ${defaultContentType.name}`);
 				lines.push('    filters:');
 				lines.push('      and:');
-				lines.push(`        - file.folder.startsWith("${defaultContentType.folder}")`);
+				lines.push(`        - file.folder.startsWith("${folderPath}")`);
 				lines.push(`    imageFormat: cover`);
 				// Handle blank title/date properties
 				if (defaultViewProps.titleProperty) {
@@ -251,7 +257,7 @@ export class BasesCMSConfigurator {
 					lines.push(`    draftStatusProperty: note.${defaultViewProps.draftProperty}`);
 				}
 				lines.push(`    customizeNewButton: true`);
-				lines.push(`    newNoteLocation: "${defaultContentType.folder}"`);
+				lines.push(`    newNoteLocation: "${folderPath}"`);
 				lines.push(`    fallbackToEmbeds: if-empty`);
 				lines.push(`    propertyDisplay1: file.name`);
 				lines.push(`    showTextPreview: true`);
@@ -284,11 +290,12 @@ export class BasesCMSConfigurator {
 				continue;
 			}
 
+			const folderPath = this.pathResolver.getBasesCMSFolderPath(contentType.folder, projectDetection);
 			lines.push('  - type: bases-cms');
 			lines.push(`    name: ${contentType.name}`);
 			lines.push('    filters:');
 			lines.push('      and:');
-			lines.push(`        - file.folder.startsWith("${contentType.folder}")`);
+			lines.push(`        - file.folder.startsWith("${folderPath}")`);
 			lines.push(`    imageFormat: cover`);
 			// Handle blank title/date properties
 			if (props.titleProperty) {
@@ -317,7 +324,7 @@ export class BasesCMSConfigurator {
 				lines.push(`    draftStatusProperty: note.${props.draftProperty}`);
 			}
 			lines.push(`    customizeNewButton: true`);
-			lines.push(`    newNoteLocation: "${contentType.folder}"`);
+			lines.push(`    newNoteLocation: "${folderPath}"`);
 			lines.push(`    fallbackToEmbeds: if-empty`);
 			lines.push(`    propertyDisplay1: file.name`);
 			lines.push(`    showTextPreview: true`);

@@ -217,21 +217,67 @@ export class ContentTypeStep extends BaseWizardStep {
 		});
 
 		if (!this.detected) {
+			// Get saved content types from state (preserves enabled state from previous wizard runs)
+			const savedContentTypes = this.state.contentTypes || [];
+			const savedContentTypesMap = new Map(savedContentTypes.map(ct => [ct.folder, ct]));
+			
 			// First, try to import from Astro Composer if it exists
 			const importedTypes = await this.importFromAstroComposer();
 			
 			// Then scan for new folders that aren't already mapped
-			const scannedTypes = await this.contentTypeDetector.detectContentTypes();
+			// Pass project detection info so it can find src/content directory correctly
+			const scannedTypes = await this.contentTypeDetector.detectContentTypes(this.state.projectDetection);
 			
 			// Merge: use imported types, then add any scanned types that don't exist yet
 			const existingFolders = new Set(importedTypes.map(ct => ct.folder));
 			const newTypes = scannedTypes.filter(ct => !existingFolders.has(ct.folder));
 			
-			// Combine and sort alphabetically by name
-			const allTypes = [...importedTypes, ...newTypes];
-			allTypes.sort((a, b) => a.name.localeCompare(b.name));
+			// Combine imported and scanned types
+			const allDetectedTypes = [...importedTypes, ...newTypes];
+			const detectedTypesMap = new Map(allDetectedTypes.map(ct => [ct.folder, ct]));
 			
-			this.state.contentTypes = allTypes;
+			// Merge with saved content types, preserving enabled state from saved settings
+			const mergedTypes: ContentTypeConfig[] = [];
+			const processedFolders = new Set<string>();
+			
+			// Process all folders (both saved and detected)
+			const allFolders = new Set([
+				...savedContentTypes.map(ct => ct.folder),
+				...allDetectedTypes.map(ct => ct.folder)
+			]);
+			
+			for (const folder of allFolders) {
+				if (processedFolders.has(folder)) continue;
+				
+				const savedType = savedContentTypesMap.get(folder);
+				const detectedType = detectedTypesMap.get(folder);
+				
+				if (savedType) {
+					// Use saved type to preserve enabled state and all other settings
+					// If there's also a detected type, merge in any new info while preserving saved settings
+					if (detectedType) {
+						mergedTypes.push({
+							...savedType, // Preserve all saved settings (enabled, linkBasePath, etc.)
+							// Only update folder/name if they're different (shouldn't happen, but be safe)
+							folder: savedType.folder,
+							name: savedType.name || detectedType.name
+						});
+					} else {
+						// Saved type not detected - keep it as is (user might have deleted the folder)
+						mergedTypes.push(savedType);
+					}
+				} else if (detectedType) {
+					// New type not in saved settings - add it (default to enabled for new types)
+					mergedTypes.push(detectedType);
+				}
+				
+				processedFolders.add(folder);
+			}
+			
+			// Sort alphabetically by name
+			mergedTypes.sort((a, b) => a.name.localeCompare(b.name));
+			
+			this.state.contentTypes = mergedTypes;
 			this.detected = true;
 		}
 

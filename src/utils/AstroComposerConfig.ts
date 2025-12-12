@@ -1,12 +1,17 @@
 import { App, TFile } from 'obsidian';
-import { AstroComposerConfig, ContentTypeConfig, FrontmatterProperties } from '../types';
+import { AstroComposerConfig, ContentTypeConfig, FrontmatterProperties, ProjectDetectionResult } from '../types';
 import * as path from 'path';
+import { PathResolver } from './PathResolver';
 
 export class AstroComposerConfigurator {
 	private app: App;
+	private frontmatterProperties?: { [contentTypeId: string]: FrontmatterProperties };
+	private contentTypes?: ContentTypeConfig[];
+	private pathResolver: PathResolver;
 
 	constructor(app: App) {
 		this.app = app;
+		this.pathResolver = new PathResolver(app);
 	}
 
 	async configureAstroComposer(
@@ -14,8 +19,13 @@ export class AstroComposerConfigurator {
 		frontmatterProperties: { [contentTypeId: string]: FrontmatterProperties },
 		projectRoot: string,
 		configFilePath: string,
-		defaultContentTypeId?: string
+		defaultContentTypeId?: string,
+		projectDetection?: ProjectDetectionResult
 	): Promise<AstroComposerConfig> {
+		// Store frontmatterProperties and contentTypes for use in saveConfig
+		this.frontmatterProperties = frontmatterProperties;
+		this.contentTypes = contentTypes;
+		
 		const config: AstroComposerConfig = {
 			customContentTypes: [],
 			defaultTemplate: '',
@@ -33,7 +43,7 @@ export class AstroComposerConfigurator {
 
 		if (postsType) {
 			const props = frontmatterProperties[postsType.id];
-			config.postsFolder = postsType.folder;
+			config.postsFolder = this.pathResolver.getAstroComposerFolderPath(postsType.folder, projectDetection);
 			config.postsCreationMode = postsType.fileOrganization;
 			config.postsIndexFileName = postsType.indexFileName || 'index';
 			// Use template from props if available, otherwise generate
@@ -43,7 +53,7 @@ export class AstroComposerConfigurator {
 		if (pagesType) {
 			const props = frontmatterProperties[pagesType.id];
 			config.enablePages = true;
-			config.pagesFolder = pagesType.folder;
+			config.pagesFolder = this.pathResolver.getAstroComposerFolderPath(pagesType.folder, projectDetection);
 			config.pagesCreationMode = pagesType.fileOrganization;
 			config.pagesIndexFileName = pagesType.indexFileName || 'index';
 			// Use template from props if available, otherwise generate
@@ -63,10 +73,11 @@ export class AstroComposerConfigurator {
 				linkBasePath = `/${defaultContentType.folder}/`;
 			}
 			
+			const folderPath = this.pathResolver.getAstroComposerFolderPath(defaultContentType.folder, projectDetection);
 			config.customContentTypes.push({
 				id: defaultContentType.id,
 				name: defaultContentType.name,
-				folder: defaultContentType.folder,
+				folder: folderPath,
 				template: props?.template || this.generateTemplate(props, defaultContentType.name === 'Posts' || defaultContentType.name === 'Pages'),
 				enabled: true,
 				linkBasePath: linkBasePath,
@@ -87,10 +98,11 @@ export class AstroComposerConfigurator {
 			}
 			// If user specified "/", keep it as "/" for root
 			
+			const folderPath = this.pathResolver.getAstroComposerFolderPath(contentType.folder, projectDetection);
 			config.customContentTypes.push({
 				id: contentType.id,
 				name: contentType.name,
-				folder: contentType.folder,
+				folder: folderPath,
 				// Use template from props if available, otherwise generate
 				template: props?.template || this.generateTemplate(props, contentType.name === 'Posts' || contentType.name === 'Pages'),
 				enabled: true,
@@ -230,6 +242,14 @@ export class AstroComposerConfigurator {
 			
 			// Merge/update contentTypes array - match by name AND folder to find existing entries
 			for (const newType of config.customContentTypes) {
+				// Find the corresponding frontmatter properties to check draft status
+				const contentType = this.contentTypes?.find(ct => ct.id === newType.id);
+				const props = contentType && this.frontmatterProperties ? this.frontmatterProperties[contentType.id] : undefined;
+				
+				// Determine if underscore prefix should be enabled
+				// Enable if hasDraftStatus is true but draftProperty is blank/undefined
+				const shouldEnableUnderscorePrefix = props?.hasDraftStatus === true && !props?.draftProperty;
+				
 				// Find existing entry by name AND folder (not just id, since ids might differ)
 				const existingIndex = pluginSettings.contentTypes.findIndex((ct: any) => 
 					ct.name === newType.name && ct.folder === newType.folder
@@ -244,7 +264,8 @@ export class AstroComposerConfigurator {
 						template: newType.template,
 						enabled: newType.enabled,
 						creationMode: newType.creationMode,
-						indexFileName: newType.indexFileName
+						indexFileName: newType.indexFileName,
+						enableUnderscorePrefix: shouldEnableUnderscorePrefix
 					};
 				} else {
 					// Add new entry with all required properties
@@ -258,7 +279,7 @@ export class AstroComposerConfigurator {
 						creationMode: newType.creationMode,
 						indexFileName: newType.indexFileName,
 						ignoreSubfolders: false,
-						enableUnderscorePrefix: false
+						enableUnderscorePrefix: shouldEnableUnderscorePrefix
 					});
 				}
 			}
@@ -321,6 +342,14 @@ export class AstroComposerConfigurator {
 		
 		// Merge/update contentTypes array - match by name AND folder to find existing entries
 		for (const newType of config.customContentTypes) {
+			// Find the corresponding frontmatter properties to check draft status
+			const contentType = this.contentTypes?.find(ct => ct.id === newType.id);
+			const props = contentType && this.frontmatterProperties ? this.frontmatterProperties[contentType.id] : undefined;
+			
+			// Determine if underscore prefix should be enabled
+			// Enable if hasDraftStatus is true but draftProperty is blank/undefined
+			const shouldEnableUnderscorePrefix = props?.hasDraftStatus === true && !props?.draftProperty;
+			
 			// Find existing entry by name AND folder (not just id, since ids might differ)
 			const existingIndex = existingData.contentTypes.findIndex((ct: any) => 
 				ct.name === newType.name && ct.folder === newType.folder
@@ -335,7 +364,8 @@ export class AstroComposerConfigurator {
 					template: newType.template,
 					enabled: newType.enabled,
 					creationMode: newType.creationMode,
-					indexFileName: newType.indexFileName
+					indexFileName: newType.indexFileName,
+					enableUnderscorePrefix: shouldEnableUnderscorePrefix
 				};
 			} else {
 				// Add new entry
@@ -349,7 +379,7 @@ export class AstroComposerConfigurator {
 					creationMode: newType.creationMode,
 					indexFileName: newType.indexFileName,
 					ignoreSubfolders: false,
-					enableUnderscorePrefix: false
+					enableUnderscorePrefix: shouldEnableUnderscorePrefix
 				});
 			}
 		}

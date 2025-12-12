@@ -1,6 +1,6 @@
 {
 	"name": "vault-cms",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"description": "Vault CMS plugin with setup wizard.",
 	"main": "main.js",
 	"scripts": {

@@ -93,7 +93,8 @@ export class FinalizeStep extends BaseWizardStep {
 			await this.basesCMSConfigurator.createOrUpdateBaseFile(
 				this.state.contentTypes,
 				this.state.frontmatterProperties,
-				this.state.defaultContentTypeId
+				this.state.defaultContentTypeId,
+				this.state.projectDetection
 			);
 			console.log('FinalizeStep: Bases CMS configuration complete');
 
@@ -104,7 +105,8 @@ export class FinalizeStep extends BaseWizardStep {
 					this.state.frontmatterProperties,
 					this.state.projectDetection.projectRoot,
 					this.state.projectDetection.configFilePath,
-					this.state.defaultContentTypeId
+					this.state.defaultContentTypeId,
+					this.state.projectDetection
 				);
 				this.state.astroComposerConfig = astroConfig;
 				await this.astroComposerConfigurator.saveConfig(astroConfig);
@@ -113,7 +115,8 @@ export class FinalizeStep extends BaseWizardStep {
 			// Configure SEO
 			const seoConfig = this.seoConfigurator.generateSEOConfig(
 				this.state.contentTypes,
-				this.state.frontmatterProperties
+				this.state.frontmatterProperties,
+				this.state.projectDetection
 			);
 			this.state.seoConfig = seoConfig;
 			await this.seoConfigurator.saveConfig(seoConfig);

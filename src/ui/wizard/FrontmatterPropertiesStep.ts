@@ -2,6 +2,7 @@ import { App, Setting } from 'obsidian';
 import { BaseWizardStep } from './BaseWizardStep';
 import { WizardState } from '../../types';
 import { FrontmatterAnalyzer } from '../../utils/FrontmatterAnalyzer';
+import { PathResolver } from '../../utils/PathResolver';
 
 export class FrontmatterPropertiesStep extends BaseWizardStep {
 	private frontmatterAnalyzer: FrontmatterAnalyzer;
@@ -38,7 +39,10 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 
 			// Find example file
 			if (!this.examples[contentType.id]) {
-				const example = await this.frontmatterAnalyzer.findExampleFile(contentType.folder);
+				// Get the correct folder path from vault root using PathResolver
+				const pathResolver = new PathResolver(this.app);
+				const folderPath = pathResolver.getFolderPathFromVaultRoot(contentType.folder, this.state.projectDetection);
+				const example = await this.frontmatterAnalyzer.findExampleFile(folderPath);
 				if (example) {
 					this.examples[contentType.id] = example;
 				}
@@ -87,6 +91,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 					tagsProperty: detectedTags || undefined,
 					draftProperty: detectedDraft?.property,
 					draftLogic: detectedDraft?.property === 'published' ? 'false-draft' : (detectedDraft ? 'true-draft' : undefined),
+					hasDraftStatus: !!detectedDraft?.property, // Track if draft status is enabled
 					imageProperty: detectedImage || undefined
 				};
 			}
@@ -233,9 +238,15 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 			let draftPropertySetting: Setting | null = null;
 			let draftLogicSetting: Setting | null = null;
 			
+			// Initialize hasDraftStatus if not set (for backwards compatibility)
+			if (props.hasDraftStatus === undefined) {
+				props.hasDraftStatus = !!props.draftProperty;
+			}
+			
 			draftSetting.addToggle(toggle => toggle
-				.setValue(!!props.draftProperty)
+				.setValue(props.hasDraftStatus ?? !!props.draftProperty)
 				.onChange(value => {
+					props.hasDraftStatus = value;
 					if (value && !props.draftProperty) {
 						const detectedDraft = example ? this.frontmatterAnalyzer.autoDetectDraftProperty(example.frontmatter) : null;
 						props.draftProperty = detectedDraft?.property || 'draft';
@@ -309,6 +320,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 					} else if (!value) {
 						props.draftProperty = undefined;
 						props.draftLogic = undefined;
+						props.hasDraftStatus = false;
 						// Hide fields
 						if (draftPropertySetting) {
 							draftPropertySetting.settingEl.remove();
@@ -321,7 +333,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 					}
 				}));
 
-			if (props.draftProperty) {
+			if (props.hasDraftStatus) {
 				draftPropertySetting = new Setting(contentTypeWrapper)
 					.setName('Draft Property')
 					.setDesc('The frontmatter property that contains draft status. Leave blank to use an underscore prefix instead.')

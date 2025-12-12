@@ -1,4 +1,4 @@
-import { App, TFile } from 'obsidian';
+import { App, TFile, TFolder } from 'obsidian';
 import { ExampleFrontmatter } from '../types';
 import * as yaml from 'js-yaml';
 
@@ -21,7 +21,24 @@ export class FrontmatterAnalyzer {
 		}
 		
 		// It's a folder, get files from it
-		const files = this.getMarkdownFiles(folder as any);
+		// First, try to find files in the immediate folder
+		let files = this.getMarkdownFiles(folder as any, false); // false = only immediate children
+		
+		// If no files found in immediate folder, search deeper (one level at a time)
+		if (files.length === 0 && folder instanceof TFolder) {
+			// Search one level deeper
+			files = this.getMarkdownFiles(folder as any, true, 1); // true = recursive, maxDepth = 1
+			
+			// If still no files, search two levels deeper
+			if (files.length === 0) {
+				files = this.getMarkdownFiles(folder as any, true, 2); // maxDepth = 2
+			}
+			
+			// If still no files, search all levels (unlimited depth)
+			if (files.length === 0) {
+				files = this.getMarkdownFiles(folder as any, true); // unlimited depth
+			}
+		}
 		
 		for (const file of files) {
 			const example = await this.parseFrontmatter(file);
@@ -33,17 +50,24 @@ export class FrontmatterAnalyzer {
 		return null;
 	}
 
-	private getMarkdownFiles(folder: any): TFile[] {
+	private getMarkdownFiles(folder: any, recursive: boolean = true, maxDepth?: number, currentDepth: number = 0): TFile[] {
 		const files: TFile[] = [];
 		
-		if (folder.children) {
-			for (const child of folder.children) {
-				if (child instanceof TFile && child.extension === 'md') {
-					files.push(child);
-				} else if (child.children) {
-					// Recursively search subfolders
-					files.push(...this.getMarkdownFiles(child));
-				}
+		if (!folder.children) {
+			return files;
+		}
+		
+		// Check if we've exceeded max depth
+		if (maxDepth !== undefined && currentDepth >= maxDepth) {
+			return files;
+		}
+		
+		for (const child of folder.children) {
+			if (child instanceof TFile && child.extension === 'md') {
+				files.push(child);
+			} else if (recursive && child instanceof TFolder && child.children) {
+				// Recursively search subfolders
+				files.push(...this.getMarkdownFiles(child, recursive, maxDepth, currentDepth + 1));
 			}
 		}
 		

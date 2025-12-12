@@ -15,6 +15,7 @@ export interface FrontmatterProperties {
 	tagsProperty?: string;
 	draftProperty?: string;
 	draftLogic?: 'true-draft' | 'false-draft'; // true-draft means true = draft, false-draft means false = draft. Blank draftProperty means underscore prefix
+	hasDraftStatus?: boolean; // Track if draft status is enabled (separate from draftProperty to allow blank property for underscore prefix)
 	imageProperty?: string; // Property for cover image
 	template?: string; // Template for Astro Composer
 }

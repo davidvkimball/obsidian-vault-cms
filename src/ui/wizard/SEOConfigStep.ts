@@ -1,6 +1,7 @@
 import { App, Setting } from 'obsidian';
 import { BaseWizardStep } from './BaseWizardStep';
 import { WizardState } from '../../types';
+import { PathResolver } from '../../utils/PathResolver';
 
 export class SEOConfigStep extends BaseWizardStep {
 	display(): void {
@@ -70,11 +71,26 @@ export class SEOConfigStep extends BaseWizardStep {
 			});
 		}
 
+		// Use saved scanDirectories if it exists, otherwise default to enabled content type folders
+		// Use PathResolver to get the correct folder paths (e.g., "content/docs" instead of "docs")
+		const pathResolver = new PathResolver(this.app);
+		const defaultScanDirs = this.state.contentTypes
+			.filter(ct => ct.enabled)
+			.map(ct => pathResolver.getFolderPathFromVaultRoot(ct.folder, this.state.projectDetection))
+			.join(',');
+		const savedScanDirs = this.state.seoConfig?.scanDirectories;
+		const initialScanDirs = savedScanDirs && savedScanDirs.trim() ? savedScanDirs : defaultScanDirs;
+		
+		// Initialize scanDirectories if not set
+		if (!this.state.seoConfig.scanDirectories || !this.state.seoConfig.scanDirectories.trim()) {
+			this.state.seoConfig.scanDirectories = initialScanDirs;
+		}
+		
 		new Setting(containerEl)
 			.setName('Scan Directories')
 			.setDesc('Comma-separated list of directories to scan (you can customize this)')
 			.addText(text => text
-				.setValue(this.state.contentTypes.filter(ct => ct.enabled).map(ct => ct.folder).join(','))
+				.setValue(initialScanDirs)
 				.onChange(value => {
 					// Store custom scan directories if user changes them
 					if (this.state.seoConfig) {
