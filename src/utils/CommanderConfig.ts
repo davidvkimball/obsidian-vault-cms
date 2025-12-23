@@ -1,6 +1,28 @@
 import { App, TFile } from 'obsidian';
 import { CommanderConfig } from '../types';
 
+type EditingToolbarPlugin = {
+	enabled?: boolean;
+	settings?: {
+		cMenuVisibility?: boolean;
+		[key: string]: unknown;
+	};
+	saveSettings?: () => Promise<void>;
+	loadSettings?: () => Promise<void>;
+	refresh?: () => void;
+};
+
+type PluginsAPI = {
+	plugins?: Record<string, EditingToolbarPlugin>;
+	enablePlugin?: (id: string) => Promise<void>;
+	disablePlugin?: (id: string) => Promise<void>;
+};
+
+type CommandsAPI = {
+	commands?: Record<string, () => void>;
+	executeCommandById?: (id: string) => Promise<void>;
+};
+
 export class CommanderConfigurator {
 	private app: App;
 
@@ -23,9 +45,9 @@ export class CommanderConfigurator {
 	 * When enabled, the toolbar will be available via its own "Show/hide toolbar" command
 	 */
 	async toggleEditingToolbarCommand(app: App, enable: boolean): Promise<void> {
-		console.log(`CommanderConfig: toggleEditingToolbarCommand called with enable=${enable}`);
+		console.debug(`CommanderConfig: toggleEditingToolbarCommand called with enable=${enable}`);
 		try {
-			const plugins = (app as any).plugins;
+			const plugins = (app as { plugins?: PluginsAPI }).plugins;
 			if (!plugins) {
 				console.warn('CommanderConfig: Plugins API not available');
 				return;
@@ -37,36 +59,36 @@ export class CommanderConfigurator {
 				return;
 			}
 
-			console.log(`CommanderConfig: Editing Toolbar plugin found, enabled=${editingToolbarPlugin.enabled}`);
-			console.log(`CommanderConfig: Plugin settings available:`, !!editingToolbarPlugin.settings);
+			console.debug(`CommanderConfig: Editing Toolbar plugin found, enabled=${editingToolbarPlugin.enabled}`);
+			console.debug(`CommanderConfig: Plugin settings available:`, !!editingToolbarPlugin.settings);
 			
 			if (editingToolbarPlugin.settings) {
-				console.log(`CommanderConfig: Current cMenuVisibility:`, editingToolbarPlugin.settings.cMenuVisibility);
+				console.debug(`CommanderConfig: Current cMenuVisibility:`, editingToolbarPlugin.settings.cMenuVisibility);
 			}
 
 			// Enable or disable the plugin itself
 			if (enable && !editingToolbarPlugin.enabled) {
-				console.log('CommanderConfig: Enabling editing-toolbar plugin');
-				await plugins.enablePlugin('editing-toolbar');
+				console.debug('CommanderConfig: Enabling editing-toolbar plugin');
+				await plugins.enablePlugin?.('editing-toolbar');
 			} else if (!enable && editingToolbarPlugin.enabled) {
-				console.log('CommanderConfig: Disabling editing-toolbar plugin');
-				await plugins.disablePlugin('editing-toolbar');
+				console.debug('CommanderConfig: Disabling editing-toolbar plugin');
+				await plugins.disablePlugin?.('editing-toolbar');
 			}
 
 			// Try to use plugin's saveSettings method first (like Astro Composer)
 			if (editingToolbarPlugin.settings && typeof editingToolbarPlugin.saveSettings === 'function') {
-				console.log('CommanderConfig: Using plugin.saveSettings() method');
+				console.debug('CommanderConfig: Using plugin.saveSettings() method');
 				// Update cMenuVisibility via plugin settings API
 				const oldValue = editingToolbarPlugin.settings.cMenuVisibility;
 				editingToolbarPlugin.settings.cMenuVisibility = enable;
-				console.log(`CommanderConfig: Set cMenuVisibility from ${oldValue} to ${enable}`);
+				console.debug(`CommanderConfig: Set cMenuVisibility from ${oldValue} to ${enable}`);
 				
 				await editingToolbarPlugin.saveSettings();
-				console.log('CommanderConfig: Successfully saved editing-toolbar via plugin.saveSettings()');
+				console.debug('CommanderConfig: Successfully saved editing-toolbar via plugin.saveSettings()');
 				
 				// Verify the value was saved
 				if (editingToolbarPlugin.settings.cMenuVisibility === enable) {
-					console.log(`CommanderConfig: Verified cMenuVisibility is now ${editingToolbarPlugin.settings.cMenuVisibility}`);
+					console.debug(`CommanderConfig: Verified cMenuVisibility is now ${editingToolbarPlugin.settings.cMenuVisibility}`);
 				} else {
 					console.error(`CommanderConfig: ERROR - cMenuVisibility is ${editingToolbarPlugin.settings.cMenuVisibility}, expected ${enable}`);
 				}
@@ -74,33 +96,35 @@ export class CommanderConfigurator {
 				// If enabling, we need to reload the plugin or trigger a refresh
 				// The command execution alone may not be enough - the plugin needs to read the new settings
 				if (enable) {
-					console.log('CommanderConfig: Waiting for settings to persist...');
+					console.debug('CommanderConfig: Waiting for settings to persist...');
 					await new Promise(resolve => setTimeout(resolve, 500));
 					
 					// Try to reload the plugin's settings
 					if (typeof editingToolbarPlugin.loadSettings === 'function') {
-						console.log('CommanderConfig: Reloading editing toolbar plugin settings');
+						console.debug('CommanderConfig: Reloading editing toolbar plugin settings');
 						await editingToolbarPlugin.loadSettings();
 					}
 					
 					// Also try to trigger a refresh if the plugin has that method
-					if (typeof (editingToolbarPlugin as any).refresh === 'function') {
-						console.log('CommanderConfig: Refreshing editing toolbar plugin');
-						(editingToolbarPlugin as any).refresh();
+					if (typeof editingToolbarPlugin.refresh === 'function') {
+						console.debug('CommanderConfig: Refreshing editing toolbar plugin');
+						editingToolbarPlugin.refresh();
 					}
 					
-					console.log('CommanderConfig: Executing editing-toolbar:hide-show-menu command');
+					console.debug('CommanderConfig: Executing editing-toolbar:hide-show-menu command');
 					try {
 						// Try executing the command multiple times to ensure it works
 						for (let i = 0; i < 3; i++) {
-							const command = (app as any).commands?.commands?.['editing-toolbar:hide-show-menu'];
-							console.log(`CommanderConfig: Command found (attempt ${i + 1}):`, !!command);
+							const commands = (app as { commands?: CommandsAPI }).commands;
+							const command = commands?.commands?.['editing-toolbar:hide-show-menu'];
+							console.debug(`CommanderConfig: Command found (attempt ${i + 1}):`, !!command);
 							if (command) {
 								// Use setTimeout to execute asynchronously
 								setTimeout(() => {
-									(app as any).commands.executeCommandById('editing-toolbar:hide-show-menu');
+									const commands = (app as { commands?: { executeCommandById?: (id: string) => void } }).commands;
+									commands?.executeCommandById?.('editing-toolbar:hide-show-menu');
 								}, i * 500);
-								console.log(`CommanderConfig: Scheduled hide-show-menu command (attempt ${i + 1})`);
+								console.debug(`CommanderConfig: Scheduled hide-show-menu command (attempt ${i + 1})`);
 							} else {
 								console.warn(`CommanderConfig: Command editing-toolbar:hide-show-menu not found (attempt ${i + 1})`);
 							}
@@ -111,12 +135,12 @@ export class CommanderConfigurator {
 				}
 				return;
 			} else {
-				console.log('CommanderConfig: Plugin saveSettings not available, using fallback');
+				console.debug('CommanderConfig: Plugin saveSettings not available, using fallback');
 			}
 
 			// Fallback to file method (like Astro Composer fallback)
 			await this.toggleEditingToolbarCommandFallback(app, enable);
-		} catch (error) {
+		} catch (error: unknown) {
 			console.error('CommanderConfig: Failed to toggle editing toolbar plugin:', error);
 			// Try fallback even if plugin method fails
 			try {
@@ -129,16 +153,17 @@ export class CommanderConfigurator {
 
 	private async toggleEditingToolbarCommandFallback(app: App, enable: boolean): Promise<void> {
 		const pluginId = 'editing-toolbar';
-		const pluginDataPath = `.obsidian/plugins/${pluginId}/data.json`;
+		const configDir = app.vault.configDir;
+		const pluginDataPath = `${configDir}/plugins/${pluginId}/data.json`;
 		
 		// Always read existing data first (file likely exists)
-		let existingData: any = {};
+		let existingData: Record<string, unknown> = {};
 		const dataFile = app.vault.getAbstractFileByPath(pluginDataPath);
 		
-		if (dataFile && dataFile instanceof TFile) {
+		if (dataFile instanceof TFile) {
 			try {
-				existingData = JSON.parse(await app.vault.read(dataFile));
-			} catch (error) {
+				existingData = JSON.parse(await app.vault.read(dataFile)) as Record<string, unknown>;
+			} catch (error: unknown) {
 				console.warn('Failed to parse existing editing-toolbar data.json, starting fresh:', error);
 				existingData = {};
 			}
@@ -148,20 +173,21 @@ export class CommanderConfigurator {
 		existingData.cMenuVisibility = enable;
 
 		// Always try to modify first (file likely exists)
-		if (dataFile && dataFile instanceof TFile) {
+		if (dataFile instanceof TFile) {
 			await app.vault.modify(dataFile, JSON.stringify(existingData, null, 2));
-			console.log('CommanderConfig: Successfully saved editing-toolbar via file modify');
+			console.debug('CommanderConfig: Successfully saved editing-toolbar via file modify');
 		} else {
 			// File doesn't exist, create it
 			// Ensure plugin directory exists
-			const pluginDir = `.obsidian/plugins/${pluginId}`;
+			const pluginDir = `${configDir}/plugins/${pluginId}`;
 			const pluginDirFile = app.vault.getAbstractFileByPath(pluginDir);
 			if (!pluginDirFile) {
 				try {
 					await app.vault.createFolder(pluginDir);
-				} catch (error: any) {
+				} catch (error: unknown) {
 					// Ignore "already exists" or "Folder already exists" errors
-					if (error.message && !error.message.includes('already exists') && !error.message.includes('File already exists') && !error.message.includes('Folder already exists')) {
+					const errorMessage = error instanceof Error ? error.message : String(error);
+					if (errorMessage && !errorMessage.includes('already exists') && !errorMessage.includes('File already exists') && !errorMessage.includes('Folder already exists')) {
 						throw error;
 					}
 					// Folder exists, continue
@@ -170,21 +196,22 @@ export class CommanderConfigurator {
 			// Create the file
 			try {
 				await app.vault.create(pluginDataPath, JSON.stringify(existingData, null, 2));
-				console.log('CommanderConfig: Successfully created editing-toolbar data.json');
-			} catch (error: any) {
+				console.debug('CommanderConfig: Successfully created editing-toolbar data.json');
+			} catch (error: unknown) {
 				// If file was created between check and create, try to modify it
-				if (error.message && (error.message.includes('already exists') || error.message.includes('File already exists'))) {
+				const errorMessage = error instanceof Error ? error.message : String(error);
+				if (errorMessage && (errorMessage.includes('already exists') || errorMessage.includes('File already exists'))) {
 					const retryFile = app.vault.getAbstractFileByPath(pluginDataPath);
-					if (retryFile && retryFile instanceof TFile) {
+					if (retryFile instanceof TFile) {
 						await app.vault.modify(retryFile, JSON.stringify(existingData, null, 2));
-						console.log('CommanderConfig: Successfully saved editing-toolbar via retry modify');
+						console.debug('CommanderConfig: Successfully saved editing-toolbar via retry modify');
 					} else {
 						// File exists but can't be found - retry with delay
 						await new Promise(resolve => setTimeout(resolve, 200));
 						const retryFile2 = app.vault.getAbstractFileByPath(pluginDataPath);
-						if (retryFile2 && retryFile2 instanceof TFile) {
+						if (retryFile2 instanceof TFile) {
 							await app.vault.modify(retryFile2, JSON.stringify(existingData, null, 2));
-							console.log('CommanderConfig: Successfully saved editing-toolbar via delayed retry modify');
+							console.debug('CommanderConfig: Successfully saved editing-toolbar via delayed retry modify');
 						} else {
 							throw error;
 						}
@@ -198,7 +225,8 @@ export class CommanderConfigurator {
 		// If enabling, execute the hide/show command to ensure toolbar is visible
 		if (enable) {
 			try {
-				await (app as any).commands?.executeCommandById('editing-toolbar:hide-show-menu');
+				const commands = (app as { commands?: CommandsAPI }).commands;
+				await commands?.executeCommandById?.('editing-toolbar:hide-show-menu');
 			} catch (cmdError) {
 				console.warn('Failed to execute editing toolbar show command:', cmdError);
 			}
@@ -207,12 +235,13 @@ export class CommanderConfigurator {
 
 	async saveConfig(config: CommanderConfig): Promise<void> {
 		const pluginId = 'cmdr';
-		const pluginDataPath = `.obsidian/plugins/${pluginId}/data.json`;
+		const configDir = this.app.vault.configDir;
+		const pluginDataPath = `${configDir}/plugins/${pluginId}/data.json`;
 		
 		try {
 			const dataFile = this.app.vault.getAbstractFileByPath(pluginDataPath);
-			if (dataFile) {
-				const existingData = JSON.parse(await this.app.vault.read(dataFile as any));
+			if (dataFile instanceof TFile) {
+				const existingData = JSON.parse(await this.app.vault.read(dataFile)) as { pageHeader?: Array<{ id?: string; [key: string]: unknown }>; [key: string]: unknown };
 				
 				// Merge pageHeader commands
 				const existingPageHeader = existingData.pageHeader || [];
@@ -225,7 +254,7 @@ export class CommanderConfigurator {
 
 				// Remove existing toolbar command if present
 				const filteredPageHeader = existingPageHeader.filter(
-					(cmd: any) => cmd.id !== 'editing-toolbar:hide-show-menu'
+					(cmd: { id?: string }) => cmd.id !== 'editing-toolbar:hide-show-menu'
 				);
 
 				// Add toolbar command if enabled
@@ -238,9 +267,9 @@ export class CommanderConfigurator {
 					pageHeader: filteredPageHeader
 				};
 
-				await this.app.vault.modify(dataFile as any, JSON.stringify(mergedData, null, 2));
+				await this.app.vault.modify(dataFile, JSON.stringify(mergedData, null, 2));
 			}
-		} catch (error) {
+		} catch (error: unknown) {
 			console.error('Failed to save Commander config:', error);
 		}
 	}

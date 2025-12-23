@@ -54,7 +54,7 @@ export interface BasesCMSConfig {
 export interface BasesCMSView {
 	name: string;
 	filters: {
-		and: Array<{ [key: string]: any }>;
+		and: Array<Record<string, unknown>>;
 	};
 	titleProperty: string;
 	dateProperty: string;
@@ -126,7 +126,7 @@ export interface ImageInserterConfig {
 
 export interface ExampleFrontmatter {
 	file: string;
-	frontmatter: { [key: string]: any };
+	frontmatter: Record<string, unknown>;
 	rawYaml: string;
 }
 

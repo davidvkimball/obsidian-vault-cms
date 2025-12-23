@@ -1,7 +1,15 @@
 import { App, TFile } from 'obsidian';
 import { AstroComposerConfig, ContentTypeConfig, FrontmatterProperties, ProjectDetectionResult } from '../types';
-import * as path from 'path';
 import { PathResolver } from './PathResolver';
+
+type PluginWithSettings = {
+	settings?: Record<string, unknown>;
+	saveSettings?: () => Promise<void>;
+};
+
+type PluginsAPI = {
+	plugins?: Record<string, PluginWithSettings>;
+};
 
 export class AstroComposerConfigurator {
 	private app: App;
@@ -150,25 +158,26 @@ export class AstroComposerConfigurator {
 	}
 
 	private relativePath(inputPath: string): string {
-		// If path is already relative, return as-is
-		if (!path.isAbsolute(inputPath)) {
+		// If path is already relative, return as-is (no leading / or drive letter)
+		if (!inputPath.startsWith('/') && !/^[A-Z]:/.test(inputPath)) {
 			return inputPath;
 		}
 		
 		// Convert absolute path to relative from vault root
-		const adapter = this.app.vault.adapter as any;
+		const adapter = this.app.vault.adapter as { basePath?: string; path?: string };
 		const vaultPath = adapter.basePath || adapter.path;
 		if (!vaultPath) {
 			return inputPath;
 		}
 		
-		const vaultNormalized = path.normalize(vaultPath);
-		const absoluteNormalized = path.normalize(inputPath);
+		// Normalize paths (replace backslashes with forward slashes, remove trailing slashes)
+		const vaultNormalized = vaultPath.replace(/\\/g, '/').replace(/\/$/, '');
+		const absoluteNormalized = inputPath.replace(/\\/g, '/').replace(/\/$/, '');
 		
 		if (absoluteNormalized.startsWith(vaultNormalized)) {
 			const relative = absoluteNormalized.slice(vaultNormalized.length);
 			// Remove leading path separator
-			return relative.startsWith(path.sep) ? relative.slice(1) : relative;
+			return relative.startsWith('/') ? relative.slice(1) : relative;
 		}
 		
 		// Path is outside vault, return as-is
@@ -178,7 +187,7 @@ export class AstroComposerConfigurator {
 	async saveConfig(config: AstroComposerConfig): Promise<void> {
 		try {
 			// Use plugin's saveSettings method like astro-modular-settings does
-			const plugins = (this.app as any).plugins;
+			const plugins = (this.app as { plugins?: PluginsAPI }).plugins;
 			const astroComposerPlugin = plugins?.plugins?.['astro-composer'];
 			
 			if (!astroComposerPlugin) {
@@ -251,13 +260,15 @@ export class AstroComposerConfigurator {
 				const shouldEnableUnderscorePrefix = props?.hasDraftStatus === true && !props?.draftProperty;
 				
 				// Find existing entry by name AND folder (not just id, since ids might differ)
-				const existingIndex = pluginSettings.contentTypes.findIndex((ct: any) => 
+				const contentTypes = (pluginSettings.contentTypes as Array<Record<string, unknown>>) || [];
+				const existingIndex = contentTypes.findIndex((ct: { name?: string; folder?: string }) => 
 					ct.name === newType.name && ct.folder === newType.folder
 				);
 				if (existingIndex >= 0) {
 					// Update existing entry - preserve other properties like ignoreSubfolders, enableUnderscorePrefix, and existing id
-					pluginSettings.contentTypes[existingIndex] = {
-						...pluginSettings.contentTypes[existingIndex],
+					const existingEntry = contentTypes[existingIndex];
+					contentTypes[existingIndex] = {
+						...existingEntry,
 						name: newType.name,
 						folder: newType.folder,
 						linkBasePath: newType.linkBasePath,
@@ -269,7 +280,7 @@ export class AstroComposerConfigurator {
 					};
 				} else {
 					// Add new entry with all required properties
-					pluginSettings.contentTypes.push({
+					contentTypes.push({
 						id: newType.id,
 						name: newType.name,
 						folder: newType.folder,
@@ -286,19 +297,19 @@ export class AstroComposerConfigurator {
 			
 			// Also update legacy customContentTypes for backwards compatibility
 			pluginSettings.customContentTypes = this.mergeCustomContentTypes(
-				pluginSettings.customContentTypes || [],
-				config.customContentTypes || []
+				(pluginSettings.customContentTypes as Array<Record<string, unknown>>) || [],
+				(config.customContentTypes as unknown as Array<Record<string, unknown>>) || []
 			);
 			
 			// Save the settings using plugin's saveSettings method
 			if (typeof astroComposerPlugin.saveSettings === 'function') {
 				await astroComposerPlugin.saveSettings();
-				console.log('AstroComposerConfig: Successfully saved via plugin.saveSettings()');
+				console.debug('AstroComposerConfig: Successfully saved via plugin.saveSettings()');
 			} else {
 				console.warn('AstroComposerConfig: Plugin saveSettings not available, using fallback');
 				await this.saveConfigFallback(config);
 			}
-		} catch (error) {
+		} catch (error: unknown) {
 			console.error('Failed to save Astro Composer config via plugin method:', error);
 			// Fallback to file method
 			await this.saveConfigFallback(config);
@@ -307,16 +318,17 @@ export class AstroComposerConfigurator {
 
 	private async saveConfigFallback(config: AstroComposerConfig): Promise<void> {
 		const pluginId = 'astro-composer';
-		const pluginDataPath = `.obsidian/plugins/${pluginId}/data.json`;
+		const configDir = this.app.vault.configDir;
+		const pluginDataPath = `${configDir}/plugins/${pluginId}/data.json`;
 		
-		let existingData: any = {};
+		let existingData: Record<string, unknown> = {};
 		const dataFile = this.app.vault.getAbstractFileByPath(pluginDataPath);
 		
 		// Read existing data if file exists
 		if (dataFile && dataFile instanceof TFile) {
 			try {
-				existingData = JSON.parse(await this.app.vault.read(dataFile));
-			} catch (error) {
+				existingData = JSON.parse(await this.app.vault.read(dataFile)) as Record<string, unknown>;
+			} catch (error: unknown) {
 				console.warn('Failed to parse existing Astro Composer data.json, starting fresh:', error);
 				existingData = {};
 			}
@@ -351,13 +363,15 @@ export class AstroComposerConfigurator {
 			const shouldEnableUnderscorePrefix = props?.hasDraftStatus === true && !props?.draftProperty;
 			
 			// Find existing entry by name AND folder (not just id, since ids might differ)
-			const existingIndex = existingData.contentTypes.findIndex((ct: any) => 
+			const contentTypes = (existingData.contentTypes as Array<Record<string, unknown>>) || [];
+			const existingIndex = contentTypes.findIndex((ct: { name?: string; folder?: string }) => 
 				ct.name === newType.name && ct.folder === newType.folder
 			);
 			if (existingIndex >= 0) {
 				// Update existing entry - preserve other properties and existing id
-				existingData.contentTypes[existingIndex] = {
-					...existingData.contentTypes[existingIndex],
+				const existingEntry = contentTypes[existingIndex];
+				contentTypes[existingIndex] = {
+					...existingEntry,
 					name: newType.name,
 					folder: newType.folder,
 					linkBasePath: newType.linkBasePath,
@@ -369,7 +383,7 @@ export class AstroComposerConfigurator {
 				};
 			} else {
 				// Add new entry
-				existingData.contentTypes.push({
+				contentTypes.push({
 					id: newType.id,
 					name: newType.name,
 					folder: newType.folder,
@@ -386,8 +400,8 @@ export class AstroComposerConfigurator {
 		
 		// Also update legacy customContentTypes for backwards compatibility
 		existingData.customContentTypes = this.mergeCustomContentTypes(
-			existingData.customContentTypes || [],
-			config.customContentTypes || []
+			(existingData.customContentTypes as Array<Record<string, unknown>>) || [],
+			(config.customContentTypes as unknown as Array<Record<string, unknown>>) || []
 		);
 		
 		// Try to modify first, if file doesn't exist it will throw, then create
@@ -395,7 +409,7 @@ export class AstroComposerConfigurator {
 			await this.app.vault.modify(dataFile, JSON.stringify(existingData, null, 2));
 		} else {
 			// Ensure plugin directory exists
-			const pluginDir = `.obsidian/plugins/${pluginId}`;
+			const pluginDir = `${configDir}/plugins/${pluginId}`;
 			const pluginDirFile = this.app.vault.getAbstractFileByPath(pluginDir);
 			if (!pluginDirFile) {
 				await this.app.vault.createFolder(pluginDir);
@@ -405,7 +419,7 @@ export class AstroComposerConfigurator {
 		}
 	}
 
-	private mergeCustomContentTypes(existing: any[], newTypes: any[]): any[] {
+	private mergeCustomContentTypes(existing: Array<{ id?: string; [key: string]: unknown }>, newTypes: Array<{ id?: string; [key: string]: unknown }>): Array<{ id?: string; [key: string]: unknown }> {
 		const merged = [...existing];
 		
 		for (const newType of newTypes) {

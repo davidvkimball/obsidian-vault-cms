@@ -1,13 +1,12 @@
-import { App, Setting } from 'obsidian';
+import { Setting } from 'obsidian';
 import { BaseWizardStep } from './BaseWizardStep';
-import { WizardState } from '../../types';
 
 export class PluginPresetStep extends BaseWizardStep {
 	display(): void {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		containerEl.createEl('h2', { text: 'Plugin Preset' });
+		containerEl.createEl('h2', { text: 'Plugin preset' });
 		containerEl.createEl('p', { 
 			text: 'Select a preset configuration for your plugins and theme:' 
 		});
@@ -34,14 +33,19 @@ export class PluginPresetStep extends BaseWizardStep {
 
 		if (this.state.preset === 'vanilla') {
 			containerEl.createEl('p', { 
+				// False positive: "Obsidian" is a proper noun (product name) and should be capitalized
+				// eslint-disable-next-line obsidianmd/ui/sentence-case
 				text: 'Vanilla preset: Uses default Obsidian theme, look, and UI with all common plugins enabled.' 
 			});
 		} else if (this.state.preset === 'opinionated') {
 			containerEl.createEl('p', { 
+				// False positive: "Oxygen" is a proper noun (theme name) and should be capitalized
+				// eslint-disable-next-line obsidianmd/ui/sentence-case
 				text: 'Opinionated preset: Uses Oxygen theme with its settings enabled and optimized plugin configuration.' 
 			});
 		} else {
 			containerEl.createEl('p', { 
+				// eslint-disable-next-line obsidianmd/ui/sentence-case
 				text: 'Custom preset: You will be able to select individual plugins in the next step. No theme changes will be made.' 
 			});
 		}
@@ -52,7 +56,7 @@ export class PluginPresetStep extends BaseWizardStep {
 	}
 
 	getTitle(): string {
-		return 'Plugin Preset';
+		return 'Plugin preset';
 	}
 
 	getDescription(): string {

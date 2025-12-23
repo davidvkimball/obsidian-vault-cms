@@ -1,6 +1,6 @@
 import { App, TFile } from 'obsidian';
-import { BasesCMSView, ContentTypeConfig, FrontmatterProperties, ProjectDetectionResult } from '../types';
-import * as yaml from 'js-yaml';
+import { ContentTypeConfig, FrontmatterProperties, ProjectDetectionResult } from '../types';
+import * as yaml from 'yaml';
 import { PathResolver } from './PathResolver';
 
 export class BasesCMSConfigurator {
@@ -25,80 +25,85 @@ export class BasesCMSConfigurator {
 		if (!basesFolder) {
 			try {
 				await this.app.vault.createFolder('bases');
-			} catch (error: any) {
+			} catch (error: unknown) {
 				// Folder might already exist, ignore error
-				if (!error.message || !error.message.includes('already exists')) {
+				const errorMessage = error instanceof Error ? error.message : String(error);
+				if (!errorMessage || !errorMessage.includes('already exists')) {
 					console.warn('BasesCMSConfig: Could not create bases folder:', error);
 				}
 			}
 		}
 
 		// Check if file exists (re-check after folder creation)
-		let baseFile = this.app.vault.getAbstractFileByPath(baseFilePath) as TFile;
+		const baseFileAbstract = this.app.vault.getAbstractFileByPath(baseFilePath);
+		let baseFile: TFile | null = baseFileAbstract instanceof TFile ? baseFileAbstract : null;
 
 		// Read existing base file if it exists
-		let existingBase: any = null;
-		if (baseFile && baseFile instanceof TFile) {
+		let existingBase: Record<string, unknown> | null = null;
+		if (baseFile) {
 			try {
 				const content = await this.app.vault.read(baseFile);
-				existingBase = yaml.load(content) as any;
-			} catch (error) {
+				existingBase = yaml.parse(content) as Record<string, unknown>;
+			} catch (error: unknown) {
 				console.error('BasesCMSConfig: Failed to parse existing base file:', error);
 			}
 		}
 
 		const enabledTypes = contentTypes.filter(ct => ct.enabled);
-		console.log('BasesCMSConfig: Generating base content for', contentTypes.length, 'content types');
-		console.log('BasesCMSConfig: Enabled content types:', enabledTypes.map(ct => ct.name));
+		console.debug('BasesCMSConfig: Generating base content for', contentTypes.length, 'content types');
+		console.debug('BasesCMSConfig: Enabled content types:', enabledTypes.map(ct => ct.name));
 		
 		const baseContent = this.generateBaseContent(contentTypes, frontmatterProperties, defaultContentTypeId, existingBase, projectDetection);
 		
 		// Count views in generated content to verify they're being created
 		const viewMatches = baseContent.match(/^\s*-\s+type:\s+bases-cms/gm);
 		const viewCount = viewMatches ? viewMatches.length : 0;
-		console.log('BasesCMSConfig: Generated', viewCount, 'views in base content');
+		console.debug('BasesCMSConfig: Generated', viewCount, 'views in base content');
 		
 		// Always try to modify first - if file doesn't exist, modify will throw, then we create
 		// This avoids race conditions with getAbstractFileByPath
-		baseFile = this.app.vault.getAbstractFileByPath(baseFilePath) as TFile;
+		const baseFileAbstract2 = this.app.vault.getAbstractFileByPath(baseFilePath);
+		baseFile = baseFileAbstract2 instanceof TFile ? baseFileAbstract2 : null;
 		
-		if (baseFile && baseFile instanceof TFile) {
-			console.log('BasesCMSConfig: Modifying existing Home.base file');
+		if (baseFile) {
+			console.debug('BasesCMSConfig: Modifying existing Home.base file');
 			try {
 				await this.app.vault.modify(baseFile, baseContent);
-				console.log('BasesCMSConfig: Successfully modified Home.base file');
+				console.debug('BasesCMSConfig: Successfully modified Home.base file');
 				return; // Success, exit early
-			} catch (error) {
+			} catch (error: unknown) {
 				console.error('BasesCMSConfig: Failed to modify file:', error);
 				throw error;
 			}
 		}
 		
 		// File doesn't exist (or can't be found), try to create it
-		console.log('BasesCMSConfig: Creating new Home.base file');
+		console.debug('BasesCMSConfig: Creating new Home.base file');
 		try {
 			await this.app.vault.create(baseFilePath, baseContent);
-			console.log('BasesCMSConfig: Successfully created Home.base file');
-		} catch (error: any) {
+			console.debug('BasesCMSConfig: Successfully created Home.base file');
+		} catch (error) {
 			// If create fails because file exists, the file was created between check and create
 			// Try to modify it directly using the path string
-			if (error.message && (error.message.includes('already exists') || error.message.includes('File already exists'))) {
-				console.log('BasesCMSConfig: File existed, attempting direct modify via path');
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			if (errorMessage && (errorMessage.includes('already exists') || errorMessage.includes('File already exists'))) {
+				console.debug('BasesCMSConfig: File existed, attempting direct modify via path');
 				// Use adapter to write directly - this bypasses the indexing issue
 				try {
 					const adapter = this.app.vault.adapter;
 					if (adapter && typeof adapter.write === 'function') {
 						await adapter.write(baseFilePath, baseContent);
-						console.log('BasesCMSConfig: Successfully wrote Home.base file via adapter');
+						console.debug('BasesCMSConfig: Successfully wrote Home.base file via adapter');
 					} else {
 						// Fallback: retry getAbstractFileByPath with longer delays
-						console.log('BasesCMSConfig: Adapter write not available, retrying getAbstractFileByPath');
+						console.debug('BasesCMSConfig: Adapter write not available, retrying getAbstractFileByPath');
 						for (let i = 0; i < 10; i++) {
 							await new Promise(resolve => setTimeout(resolve, 200));
-							const retryFile = this.app.vault.getAbstractFileByPath(baseFilePath) as TFile;
-							if (retryFile && retryFile instanceof TFile) {
+							const retryFileAbstract = this.app.vault.getAbstractFileByPath(baseFilePath);
+							const retryFile = retryFileAbstract instanceof TFile ? retryFileAbstract : null;
+							if (retryFile) {
 								await this.app.vault.modify(retryFile, baseContent);
-								console.log(`BasesCMSConfig: Successfully modified Home.base file on retry ${i + 1}`);
+								console.debug(`BasesCMSConfig: Successfully modified Home.base file on retry ${i + 1}`);
 								return;
 							}
 						}
@@ -120,7 +125,7 @@ export class BasesCMSConfigurator {
 		contentTypes: ContentTypeConfig[],
 		frontmatterProperties: { [contentTypeId: string]: FrontmatterProperties },
 		defaultContentTypeId: string | undefined,
-		existingBase: any,
+		existingBase: Record<string, unknown> | null,
 		projectDetection?: ProjectDetectionResult
 	): string {
 		// Bases uses a specific syntax - we need to generate it manually to match the format
@@ -188,12 +193,13 @@ export class BasesCMSConfigurator {
 		if (allProperties.size > 0) {
 			lines.push('properties:');
 			// Preserve existing property displayNames, especially for file.name
-			const existingProps = existingBase?.properties || {};
+			const existingProps = (existingBase?.properties as Record<string, { displayName?: string } | undefined>) || {};
 			for (const prop of Array.from(allProperties).sort()) {
 				lines.push(`  ${prop}:`);
 				// Preserve existing displayName if it exists, especially for file.name
-				if (existingProps[prop]?.displayName) {
-					lines.push(`    displayName: ${existingProps[prop].displayName}`);
+				const existingProp = existingProps[prop];
+				if (existingProp?.displayName) {
+					lines.push(`    displayName: ${existingProp.displayName}`);
 				} else {
 					const propName = prop.replace('note.', '').replace('file.', '');
 					lines.push(`    displayName: ${this.capitalizeFirst(propName)}`);
@@ -210,13 +216,13 @@ export class BasesCMSConfigurator {
 			contentTypes.find(ct => ct.id === defaultContentTypeId && ct.enabled) : null;
 		
 		// Separate existing views: content type views, "All Content", "Guide", and others
-		const existingViews = existingBase?.views || [];
+		const existingViews = (existingBase?.views as Array<{ name?: string }>) || [];
 		const existingContentTypeNames = new Set(contentTypes.filter(ct => ct.enabled).map(ct => ct.name));
-		const guideView = existingViews.find((v: any) => v.name === 'Guide');
-		const otherViews = existingViews.filter((v: any) => 
+		const guideView = existingViews.find((v) => v.name === 'Guide');
+		const otherViews = existingViews.filter((v) => 
 			v.name !== 'All Content' && 
 			v.name !== 'Guide' && 
-			!existingContentTypeNames.has(v.name)
+			!existingContentTypeNames.has(v.name || '')
 		);
 		
 		// FIRST: Add the default content type's view (if it exists and is enabled)
@@ -355,7 +361,7 @@ export class BasesCMSConfigurator {
 	/**
 	 * Serialize a view object to YAML lines (with proper indentation)
 	 */
-	private serializeView(view: any): string[] {
+	private serializeView(view: { name?: string; filters?: { and?: Array<string | Record<string, unknown>> }; groupBy?: { property?: string; direction?: string } | string; order?: string[]; sort?: Array<{ property?: string; direction?: string }>; [key: string]: unknown }): string[] {
 		const viewLines: string[] = [];
 		viewLines.push('  - type: bases-cms');
 		viewLines.push(`    name: ${view.name}`);
@@ -370,7 +376,8 @@ export class BasesCMSConfigurator {
 					} else if (typeof filter === 'object') {
 						// Handle object filters like { "file.folder.startsWith": "posts" }
 						for (const [key, value] of Object.entries(filter)) {
-							viewLines.push(`        - ${key}: ${typeof value === 'string' ? `"${value}"` : value}`);
+							const valueStr = typeof value === 'string' ? `"${value}"` : String(value);
+						viewLines.push(`        - ${key}: ${valueStr}`);
 						}
 					}
 				}

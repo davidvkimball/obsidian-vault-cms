@@ -1,5 +1,7 @@
 import { App, TFolder } from 'obsidian';
+// eslint-disable-next-line import/no-nodejs-modules
 import * as path from 'path';
+// eslint-disable-next-line import/no-nodejs-modules
 import * as fs from 'fs';
 import { ContentTypeConfig, ProjectDetectionResult } from '../types';
 
@@ -45,7 +47,7 @@ export class ContentTypeDetector {
 		}
 
 		const vault = this.app.vault;
-		const adapter = vault.adapter as any;
+		const adapter = vault.adapter as { basePath?: string; path?: string };
 		const vaultPath = adapter.basePath || adapter.path;
 		
 		if (!vaultPath) {
@@ -159,11 +161,12 @@ export class ContentTypeDetector {
 		for (const child of folder.children) {
 			if (child instanceof TFolder) {
 				// Skip special folders
+				const configDir = this.app.vault.configDir;
 				if (!child.name.startsWith('.') && 
 					child.name !== 'bases' && 
 					child.name !== '_bases' &&
 					child.name !== 'node_modules' &&
-					child.name !== '.obsidian') {
+					child.name !== configDir) {
 					folders.push(child);
 				}
 			}
@@ -189,7 +192,7 @@ export class ContentTypeDetector {
 		
 		// All discovered content folders are enabled by default
 		return {
-			id: `content-type-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+			id: `content-type-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
 			name,
 			folder: folder.name,
 			fileOrganization: 'file',

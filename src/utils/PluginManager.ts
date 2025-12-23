@@ -8,26 +8,26 @@ export class PluginManager {
 	}
 
 	async enablePlugin(pluginId: string): Promise<void> {
-		const plugins = (this.app as any).plugins;
+		const plugins = (this.app as { plugins?: { plugins?: Record<string, { enabled?: boolean }>; enablePlugin?: (id: string) => Promise<void> } }).plugins;
 		if (!plugins) {
 			return;
 		}
 
-		const plugin = plugins.plugins[pluginId];
+		const plugin = plugins.plugins?.[pluginId];
 		if (plugin && !plugin.enabled) {
-			await plugins.enablePlugin(pluginId);
+			await plugins.enablePlugin?.(pluginId);
 		}
 	}
 
 	async disablePlugin(pluginId: string): Promise<void> {
-		const plugins = (this.app as any).plugins;
+		const plugins = (this.app as { plugins?: { plugins?: Record<string, { enabled?: boolean }>; disablePlugin?: (id: string) => Promise<void> } }).plugins;
 		if (!plugins) {
 			return;
 		}
 
-		const plugin = plugins.plugins[pluginId];
+		const plugin = plugins.plugins?.[pluginId];
 		if (plugin && plugin.enabled) {
-			await plugins.disablePlugin(pluginId);
+			await plugins.disablePlugin?.(pluginId);
 		}
 	}
 

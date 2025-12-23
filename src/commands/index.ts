@@ -3,8 +3,8 @@ import VaultCMSPlugin from '../main';
 
 export function registerCommands(plugin: VaultCMSPlugin): void {
 	plugin.addCommand({
-		id: 'vault-cms-open-wizard',
-		name: 'Open Setup Wizard',
+		id: 'open-wizard',
+		name: 'Open setup wizard',
 		callback: () => {
 			const wizard = new SetupWizardModal(plugin.app, plugin.settings, plugin);
 			wizard.setSaveCallback(async (state) => {

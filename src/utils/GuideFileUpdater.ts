@@ -10,14 +10,15 @@ export class GuideFileUpdater {
 
 	async updateGuideFile(props: FrontmatterProperties): Promise<void> {
 		const guideFilePath = '_vault-cms-guide.md';
-		const guideFile = this.app.vault.getAbstractFileByPath(guideFilePath) as TFile;
+		const guideFileAbstract = this.app.vault.getAbstractFileByPath(guideFilePath);
+		const guideFile = guideFileAbstract instanceof TFile ? guideFileAbstract : null;
 		
 		if (!guideFile) {
 			return; // Guide file doesn't exist, skip
 		}
 
 		try {
-			await this.app.fileManager.processFrontMatter(guideFile, (frontmatter) => {
+			await this.app.fileManager.processFrontMatter(guideFile, (frontmatter: Record<string, unknown>) => {
 				// Update title property
 				if (props.titleProperty && props.titleProperty !== 'title') {
 					// If title property is different, update it
@@ -37,7 +38,7 @@ export class GuideFileUpdater {
 					}
 				}
 			});
-		} catch (error) {
+		} catch (error: unknown) {
 			console.error('Failed to update guide file:', error);
 		}
 	}

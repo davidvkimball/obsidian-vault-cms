@@ -1,6 +1,6 @@
 import { App, TFile, TFolder } from 'obsidian';
 import { ExampleFrontmatter } from '../types';
-import * as yaml from 'js-yaml';
+import * as yaml from 'yaml';
 
 export class FrontmatterAnalyzer {
 	private app: App;
@@ -22,21 +22,24 @@ export class FrontmatterAnalyzer {
 		
 		// It's a folder, get files from it
 		// First, try to find files in the immediate folder
-		let files = this.getMarkdownFiles(folder as any, false); // false = only immediate children
+		if (!(folder instanceof TFolder)) {
+			return null;
+		}
+		let files = this.getMarkdownFiles(folder, false); // false = only immediate children
 		
 		// If no files found in immediate folder, search deeper (one level at a time)
 		if (files.length === 0 && folder instanceof TFolder) {
 			// Search one level deeper
-			files = this.getMarkdownFiles(folder as any, true, 1); // true = recursive, maxDepth = 1
+			files = this.getMarkdownFiles(folder, true, 1); // true = recursive, maxDepth = 1
 			
 			// If still no files, search two levels deeper
 			if (files.length === 0) {
-				files = this.getMarkdownFiles(folder as any, true, 2); // maxDepth = 2
+				files = this.getMarkdownFiles(folder, true, 2); // maxDepth = 2
 			}
 			
 			// If still no files, search all levels (unlimited depth)
 			if (files.length === 0) {
-				files = this.getMarkdownFiles(folder as any, true); // unlimited depth
+				files = this.getMarkdownFiles(folder, true); // unlimited depth
 			}
 		}
 		
@@ -50,7 +53,7 @@ export class FrontmatterAnalyzer {
 		return null;
 	}
 
-	private getMarkdownFiles(folder: any, recursive: boolean = true, maxDepth?: number, currentDepth: number = 0): TFile[] {
+	private getMarkdownFiles(folder: TFolder, recursive: boolean = true, maxDepth?: number, currentDepth: number = 0): TFile[] {
 		const files: TFile[] = [];
 		
 		if (!folder.children) {
@@ -85,7 +88,7 @@ export class FrontmatterAnalyzer {
 			}
 			
 			const yamlContent = match[1];
-			const frontmatter = yaml.load(yamlContent) as { [key: string]: any };
+			const frontmatter = yaml.parse(yamlContent) as Record<string, unknown> | null;
 			
 			if (!frontmatter || typeof frontmatter !== 'object') {
 				return null;
@@ -96,12 +99,12 @@ export class FrontmatterAnalyzer {
 				frontmatter,
 				rawYaml: yamlContent
 			};
-		} catch (error) {
+		} catch {
 			return null;
 		}
 	}
 
-	autoDetectDateProperty(frontmatter: { [key: string]: any }): string | null {
+	autoDetectDateProperty(frontmatter: Record<string, unknown>): string | null {
 		const dateProperties = ['date', 'pubDate', 'publishedDate', 'publishDate'];
 		
 		for (const prop of dateProperties) {
@@ -113,7 +116,7 @@ export class FrontmatterAnalyzer {
 		return null; // Return null when not found, don't default to 'date'
 	}
 
-	autoDetectDescriptionProperty(frontmatter: { [key: string]: any }): string | null {
+	autoDetectDescriptionProperty(frontmatter: Record<string, unknown>): string | null {
 		const descriptionProperties = ['description', 'summary', 'excerpt', 'intro', 'snippet', 'blurb'];
 		
 		for (const prop of descriptionProperties) {
@@ -125,7 +128,7 @@ export class FrontmatterAnalyzer {
 		return null;
 	}
 
-	autoDetectTagsProperty(frontmatter: { [key: string]: any }): string | null {
+	autoDetectTagsProperty(frontmatter: Record<string, unknown>): string | null {
 		// Only match "tags" - strict matching, no fuzzy matching
 		if (frontmatter.hasOwnProperty('tags')) {
 			return 'tags';
@@ -134,7 +137,7 @@ export class FrontmatterAnalyzer {
 		return null;
 	}
 
-	autoDetectDraftProperty(frontmatter: { [key: string]: any }): { property: string; logic: 'true-draft' | 'false-draft' } | null {
+	autoDetectDraftProperty(frontmatter: Record<string, unknown>): { property: string; logic: 'true-draft' | 'false-draft' } | null {
 		if (frontmatter.hasOwnProperty('draft')) {
 			// If property is "draft", logic should be "true-draft"
 			return { property: 'draft', logic: 'true-draft' };
@@ -148,7 +151,7 @@ export class FrontmatterAnalyzer {
 		return null;
 	}
 
-	autoDetectImageProperty(frontmatter: { [key: string]: any }): string | null {
+	autoDetectImageProperty(frontmatter: Record<string, unknown>): string | null {
 		const imageProperties = ['image', 'cover', 'coverImage', 'thumbnail', 'featuredImage'];
 		
 		for (const prop of imageProperties) {

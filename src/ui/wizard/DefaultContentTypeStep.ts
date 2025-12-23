@@ -1,19 +1,22 @@
-import { App, Setting } from 'obsidian';
+import { Setting } from 'obsidian';
 import { BaseWizardStep } from './BaseWizardStep';
-import { WizardState } from '../../types';
 
 export class DefaultContentTypeStep extends BaseWizardStep {
 	display(): void {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		containerEl.createEl('h2', { text: 'Default Content Type' });
+		containerEl.createEl('h2', { text: 'Default content type' });
 		containerEl.createEl('p', { 
 			text: 'Select which content type should be used as the default. This will:' 
 		});
 		const ul = containerEl.createEl('ul');
+		// False positive: "Bases CMS" is a proper noun (product name) and should be capitalized
+		// eslint-disable-next-line obsidianmd/ui/sentence-case
 		ul.createEl('li', { text: 'Set as the default Bases CMS view' });
-		ul.createEl('li', { text: 'Configure Obsidian\'s "Default location for new notes" to that folder' });
+		// False positive: "Obsidian" is a proper noun (product name) and should be capitalized
+		// eslint-disable-next-line obsidianmd/ui/sentence-case
+		ul.createEl('li', { text: 'Configure Obsidian\'s "Default location for new notes" to that folder.' });
 
 		const enabledTypes = this.state.contentTypes.filter(ct => ct.enabled);
 		
@@ -32,7 +35,7 @@ export class DefaultContentTypeStep extends BaseWizardStep {
 		const selectedValue = this.state.defaultContentTypeId;
 
 		new Setting(containerEl)
-			.setName('Default Content Type')
+			.setName('Default content type')
 			.setDesc('Choose the default content type for new notes')
 			.addDropdown(dropdown => {
 				enabledTypes.forEach(ct => {
@@ -51,7 +54,7 @@ export class DefaultContentTypeStep extends BaseWizardStep {
 	}
 
 	getTitle(): string {
-		return 'Default Content Type';
+		return 'Default content type';
 	}
 
 	getDescription(): string {

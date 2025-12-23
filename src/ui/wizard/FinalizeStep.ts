@@ -1,4 +1,11 @@
 import { App, Notice } from 'obsidian';
+
+// Helper function for setCssProps (may not be in types yet)
+function setCssProps(element: HTMLElement, props: Record<string, string>): void {
+	for (const [key, value] of Object.entries(props)) {
+		element.style.setProperty(key.replace(/([A-Z])/g, '-$1').toLowerCase(), value);
+	}
+}
 import { BaseWizardStep } from './BaseWizardStep';
 import { WizardState } from '../../types';
 import { PluginManager } from '../../utils/PluginManager';
@@ -37,9 +44,10 @@ export class FinalizeStep extends BaseWizardStep {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		containerEl.createEl('h2', { text: 'Finalize Configuration' });
+		containerEl.createEl('h2', { text: 'Finalize configuration' });
 		containerEl.createEl('p', { 
-			text: 'Review your configuration and click "Apply" to save all settings:' 
+			// eslint-disable-next-line obsidianmd/ui/sentence-case
+			text: 'Review your configuration and click "Apply" to save all settings.' 
 		});
 
 		const summary = containerEl.createEl('div', { cls: 'finalize-summary' });
@@ -63,15 +71,15 @@ export class FinalizeStep extends BaseWizardStep {
 		summary.createEl('p', { text: `SEO Scan Directories: ${seoDirectoriesCount} director${seoDirectoriesCount !== 1 ? 'ies' : 'y'} (${seoDirectories.join(', ')})` });
 
 		const applyButtonContainer = containerEl.createDiv();
-		applyButtonContainer.style.marginBottom = '30px';
+		setCssProps(applyButtonContainer, { marginBottom: '30px' });
 		
 		const applyButton = applyButtonContainer.createEl('button', { 
-			text: 'Apply Configuration',
+			text: 'Apply configuration',
 			cls: 'mod-cta'
 		});
 
-		applyButton.addEventListener('click', async () => {
-			await this.applyConfiguration();
+		applyButton.addEventListener('click', () => {
+			void this.applyConfiguration();
 		});
 	}
 
@@ -81,22 +89,22 @@ export class FinalizeStep extends BaseWizardStep {
 		}
 
 		try {
-			console.log('FinalizeStep: Starting configuration application');
-			console.log('FinalizeStep: Enabled content types:', this.state.contentTypes.filter(ct => ct.enabled).map(ct => ct.name));
+			console.debug('FinalizeStep: Starting configuration application');
+			console.debug('FinalizeStep: Enabled content types:', this.state.contentTypes.filter(ct => ct.enabled).map(ct => ct.name));
 			
 			// Configure plugins
-			console.log('FinalizeStep: Configuring plugin states');
+			console.debug('FinalizeStep: Configuring plugin states');
 			await this.pluginManager.setPluginStates(this.state.enabledPlugins, this.state.disabledPlugins);
 
 			// Configure Bases CMS
-			console.log('FinalizeStep: Configuring Bases CMS');
+			console.debug('FinalizeStep: Configuring Bases CMS');
 			await this.basesCMSConfigurator.createOrUpdateBaseFile(
 				this.state.contentTypes,
 				this.state.frontmatterProperties,
 				this.state.defaultContentTypeId,
 				this.state.projectDetection
 			);
-			console.log('FinalizeStep: Bases CMS configuration complete');
+			console.debug('FinalizeStep: Bases CMS configuration complete');
 
 			// Configure Astro Composer
 			if (this.state.projectDetection) {
@@ -123,7 +131,7 @@ export class FinalizeStep extends BaseWizardStep {
 
 			// Configure WYSIWYG Toolbar (toggle command directly, not via commander)
 			// Always call this to ensure cMenuVisibility is set correctly, even if disabled
-			console.log(`FinalizeStep: Configuring editing toolbar, enableWYSIWYG=${this.state.enableWYSIWYG}`);
+			console.debug(`FinalizeStep: Configuring editing toolbar, enableWYSIWYG=${this.state.enableWYSIWYG}`);
 			await this.commanderConfigurator.toggleEditingToolbarCommand(this.app, this.state.enableWYSIWYG);
 
 			// Configure Commander (no toolbar button)
@@ -166,8 +174,8 @@ export class FinalizeStep extends BaseWizardStep {
 			if (this.state.defaultContentTypeId) {
 				const defaultType = this.state.contentTypes.find(ct => ct.id === this.state.defaultContentTypeId);
 				if (defaultType) {
-					console.log('FinalizeStep: Configuring Obsidian settings for default content type:', defaultType.name);
-					const app = this.app as any;
+					console.debug('FinalizeStep: Configuring Obsidian settings for default content type:', defaultType.name);
+					const app = this.app as { setting?: { set?: (key: string, value: unknown) => Promise<void>; save?: () => Promise<void> } };
 					
 					// Set attachments folder based on global attachment handling mode
 					let targetPath = './';
@@ -183,7 +191,7 @@ export class FinalizeStep extends BaseWizardStep {
 					
 					// Method 1: Try to use the app's settings manager if available (following astro-modular-settings pattern)
 					if (app.setting && typeof app.setting.set === 'function') {
-						console.log('FinalizeStep: Using app.setting API');
+						console.debug('FinalizeStep: Using app.setting API');
 						await app.setting.set('newFileLocation', 'folder');
 						await app.setting.set('newFileFolderPath', defaultType.folder);
 						await app.setting.set('attachmentFolderPath', targetPath);
@@ -192,12 +200,13 @@ export class FinalizeStep extends BaseWizardStep {
 						// Save the settings
 						if (typeof app.setting.save === 'function') {
 							await app.setting.save();
-							console.log('FinalizeStep: Obsidian settings saved via app.setting.save()');
+							console.debug('FinalizeStep: Obsidian settings saved via app.setting.save()');
 						}
 					} else {
 						// Method 2: Fallback to vault config (following astro-modular-settings pattern)
-						console.log('FinalizeStep: Using vault.config API');
-						const obsidianSettings = (this.app.vault as any).config;
+						console.debug('FinalizeStep: Using vault.config API');
+						const vault = this.app.vault as { config?: { newFileLocation?: string; newFileFolderPath?: string; attachmentFolderPath?: string; newLinkFormat?: string }; saveConfig?: () => Promise<void> };
+						const obsidianSettings = vault.config;
 						
 						if (!obsidianSettings) {
 							console.error('FinalizeStep: vault.config is not available');
@@ -207,9 +216,9 @@ export class FinalizeStep extends BaseWizardStep {
 							obsidianSettings.attachmentFolderPath = targetPath;
 							obsidianSettings.newLinkFormat = 'relative';
 							
-							if (typeof (this.app.vault as any).saveConfig === 'function') {
-								await (this.app.vault as any).saveConfig();
-								console.log('FinalizeStep: Obsidian settings saved via vault.saveConfig()');
+							if (typeof vault.saveConfig === 'function') {
+								await vault.saveConfig();
+								console.debug('FinalizeStep: Obsidian settings saved via vault.saveConfig()');
 							} else {
 								console.error('FinalizeStep: vault.saveConfig() is not available');
 							}
@@ -220,7 +229,7 @@ export class FinalizeStep extends BaseWizardStep {
 
 			this.applied = true;
 			new Notice('Configuration applied successfully!');
-		} catch (error) {
+		} catch (error: unknown) {
 			console.error('Failed to apply configuration:', error);
 			new Notice('Failed to apply configuration. Please check the console for details.');
 		}

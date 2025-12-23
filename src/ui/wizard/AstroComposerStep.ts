@@ -1,14 +1,16 @@
-import { App, Setting } from 'obsidian';
 import { BaseWizardStep } from './BaseWizardStep';
-import { WizardState } from '../../types';
 
 export class AstroComposerStep extends BaseWizardStep {
 	display(): void {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		containerEl.createEl('h2', { text: 'Astro Composer Configuration' });
+		// False positive: "Astro Composer" is a proper noun (product name) and should be capitalized
+		// eslint-disable-next-line obsidianmd/ui/sentence-case
+		containerEl.createEl('h2', { text: 'Astro Composer configuration' });
 		containerEl.createEl('p', { 
+			// False positive: "Astro Composer" is a proper noun (product name) and should be capitalized
+			// eslint-disable-next-line obsidianmd/ui/sentence-case
 			text: 'Astro Composer will be configured with your content types and frontmatter properties.' 
 		});
 
@@ -53,7 +55,7 @@ export class AstroComposerStep extends BaseWizardStep {
 	}
 
 	getTitle(): string {
-		return 'Astro Composer Configuration';
+		return 'Astro Composer configuration';
 	}
 
 	getDescription(): string {

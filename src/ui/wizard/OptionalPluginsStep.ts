@@ -1,5 +1,11 @@
-import { App, Setting } from 'obsidian';
-import { setIcon } from 'obsidian';
+import { App, Setting, setIcon } from 'obsidian';
+
+// Helper function for setCssProps (may not be in types yet)
+function setCssProps(element: HTMLElement, props: Record<string, string>): void {
+	for (const [key, value] of Object.entries(props)) {
+		element.style.setProperty(key.replace(/([A-Z])/g, '-$1').toLowerCase(), value);
+	}
+}
 import { BaseWizardStep } from './BaseWizardStep';
 import { WizardState } from '../../types';
 import { PluginManager } from '../../utils/PluginManager';
@@ -22,8 +28,10 @@ export class OptionalPluginsStep extends BaseWizardStep {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		containerEl.createEl('h2', { text: 'Plugin Configuration' });
+		containerEl.createEl('h2', { text: 'Plugin configuration' });
 		containerEl.createEl('p', { 
+			// False positive: "Vault CMS" is a proper noun (product name) and should be capitalized
+			// eslint-disable-next-line obsidianmd/ui/sentence-case
 			text: 'Review and configure your installed plugins. Essential plugins are recommended for the core Vault CMS experience.' 
 		});
 
@@ -52,7 +60,7 @@ export class OptionalPluginsStep extends BaseWizardStep {
 		];
 
 		// Get installed plugins
-		const plugins = (this.app as any).plugins;
+		const plugins = (this.app as { plugins?: { plugins?: Record<string, unknown>; enabledPlugins?: Set<string> } }).plugins;
 		const installedPluginIds = plugins?.plugins ? Object.keys(plugins.plugins) : [];
 
 		// Filter to only show installed plugins (excluding ignored ones)
@@ -78,8 +86,10 @@ export class OptionalPluginsStep extends BaseWizardStep {
 
 		// Essential plugins section
 		if (essentialPlugins.length > 0) {
-			containerEl.createEl('h3', { text: 'Essential Plugins', cls: 'vault-cms-section-header' });
+			containerEl.createEl('h3', { text: 'Essential plugins', cls: 'vault-cms-section-header' });
 			containerEl.createEl('p', { 
+				// False positive: "Vault CMS" is a proper noun (product name) and should be capitalized
+				// eslint-disable-next-line obsidianmd/ui/sentence-case
 				text: 'These plugins are recommended for the core Vault CMS experience.',
 				cls: 'vault-cms-section-desc'
 			});
@@ -88,9 +98,10 @@ export class OptionalPluginsStep extends BaseWizardStep {
 				const pluginInstance = plugins?.plugins?.[plugin.id];
 				const isInstalled = !!pluginInstance;
 				// Check if plugin is enabled - use enabledPlugins Set (more reliable)
-				const isCurrentlyEnabled = plugins?.enabledPlugins?.has?.(plugin.id) ?? pluginInstance?.enabled ?? false;
+				const pluginInstanceTyped = pluginInstance as { enabled?: boolean } | undefined;
+				const isCurrentlyEnabled = plugins?.enabledPlugins?.has?.(plugin.id) ?? pluginInstanceTyped?.enabled ?? false;
 				
-				console.log(`Plugin ${plugin.id}: installed=${isInstalled}, enabled=${isCurrentlyEnabled}`);
+				console.debug(`Plugin ${plugin.id}: installed=${isInstalled}, enabled=${isCurrentlyEnabled}`);
 				
 				// Sync state with actual plugin state
 				if (isInstalled && isCurrentlyEnabled) {
@@ -115,17 +126,17 @@ export class OptionalPluginsStep extends BaseWizardStep {
 				const iconContainer = setting.controlEl.createDiv({ cls: 'vault-cms-plugin-status' });
 				if (isInstalled && isCurrentlyEnabled) {
 					setIcon(iconContainer, 'lucide-check-circle-2');
-					iconContainer.style.color = 'var(--text-success)';
+					setCssProps(iconContainer, { color: 'var(--text-success)' });
 				} else {
 					setIcon(iconContainer, 'lucide-x-circle');
-					iconContainer.style.color = 'var(--text-error)';
+					setCssProps(iconContainer, { color: 'var(--text-error)' });
 				}
 			}
 		}
 
 		// Nice to have plugins section
 		if (niceToHavePlugins.length > 0) {
-			containerEl.createEl('h3', { text: 'Nice to Have Plugins', cls: 'vault-cms-section-header' });
+			containerEl.createEl('h3', { text: 'Nice to have plugins', cls: 'vault-cms-section-header' });
 			containerEl.createEl('p', { 
 				text: 'These plugins can be helpful depending on your theme\'s capabilities and workflow needs.',
 				cls: 'vault-cms-section-desc'
@@ -135,9 +146,10 @@ export class OptionalPluginsStep extends BaseWizardStep {
 				const pluginInstance = plugins?.plugins?.[plugin.id];
 				const isInstalled = !!pluginInstance;
 				// Check if plugin is enabled - use enabledPlugins Set (more reliable)
-				const isCurrentlyEnabled = plugins?.enabledPlugins?.has?.(plugin.id) ?? pluginInstance?.enabled ?? false;
+				const pluginInstanceTyped = pluginInstance as { enabled?: boolean } | undefined;
+				const isCurrentlyEnabled = plugins?.enabledPlugins?.has?.(plugin.id) ?? pluginInstanceTyped?.enabled ?? false;
 				
-				console.log(`Plugin ${plugin.id}: installed=${isInstalled}, enabled=${isCurrentlyEnabled}`);
+				console.debug(`Plugin ${plugin.id}: installed=${isInstalled}, enabled=${isCurrentlyEnabled}`);
 				
 				// Sync state with actual plugin state
 				if (isInstalled && isCurrentlyEnabled) {
@@ -162,10 +174,10 @@ export class OptionalPluginsStep extends BaseWizardStep {
 				const iconContainer = setting.controlEl.createDiv({ cls: 'vault-cms-plugin-status' });
 				if (isInstalled && isCurrentlyEnabled) {
 					setIcon(iconContainer, 'lucide-check-circle-2');
-					iconContainer.style.color = 'var(--text-success)';
+					setCssProps(iconContainer, { color: 'var(--text-success)' });
 				} else {
 					setIcon(iconContainer, 'lucide-x-circle');
-					iconContainer.style.color = 'var(--text-error)';
+					setCssProps(iconContainer, { color: 'var(--text-error)' });
 				}
 			}
 		}
@@ -173,6 +185,8 @@ export class OptionalPluginsStep extends BaseWizardStep {
 		// If no plugins found
 		if (essentialPlugins.length === 0 && niceToHavePlugins.length === 0) {
 			containerEl.createEl('p', { 
+				// False positive: "Vault CMS" is a proper noun (product name) and should be capitalized
+				// eslint-disable-next-line obsidianmd/ui/sentence-case
 				text: 'No Vault CMS plugins detected. Make sure you have installed the recommended plugins.' 
 			});
 		}

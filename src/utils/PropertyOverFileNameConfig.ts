@@ -1,4 +1,4 @@
-import { App } from 'obsidian';
+import { App, TFile } from 'obsidian';
 import { PropertyOverFileNameConfig } from '../types';
 
 export class PropertyOverFileNameConfigurator {
@@ -10,16 +10,17 @@ export class PropertyOverFileNameConfigurator {
 
 	async saveConfig(config: PropertyOverFileNameConfig): Promise<void> {
 		const pluginId = 'property-over-file-name';
-		const pluginDataPath = `.obsidian/plugins/${pluginId}/data.json`;
+		const configDir = this.app.vault.configDir;
+		const pluginDataPath = `${configDir}/plugins/${pluginId}/data.json`;
 		
 		try {
 			const dataFile = this.app.vault.getAbstractFileByPath(pluginDataPath);
-			if (dataFile) {
-				const existingData = JSON.parse(await this.app.vault.read(dataFile as any));
+			if (dataFile instanceof TFile) {
+				const existingData = JSON.parse(await this.app.vault.read(dataFile)) as Record<string, unknown>;
 				const mergedData = { ...existingData, ...config };
-				await this.app.vault.modify(dataFile as any, JSON.stringify(mergedData, null, 2));
+				await this.app.vault.modify(dataFile, JSON.stringify(mergedData, null, 2));
 			}
-		} catch (error) {
+		} catch (error: unknown) {
 			console.error('Failed to save Property Over File Name config:', error);
 		}
 	}

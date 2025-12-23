@@ -1,5 +1,7 @@
-import { App, TFile } from 'obsidian';
+import { App } from 'obsidian';
+// eslint-disable-next-line import/no-nodejs-modules
 import * as path from 'path';
+// eslint-disable-next-line import/no-nodejs-modules
 import * as fs from 'fs';
 import { ProjectDetectionResult } from '../types';
 
@@ -12,7 +14,7 @@ export class ProjectDetector {
 
 	async detectProject(): Promise<ProjectDetectionResult | null> {
 		const vault = this.app.vault;
-		const adapter = vault.adapter as any;
+		const adapter = vault.adapter as { basePath?: string; path?: string };
 		const vaultPath = adapter.basePath || adapter.path;
 		
 		if (!vaultPath) {
@@ -69,7 +71,7 @@ export class ProjectDetector {
 							configFilePath: configPath
 						};
 					}
-				} catch (error) {
+				} catch {
 					// Continue searching if file check fails
 				}
 			}
@@ -85,7 +87,7 @@ export class ProjectDetector {
 					// For now, let's prioritize root configs, so we'll only use src/config.ts
 					// if we don't find any root configs in the entire search
 				}
-			} catch (error) {
+			} catch {
 				// Continue searching if file check fails
 			}
 
@@ -109,7 +111,7 @@ export class ProjectDetector {
 						configFilePath: srcConfigPath
 					};
 				}
-			} catch (error) {
+			} catch {
 				// Continue searching if file check fails
 			}
 

@@ -1,12 +1,19 @@
 import { App, Setting } from 'obsidian';
+
+// Helper function for setCssProps (may not be in types yet)
+function setCssProps(element: HTMLElement, props: Record<string, string>): void {
+	for (const [key, value] of Object.entries(props)) {
+		element.style.setProperty(key.replace(/([A-Z])/g, '-$1').toLowerCase(), value);
+	}
+}
 import { BaseWizardStep } from './BaseWizardStep';
-import { WizardState } from '../../types';
+import { WizardState, ExampleFrontmatter } from '../../types';
 import { FrontmatterAnalyzer } from '../../utils/FrontmatterAnalyzer';
 import { PathResolver } from '../../utils/PathResolver';
 
 export class FrontmatterPropertiesStep extends BaseWizardStep {
 	private frontmatterAnalyzer: FrontmatterAnalyzer;
-	private examples: { [contentTypeId: string]: any } = {};
+	private examples: { [contentTypeId: string]: ExampleFrontmatter | undefined } = {};
 
 	constructor(app: App, containerEl: HTMLElement, state: WizardState, onNext: () => void, onBack: () => void, onCancel: () => void) {
 		super(app, containerEl, state, onNext, onBack, onCancel);
@@ -24,7 +31,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 		
 		const stepContentWrapper = containerEl.createDiv({ cls: 'frontmatter-step-content' });
 
-		stepContentWrapper.createEl('h2', { text: 'Frontmatter Properties' });
+		stepContentWrapper.createEl('h2', { text: 'Frontmatter properties' });
 		stepContentWrapper.createEl('p', { 
 			text: 'Map frontmatter properties for each content type. We\'ll find example files to help you.' 
 		});
@@ -59,20 +66,17 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 					cls: 'frontmatter-example'
 				});
 				// Style the pre element for better display
-				preEl.style.fontFamily = 'var(--font-monospace)';
-				preEl.style.fontSize = '0.85em';
-				preEl.style.whiteSpace = 'pre-wrap';
-				preEl.style.wordWrap = 'break-word';
-				preEl.style.overflowWrap = 'break-word';
-				preEl.style.maxWidth = '100%';
-				preEl.style.padding = '10px';
-				preEl.style.backgroundColor = 'var(--background-secondary)';
-				preEl.style.borderRadius = '4px';
-				preEl.style.border = '1px solid var(--background-modifier-border)';
-
-				// Auto-detect properties
-				const dateProp = this.frontmatterAnalyzer.autoDetectDateProperty(example.frontmatter);
-				const descProp = this.frontmatterAnalyzer.autoDetectDescriptionProperty(example.frontmatter);
+				setCssProps(preEl, {
+					fontFamily: 'var(--font-monospace)',
+					fontSize: '0.85em',
+					whiteSpace: 'pre-wrap',
+					overflowWrap: 'break-word',
+					maxWidth: '100%',
+					padding: '10px',
+					backgroundColor: 'var(--background-secondary)',
+					borderRadius: '4px',
+					border: '1px solid var(--background-modifier-border)'
+				});
 			}
 
 			// Initialize properties if not exists
@@ -99,7 +103,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 			const props = this.state.frontmatterProperties[contentType.id];
 
 			new Setting(contentTypeWrapper)
-				.setName('Title Property')
+				.setName('Title property')
 				.setDesc('The frontmatter property that contains the title (e.g., title, name, heading). Leave blank to use file name instead.')
 				.addText(text => {
 					const detected = 'title';
@@ -111,7 +115,8 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 				});
 
 			new Setting(contentTypeWrapper)
-				.setName('Date Property')
+				.setName('Date property')
+				// eslint-disable-next-line obsidianmd/ui/sentence-case
 				.setDesc('The frontmatter property that contains the date (e.g., date, pubDate, publishedDate, publishDate). Leave blank to use file created date instead.')
 				.addText(text => {
 					const detected = example ? this.frontmatterAnalyzer.autoDetectDateProperty(example.frontmatter) : null;
@@ -123,7 +128,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 				});
 
 			const descSetting = new Setting(contentTypeWrapper)
-				.setName('Has Description/Summary?')
+				.setName('Has description/summary?')
 				.setDesc('Does this content type have a description or summary field?');
 			
 			let descTextSetting: Setting | null = null;
@@ -138,7 +143,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 						// Show text field
 						if (!descTextSetting) {
 							descTextSetting = new Setting(contentTypeWrapper)
-								.setName('Description Property')
+								.setName('Description property')
 								.setDesc('The frontmatter property that contains the description (e.g., description, summary, excerpt, intro, snippet, blurb)')
 								.addText(text => text
 									.setValue(props.descriptionProperty || '')
@@ -161,7 +166,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 
 			if (props.descriptionProperty) {
 				descTextSetting = new Setting(contentTypeWrapper)
-					.setName('Description Property')
+					.setName('Description property')
 					.setDesc('The frontmatter property that contains the description (e.g., description, summary, excerpt, intro, snippet, blurb)')
 					.addText(text => text
 						.setValue(props.descriptionProperty || '')
@@ -175,7 +180,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 
 			// Has Tags?
 			const tagsSetting = new Setting(contentTypeWrapper)
-				.setName('Has Tags?')
+				.setName('Has tags?')
 				.setDesc('Does this content type have tags?');
 			
 			let tagsTextSetting: Setting | null = null;
@@ -189,7 +194,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 						// Show text field
 						if (!tagsTextSetting) {
 							tagsTextSetting = new Setting(contentTypeWrapper)
-								.setName('Tags Property')
+								.setName('Tags property')
 								.setDesc('The frontmatter property that contains tags (e.g., tags, tag, categories, category). Leave blank if not applicable.')
 								.addText(text => {
 									const detected = example ? this.frontmatterAnalyzer.autoDetectTagsProperty(example.frontmatter) : null;
@@ -215,7 +220,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 
 			if (props.tagsProperty) {
 				tagsTextSetting = new Setting(contentTypeWrapper)
-					.setName('Tags Property')
+					.setName('Tags property')
 					.setDesc('The frontmatter property that contains tags (e.g., tags, tag, categories, category). Leave blank if not applicable.')
 					.addText(text => {
 						const detected = example ? this.frontmatterAnalyzer.autoDetectTagsProperty(example.frontmatter) : null;
@@ -232,7 +237,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 
 			// Has Draft Status?
 			const draftSetting = new Setting(contentTypeWrapper)
-				.setName('Has Draft Status?')
+				.setName('Has draft status?')
 				.setDesc('Does this content type have draft status?');
 			
 			let draftPropertySetting: Setting | null = null;
@@ -259,7 +264,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 						// Show fields
 						if (!draftPropertySetting) {
 							draftPropertySetting = new Setting(contentTypeWrapper)
-								.setName('Draft Property')
+								.setName('Draft property')
 								.setDesc('The frontmatter property that contains draft status. Leave blank to use an underscore prefix instead.')
 								.addText(text => {
 									const detected = example ? this.frontmatterAnalyzer.autoDetectDraftProperty(example.frontmatter) : null;
@@ -276,10 +281,14 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 											// Show/hide logic dropdown
 											if (value && !draftLogicSetting) {
 												draftLogicSetting = new Setting(contentTypeWrapper)
-													.setName('Draft Logic')
+													.setName('Draft logic')
 													.setDesc('How draft status is represented')
 													.addDropdown(dropdown => dropdown
+														// False positive: "true = draft" and "false = draft" are technical notation, not UI text
+														// eslint-disable-next-line obsidianmd/ui/sentence-case
 														.addOption('true-draft', 'true = draft')
+														// False positive: "false = draft" is technical notation, not UI text
+														// eslint-disable-next-line obsidianmd/ui/sentence-case
 														.addOption('false-draft', 'false = draft')
 														.setValue(props.draftLogic || 'true-draft')
 														.onChange(dropdownValue => {
@@ -302,10 +311,14 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 						// Show logic dropdown if property is set
 						if (props.draftProperty && !draftLogicSetting) {
 							draftLogicSetting = new Setting(contentTypeWrapper)
-								.setName('Draft Logic')
+								.setName('Draft logic')
 								.setDesc('How draft status is represented')
 								.addDropdown(dropdown => dropdown
+									// False positive: "true = draft" and "false = draft" are technical notation, not UI text
+									// eslint-disable-next-line obsidianmd/ui/sentence-case
 									.addOption('true-draft', 'true = draft')
+									// False positive: "false = draft" is technical notation, not UI text
+									// eslint-disable-next-line obsidianmd/ui/sentence-case
 									.addOption('false-draft', 'false = draft')
 									.setValue(props.draftLogic || 'true-draft')
 									.onChange(value => {
@@ -313,7 +326,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 									}));
 							// Remove from current position and insert right after the draft property setting
 							draftLogicSetting.settingEl.remove();
-							if (draftPropertySetting) {
+							if (draftPropertySetting !== null) {
 								draftPropertySetting.settingEl.insertAdjacentElement('afterend', draftLogicSetting.settingEl);
 							}
 						}
@@ -335,7 +348,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 
 			if (props.hasDraftStatus) {
 				draftPropertySetting = new Setting(contentTypeWrapper)
-					.setName('Draft Property')
+					.setName('Draft property')
 					.setDesc('The frontmatter property that contains draft status. Leave blank to use an underscore prefix instead.')
 					.addText(text => {
 						const detected = example ? this.frontmatterAnalyzer.autoDetectDraftProperty(example.frontmatter) : null;
@@ -352,10 +365,14 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 								// Show/hide logic dropdown
 								if (value && !draftLogicSetting) {
 									draftLogicSetting = new Setting(contentTypeWrapper)
-										.setName('Draft Logic')
+										.setName('Draft logic')
 										.setDesc('How draft status is represented')
 										.addDropdown(dropdown => dropdown
+											// False positive: "true = draft" and "false = draft" are technical notation, not UI text
+											// eslint-disable-next-line obsidianmd/ui/sentence-case
 											.addOption('true-draft', 'true = draft')
+											// False positive: "false = draft" is technical notation, not UI text
+											// eslint-disable-next-line obsidianmd/ui/sentence-case
 											.addOption('false-draft', 'false = draft')
 											.setValue(props.draftLogic || 'true-draft')
 											.onChange(dropdownValue => {
@@ -377,10 +394,14 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 
 				if (props.draftProperty) {
 					draftLogicSetting = new Setting(contentTypeWrapper)
-						.setName('Draft Logic')
+						.setName('Draft logic')
 						.setDesc('How draft status is represented')
 						.addDropdown(dropdown => dropdown
+							// False positive: "true = draft" and "false = draft" are technical notation, not UI text
+							// eslint-disable-next-line obsidianmd/ui/sentence-case
 							.addOption('true-draft', 'true = draft')
+							// False positive: "false = draft" is technical notation, not UI text
+							// eslint-disable-next-line obsidianmd/ui/sentence-case
 							.addOption('false-draft', 'false = draft')
 							.setValue(props.draftLogic || 'true-draft')
 							.onChange(value => {
@@ -388,7 +409,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 							}));
 					// Remove from current position and insert right after the draft property setting
 					draftLogicSetting.settingEl.remove();
-					if (draftPropertySetting) {
+					if (draftPropertySetting !== null) {
 						draftPropertySetting.settingEl.insertAdjacentElement('afterend', draftLogicSetting.settingEl);
 					}
 				}
@@ -396,7 +417,9 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 
 			// Has Image Property?
 			const imageSetting = new Setting(contentTypeWrapper)
-				.setName('Has Image/Cover Property?')
+				.setName('Has image/cover property?')
+				// False positive: "Bases CMS", "Simple Banner", and "Image Inserter" are proper nouns (product names) and should be capitalized
+				// eslint-disable-next-line obsidianmd/ui/sentence-case
 				.setDesc('Does this content type have an image or cover property? Used for Bases CMS cover images, Simple Banner, and Image Inserter.');
 			
 			let imageTextSetting: Setting | null = null;
@@ -410,7 +433,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 						// Show text field
 						if (!imageTextSetting) {
 							imageTextSetting = new Setting(contentTypeWrapper)
-								.setName('Image Property')
+								.setName('Image property')
 								.setDesc('The frontmatter property that contains the image/cover (e.g., image, cover, coverImage, thumbnail, featuredImage). Leave blank if not applicable.')
 								.addText(text => {
 									const detected = example ? this.frontmatterAnalyzer.autoDetectImageProperty(example.frontmatter) : null;
@@ -436,7 +459,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 
 			if (props.imageProperty) {
 				imageTextSetting = new Setting(contentTypeWrapper)
-					.setName('Image Property')
+					.setName('Image property')
 					.setDesc('The frontmatter property that contains the image/cover (e.g., image, cover, coverImage, thumbnail, featuredImage). Leave blank if not applicable.')
 					.addText(text => {
 						const detected = example ? this.frontmatterAnalyzer.autoDetectImageProperty(example.frontmatter) : null;
@@ -480,7 +503,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 		}
 	}
 
-	private generateDefaultTemplate(props: any, includeDate: boolean, example: any): string {
+	private generateDefaultTemplate(props: { titleProperty?: string; dateProperty?: string; descriptionProperty?: string; tagsProperty?: string; draftProperty?: string; draftLogic?: 'true-draft' | 'false-draft' }, includeDate: boolean, example: ExampleFrontmatter | undefined): string {
 		// Note: includeDate parameter is kept for backwards compatibility but we check props.dateProperty instead
 		let template = '---\n';
 		
@@ -607,7 +630,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 	}
 
 	getTitle(): string {
-		return 'Frontmatter Properties';
+		return 'Frontmatter properties';
 	}
 
 	getDescription(): string {

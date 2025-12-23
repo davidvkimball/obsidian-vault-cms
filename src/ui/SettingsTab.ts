@@ -16,17 +16,19 @@ export class SettingsTab extends PluginSettingTab {
 		containerEl.empty();
 
 		new Setting(containerEl)
-			.setName('Open Setup Wizard')
+			.setName('Open setup wizard')
+			// False positive: "Vault CMS" is a proper noun (product name) and should be capitalized
+			// eslint-disable-next-line obsidianmd/ui/sentence-case
 			.setDesc('Launch the setup wizard to configure Vault CMS')
 			.addButton(button => button
-				.setButtonText('Open Wizard')
+				.setButtonText('Open wizard')
 				.setCta()
 				.onClick(() => {
 					new SetupWizardModal(this.app, this.plugin.settings, this.plugin).open();
 				}));
 
 		new Setting(containerEl)
-			.setName('Run Wizard on Startup')
+			.setName('Run wizard on startup')
 			.setDesc('Automatically open the wizard when the plugin loads')
 			.addToggle(toggle => toggle
 				.setValue(this.plugin.settings.runWizardOnStartup)

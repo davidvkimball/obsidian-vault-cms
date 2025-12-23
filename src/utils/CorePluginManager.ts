@@ -8,14 +8,14 @@ export class CorePluginManager {
 	}
 
 	async setCorePluginState(pluginId: string, enabled: boolean): Promise<void> {
-		const plugins = (this.app as any).internalPlugins;
+		const plugins = (this.app as { internalPlugins?: { plugins?: Record<string, unknown>; enablePlugin?: (id: string, enabled: boolean) => Promise<void> } }).internalPlugins;
 		if (!plugins) {
 			return;
 		}
 
-		const plugin = plugins.plugins[pluginId];
+		const plugin = plugins.plugins?.[pluginId];
 		if (plugin) {
-			await plugins.enablePlugin(pluginId, enabled);
+			await plugins.enablePlugin?.(pluginId, enabled);
 		}
 	}
 

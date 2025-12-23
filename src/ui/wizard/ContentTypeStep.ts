@@ -1,5 +1,11 @@
 import { App, Setting, Notice, TFolder, TFile, AbstractInputSuggest } from 'obsidian';
-import * as path from 'path';
+
+// Helper function for setCssProps (may not be in types yet)
+function setCssProps(element: HTMLElement, props: Record<string, string>): void {
+	for (const [key, value] of Object.entries(props)) {
+		element.style.setProperty(key.replace(/([A-Z])/g, '-$1').toLowerCase(), value);
+	}
+}
 import { BaseWizardStep } from './BaseWizardStep';
 import { WizardState, ContentTypeConfig } from '../../types';
 import { ContentTypeDetector } from '../../utils/ContentTypeDetector';
@@ -90,27 +96,27 @@ export class ContentTypeStep extends BaseWizardStep {
 	private async importFromAstroComposer(): Promise<ContentTypeConfig[]> {
 		try {
 			// First try to use plugin API (like how we save)
-			const plugins = (this.app as any).plugins;
-			console.log('ContentTypeStep: Checking plugins API:', !!plugins);
+			const plugins = (this.app as { plugins?: { plugins?: Record<string, { settings?: { contentTypes?: unknown[] } }> } }).plugins;
+			console.debug('ContentTypeStep: Checking plugins API:', !!plugins);
 			
 			if (plugins) {
 				const astroComposerPlugin = plugins.plugins?.['astro-composer'];
-				console.log('ContentTypeStep: Astro Composer plugin found:', !!astroComposerPlugin);
+				console.debug('ContentTypeStep: Astro Composer plugin found:', !!astroComposerPlugin);
 				
 				if (astroComposerPlugin) {
-					console.log('ContentTypeStep: Plugin settings available:', !!astroComposerPlugin.settings);
-					console.log('ContentTypeStep: Plugin settings keys:', astroComposerPlugin.settings ? Object.keys(astroComposerPlugin.settings) : 'none');
+					console.debug('ContentTypeStep: Plugin settings available:', !!astroComposerPlugin.settings);
+					console.debug('ContentTypeStep: Plugin settings keys:', astroComposerPlugin.settings ? Object.keys(astroComposerPlugin.settings) : 'none');
 					
 					if (astroComposerPlugin.settings) {
 						const contentTypes = astroComposerPlugin.settings.contentTypes;
-						console.log('ContentTypeStep: contentTypes from plugin:', contentTypes ? `Array with ${contentTypes.length} items` : 'not found');
+						console.debug('ContentTypeStep: contentTypes from plugin:', contentTypes ? `Array with ${contentTypes.length} items` : 'not found');
 						
 						if (Array.isArray(contentTypes) && contentTypes.length > 0) {
-							console.log('ContentTypeStep: Importing', contentTypes.length, 'content types from Astro Composer (via plugin API)');
+							console.debug('ContentTypeStep: Importing', contentTypes.length, 'content types from Astro Composer (via plugin API)');
 							
 							// Convert Astro Composer content types to our format
-							const importedTypes: ContentTypeConfig[] = contentTypes.map((ct: any) => ({
-								id: ct.id || `content-type-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+							const importedTypes: ContentTypeConfig[] = contentTypes.map((ct: { id?: string; name?: string; folder: string; creationMode?: string; indexFileName?: string; linkBasePath?: string; enabled?: boolean }) => ({
+								id: ct.id || `content-type-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
 								name: ct.name || this.capitalizeFirst(ct.folder),
 								folder: ct.folder,
 								fileOrganization: ct.creationMode === 'folder' ? 'folder' : 'file',
@@ -126,31 +132,31 @@ export class ContentTypeStep extends BaseWizardStep {
 			}
 			
 			// Fallback to file reading
-			const pluginDataPath = '.obsidian/plugins/astro-composer/data.json';
-			console.log('ContentTypeStep: Trying to read file:', pluginDataPath);
+			const configDir = this.app.vault.configDir;
+			const pluginDataPath = `${configDir}/plugins/astro-composer/data.json`;
+			console.debug('ContentTypeStep: Trying to read file:', pluginDataPath);
 			const dataFile = this.app.vault.getAbstractFileByPath(pluginDataPath);
-			console.log('ContentTypeStep: File found:', !!dataFile, dataFile ? `Type: ${dataFile.constructor.name}` : 'not found');
+			console.debug('ContentTypeStep: File found:', !!dataFile, dataFile ? `Type: ${dataFile.constructor.name}` : 'not found');
 			
 			if (!dataFile || !(dataFile instanceof TFile)) {
 				// Try alternative paths
 				const altPaths = [
-					'.obsidian/plugins/astro-composer/data.json',
-					'obsidian/plugins/astro-composer/data.json',
-					'.obsidian/plugins/astro-composer/data.json'
+					`${configDir}/plugins/astro-composer/data.json`,
+					`obsidian/plugins/astro-composer/data.json`
 				];
 				
 				for (const altPath of altPaths) {
 					const altFile = this.app.vault.getAbstractFileByPath(altPath);
 					if (altFile && altFile instanceof TFile) {
-						console.log('ContentTypeStep: Found file at alternative path:', altPath);
+						console.debug('ContentTypeStep: Found file at alternative path:', altPath);
 						const content = await this.app.vault.read(altFile);
-						const data = JSON.parse(content);
+						const data = JSON.parse(content) as { contentTypes?: unknown[] };
 						
 						if (data.contentTypes && Array.isArray(data.contentTypes)) {
-							console.log('ContentTypeStep: Importing', data.contentTypes.length, 'content types from Astro Composer (via file at', altPath, ')');
+							console.debug('ContentTypeStep: Importing', data.contentTypes.length, 'content types from Astro Composer (via file at', altPath, ')');
 							
-							const importedTypes: ContentTypeConfig[] = data.contentTypes.map((ct: any) => ({
-								id: ct.id || `content-type-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+							const importedTypes: ContentTypeConfig[] = data.contentTypes.map((ct: { id?: string; name?: string; folder: string; creationMode?: string; indexFileName?: string; linkBasePath?: string; enabled?: boolean }) => ({
+								id: ct.id || `content-type-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
 								name: ct.name || this.capitalizeFirst(ct.folder),
 								folder: ct.folder,
 								fileOrganization: ct.creationMode === 'folder' ? 'folder' : 'file',
@@ -164,23 +170,23 @@ export class ContentTypeStep extends BaseWizardStep {
 					}
 				}
 				
-				console.log('ContentTypeStep: No Astro Composer data.json found, will scan folders');
+				console.debug('ContentTypeStep: No Astro Composer data.json found, will scan folders');
 				return [];
 			}
 
 			const content = await this.app.vault.read(dataFile);
-			const data = JSON.parse(content);
+			const data = JSON.parse(content) as { contentTypes?: unknown[] };
 			
 			if (!data.contentTypes || !Array.isArray(data.contentTypes)) {
-				console.log('ContentTypeStep: Astro Composer data.json has no contentTypes array. Data keys:', Object.keys(data));
+				console.debug('ContentTypeStep: Astro Composer data.json has no contentTypes array. Data keys:', Object.keys(data));
 				return [];
 			}
 
-			console.log('ContentTypeStep: Importing', data.contentTypes.length, 'content types from Astro Composer (via file)');
+			console.debug('ContentTypeStep: Importing', data.contentTypes.length, 'content types from Astro Composer (via file)');
 			
 			// Convert Astro Composer content types to our format
-			const importedTypes: ContentTypeConfig[] = data.contentTypes.map((ct: any) => ({
-				id: ct.id || `content-type-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+			const importedTypes: ContentTypeConfig[] = data.contentTypes.map((ct: { id?: string; name?: string; folder: string; creationMode?: string; indexFileName?: string; linkBasePath?: string; enabled?: boolean }) => ({
+				id: ct.id || `content-type-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
 				name: ct.name || this.capitalizeFirst(ct.folder),
 				folder: ct.folder,
 				fileOrganization: ct.creationMode === 'folder' ? 'folder' : 'file',
@@ -190,7 +196,7 @@ export class ContentTypeStep extends BaseWizardStep {
 			}));
 
 			return importedTypes;
-		} catch (error) {
+		} catch (error: unknown) {
 			console.error('ContentTypeStep: Failed to import from Astro Composer:', error);
 			return [];
 		}
@@ -211,7 +217,7 @@ export class ContentTypeStep extends BaseWizardStep {
 			stepContentWrapper.empty();
 		}
 
-		stepContentWrapper.createEl('h2', { text: 'Content Types' });
+		stepContentWrapper.createEl('h2', { text: 'Content types' });
 		stepContentWrapper.createEl('p', { 
 			text: 'Detecting content types in your vault...' 
 		});
@@ -282,13 +288,13 @@ export class ContentTypeStep extends BaseWizardStep {
 		}
 
 		stepContentWrapper.empty();
-		stepContentWrapper.createEl('h2', { text: 'Content Types' });
+		stepContentWrapper.createEl('h2', { text: 'Content types' });
 		stepContentWrapper.createEl('p', { 
 			text: 'Select and configure your content types:' 
 		});
 
 		// Global attachment handling at the top
-		stepContentWrapper.createEl('h3', { text: 'Attachment Handling', cls: 'vault-cms-section-header' });
+		stepContentWrapper.createEl('h3', { text: 'Attachment handling', cls: 'vault-cms-section-header' });
 		stepContentWrapper.createEl('p', { 
 			text: 'How should attachments be stored globally?',
 			cls: 'vault-cms-section-desc'
@@ -309,7 +315,7 @@ export class ContentTypeStep extends BaseWizardStep {
 						this.state.attachmentFolderName = undefined;
 					}
 					// Re-render to show/hide folder name input
-					this.display();
+					void this.display();
 				}));
 
 		// Show folder name input for specified-folder or subfolder modes
@@ -319,10 +325,12 @@ export class ContentTypeStep extends BaseWizardStep {
 				: 'Enter the name of the subfolder for attachments (e.g., "attachments"). Leave blank to use "attachments" as default.';
 			
 			const folderNameSetting = new Setting(stepContentWrapper)
-				.setName('Attachment Folder')
+				.setName('Attachment folder')
 				.setDesc(descText);
 
 			folderNameSetting.addText(text => {
+				// False positive: "attachments" is a placeholder value, not UI text
+				// eslint-disable-next-line obsidianmd/ui/sentence-case
 				text.setPlaceholder('attachments')
 					.setValue(this.state.attachmentFolderName || '')
 					.onChange(value => {
@@ -331,7 +339,7 @@ export class ContentTypeStep extends BaseWizardStep {
 				
 				// Add autocomplete suggester with mode (only if not same-folder)
 				if (this.state.attachmentHandlingMode !== 'same-folder') {
-					new FolderNameSuggest(this.app, text.inputEl, this.state.attachmentHandlingMode as 'specified-folder' | 'subfolder');
+					new FolderNameSuggest(this.app, text.inputEl, this.state.attachmentHandlingMode);
 				}
 			});
 		}
@@ -339,10 +347,10 @@ export class ContentTypeStep extends BaseWizardStep {
 		stepContentWrapper.createEl('hr', { cls: 'vault-cms-divider' });
 
 		// Content types section
-		stepContentWrapper.createEl('h3', { text: 'Content Types', cls: 'vault-cms-section-header' });
+		stepContentWrapper.createEl('h3', { text: 'Content types', cls: 'vault-cms-section-header' });
 
 		for (const contentType of this.state.contentTypes) {
-			const setting = new Setting(stepContentWrapper)
+			new Setting(stepContentWrapper)
 				.setName(contentType.name)
 				.setDesc(`Folder: ${contentType.folder}`)
 				.addToggle(toggle => toggle
@@ -353,7 +361,7 @@ export class ContentTypeStep extends BaseWizardStep {
 
 			// File organization dropdown
 			new Setting(stepContentWrapper)
-				.setName(`${contentType.name} - File Organization`)
+				.setName(`${contentType.name} - File organization`)
 				.setDesc('Choose how content is organized for this content type')
 				.addDropdown(dropdown => dropdown
 					.addOption('file', 'File-based')
@@ -362,13 +370,13 @@ export class ContentTypeStep extends BaseWizardStep {
 					.onChange(value => {
 						contentType.fileOrganization = value as 'file' | 'folder';
 						// Re-render to show/hide index file name setting
-						this.display();
+						void this.display();
 					}));
 
 			// Show index file name for folder-based organization
 			if (contentType.fileOrganization === 'folder') {
 				new Setting(stepContentWrapper)
-					.setName(`${contentType.name} - Index File Name`)
+					.setName(`${contentType.name} - Index file name`)
 					.setDesc('Name of the index file in folder-based organization')
 					.addText(text => text
 						.setValue(contentType.indexFileName || 'index')
@@ -380,7 +388,7 @@ export class ContentTypeStep extends BaseWizardStep {
 			// Link base path for Astro Composer
 			const defaultLinkBasePath = `/${contentType.folder}/`;
 			new Setting(stepContentWrapper)
-				.setName(`${contentType.name} - Link Base Path`)
+				.setName(`${contentType.name} - Link base path`)
 				.setDesc(`URL path for this content type (e.g., "/posts/" or "/" for root). Leave blank to use default: ${defaultLinkBasePath}`)
 				.addText(text => text
 					.setPlaceholder(defaultLinkBasePath)
@@ -392,26 +400,29 @@ export class ContentTypeStep extends BaseWizardStep {
 
 		// Add Additional Content Type button
 		const addButton = stepContentWrapper.createEl('button', { 
-			text: 'Add Additional Content Type',
+			text: 'Add additional content type',
 			cls: 'mod-cta'
 		});
-		addButton.style.marginTop = '20px';
-		addButton.style.marginBottom = '30px';
-		addButton.addEventListener('click', async () => {
-			const selectedFolder = await this.selectContentTypeFolder();
-			if (selectedFolder) {
-				const folderName = path.basename(selectedFolder);
-				const newType: ContentTypeConfig = {
-					id: `content-type-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-					name: this.capitalizeFirst(folderName),
-					folder: folderName,
-					fileOrganization: 'file',
-					enabled: false,
-					indexFileName: 'index'
-				};
-				this.state.contentTypes.push(newType);
-				this.display();
-			}
+		setCssProps(addButton, { marginTop: '20px', marginBottom: '30px' });
+		addButton.addEventListener('click', () => {
+			void (async () => {
+				const selectedFolder = await this.selectContentTypeFolder();
+				if (selectedFolder) {
+					// Extract folder name from path (last segment)
+					const pathParts = selectedFolder.split(/[/\\]/);
+					const folderName = pathParts[pathParts.length - 1] || selectedFolder;
+					const newType: ContentTypeConfig = {
+						id: `content-type-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
+						name: this.capitalizeFirst(folderName),
+						folder: folderName,
+						fileOrganization: 'file',
+						enabled: false,
+						indexFileName: 'index'
+					};
+					this.state.contentTypes.push(newType);
+					await this.display();
+				}
+			})();
 		});
 	}
 
@@ -421,22 +432,24 @@ export class ContentTypeStep extends BaseWizardStep {
 	private async selectContentTypeFolder(): Promise<string | null> {
 		try {
 			// Try multiple ways to access Electron dialog API
-			let dialog: any = null;
+			let dialog: { showOpenDialogSync?: (options: { title: string; defaultPath: string; properties: string[] }) => string[] | undefined } | null = null;
 
 			// Method 1: Try @electron/remote (newer Electron versions)
 			try {
-				const electronRemote = require('@electron/remote');
-				dialog = electronRemote?.dialog;
-			} catch (e) {
+				// eslint-disable-next-line @typescript-eslint/no-require-imports
+				const electronRemote = require('@electron/remote') as { dialog?: { showOpenDialogSync?: (options: { title: string; defaultPath: string; properties: string[] }) => string[] | undefined } };
+				dialog = electronRemote?.dialog || null;
+			} catch {
 				// Not available, try next method
 			}
 
 			// Method 2: Try electron.remote.dialog (older Electron versions)
 			if (!dialog) {
 				try {
-					const electron = (window as any).require?.('electron') || require('electron');
-					dialog = electron?.remote?.dialog;
-				} catch (e) {
+					// eslint-disable-next-line @typescript-eslint/no-require-imports
+					const electron = ((window as { require?: (module: string) => unknown }).require?.('electron') || require('electron')) as { remote?: { dialog?: { showOpenDialogSync?: (options: { title: string; defaultPath: string; properties: string[] }) => string[] | undefined } } };
+					dialog = electron?.remote?.dialog || null;
+				} catch {
 					// Not available, try next method
 				}
 			}
@@ -444,9 +457,10 @@ export class ContentTypeStep extends BaseWizardStep {
 			// Method 3: Try electron.dialog directly (main process, may not work)
 			if (!dialog) {
 				try {
-					const electron = require('electron');
-					dialog = electron?.dialog;
-				} catch (e) {
+					// eslint-disable-next-line @typescript-eslint/no-require-imports
+					const electron = require('electron') as { dialog?: { showOpenDialogSync?: (options: { title: string; defaultPath: string; properties: string[] }) => string[] | undefined } };
+					dialog = electron?.dialog || null;
+				} catch {
 					// Not available
 				}
 			}
@@ -464,9 +478,10 @@ export class ContentTypeStep extends BaseWizardStep {
 			});
 
 			if (result && result.length > 0) {
-				return path.normalize(result[0]);
+				// Normalize path (replace backslashes with forward slashes, remove trailing slashes)
+				return result[0].replace(/\\/g, '/').replace(/\/$/, '');
 			}
-		} catch (error) {
+		} catch (error: unknown) {
 			console.error('Error opening folder picker:', error);
 			new Notice('Unable to open folder picker. Please ensure you are using Obsidian on desktop.');
 		}
@@ -478,9 +493,19 @@ export class ContentTypeStep extends BaseWizardStep {
 	 * Get the vault path
 	 */
 	private getVaultPath(): string {
-		const adapter = this.app.vault.adapter as any;
+		const adapter = this.app.vault.adapter as { basePath?: string; path?: string };
 		const vaultPath = adapter.basePath || adapter.path;
-		return vaultPath ? path.resolve(vaultPath) : process.cwd();
+		// Resolve path (convert relative to absolute, normalize separators)
+		if (vaultPath) {
+			// If already absolute, return as-is (normalized)
+			if (vaultPath.startsWith('/') || /^[A-Z]:/.test(vaultPath)) {
+				return vaultPath.replace(/\\/g, '/');
+			}
+			// For relative paths, we'd need to resolve, but in Obsidian context, basePath should be absolute
+			return vaultPath.replace(/\\/g, '/');
+		}
+		// Fallback - in Obsidian context this shouldn't happen
+		return '/';
 	}
 
 	/**
@@ -495,7 +520,7 @@ export class ContentTypeStep extends BaseWizardStep {
 	}
 
 	getTitle(): string {
-		return 'Content Types';
+		return 'Content types';
 	}
 
 	getDescription(): string {

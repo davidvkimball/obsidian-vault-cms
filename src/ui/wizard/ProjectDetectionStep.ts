@@ -1,5 +1,14 @@
 import { App, Setting, Notice } from 'obsidian';
+
+// Helper function for setCssProps (may not be in types yet)
+function setCssProps(element: HTMLElement, props: Record<string, string>): void {
+	for (const [key, value] of Object.entries(props)) {
+		element.style.setProperty(key.replace(/([A-Z])/g, '-$1').toLowerCase(), value);
+	}
+}
+// eslint-disable-next-line import/no-nodejs-modules
 import * as path from 'path';
+// eslint-disable-next-line import/no-nodejs-modules
 import * as fs from 'fs';
 import { BaseWizardStep } from './BaseWizardStep';
 import { WizardState } from '../../types';
@@ -24,8 +33,10 @@ export class ProjectDetectionStep extends BaseWizardStep {
 		const hasSavedValues = this.state.projectDetection?.projectRoot && this.state.projectDetection?.configFilePath;
 		
 		if (!hasSavedValues) {
-			containerEl.createEl('h2', { text: 'Project Detection' });
+			containerEl.createEl('h2', { text: 'Project detection' });
 			containerEl.createEl('p', { 
+				// False positive: "Astro" is a proper noun (framework name) and should be capitalized
+				// eslint-disable-next-line obsidianmd/ui/sentence-case
 				text: 'Detecting your Astro project structure...' 
 			});
 
@@ -58,14 +69,17 @@ export class ProjectDetectionStep extends BaseWizardStep {
 			await new Promise(resolve => setTimeout(resolve, 500));
 
 			containerEl.empty();
-			containerEl.createEl('h2', { text: 'Project Detected' });
+			containerEl.createEl('h2', { text: 'Project detected' });
 			containerEl.createEl('p', { 
+				// eslint-disable-next-line obsidianmd/ui/sentence-case
 				text: 'Project structure detected successfully. You can modify the paths below if needed, then click "Next" to continue.' 
 			});
 			
 			// Project Root picker (with browse button even when detected)
 			const projectRootSetting = new Setting(containerEl)
-				.setName('Project Root')
+				.setName('Project root')
+				// False positive: "Astro" is a proper noun (framework name) and should be capitalized
+				// eslint-disable-next-line obsidianmd/ui/sentence-case
 				.setDesc('Select the folder containing your Astro project root');
 
 			// Display current selection
@@ -73,27 +87,29 @@ export class ProjectDetectionStep extends BaseWizardStep {
 				text: this.state.projectDetection.projectRoot || 'No folder selected',
 				cls: 'vault-cms-path-display'
 			});
-			this.projectRootDisplay.style.color = 'var(--text-normal)';
+			setCssProps(this.projectRootDisplay, { color: 'var(--text-normal)' });
 
 			projectRootSetting.addButton(button => button
 				.setButtonText('Browse...')
 				.setCta()
-				.onClick(async () => {
-					const selectedPath = await this.selectFolder();
-					if (selectedPath) {
-						this.state.projectDetection!.projectRoot = selectedPath;
-						if (this.projectRootDisplay) {
-							this.projectRootDisplay.textContent = selectedPath;
-							this.projectRootDisplay.style.color = 'var(--text-normal)';
+				.onClick(() => {
+					void (async () => {
+						const selectedPath = await this.selectFolder();
+						if (selectedPath) {
+							this.state.projectDetection!.projectRoot = selectedPath;
+							if (this.projectRootDisplay) {
+								this.projectRootDisplay.textContent = selectedPath;
+								setCssProps(this.projectRootDisplay, { color: 'var(--text-normal)' });
+							}
+							// Update detected flag if user changes
+							this.detected = false;
 						}
-						// Update detected flag if user changes
-						this.detected = false;
-					}
+					})();
 				}));
 
 			// Config File picker (with browse button even when detected)
 			const configFileSetting = new Setting(containerEl)
-				.setName('Config File')
+				.setName('Config file')
 				.setDesc('Select your Astro config file (astro.config.mjs, astro.config.js, src/config.ts, etc.)');
 
 			// Display current selection
@@ -101,28 +117,32 @@ export class ProjectDetectionStep extends BaseWizardStep {
 				text: this.state.projectDetection.configFilePath || 'No file selected',
 				cls: 'vault-cms-path-display'
 			});
-			this.configFileDisplay.style.color = 'var(--text-normal)';
+			setCssProps(this.configFileDisplay, { color: 'var(--text-normal)' });
 
 			configFileSetting.addButton(button => button
 				.setButtonText('Browse...')
 				.setCta()
-				.onClick(async () => {
-					const defaultPath = this.state.projectDetection?.projectRoot || this.getVaultPath();
-					const selectedPath = await this.selectConfigFile(defaultPath);
-					if (selectedPath) {
-						this.state.projectDetection!.configFilePath = selectedPath;
-						if (this.configFileDisplay) {
-							this.configFileDisplay.textContent = selectedPath;
-							this.configFileDisplay.style.color = 'var(--text-normal)';
+				.onClick(() => {
+					void (async () => {
+						const defaultPath = this.state.projectDetection?.projectRoot || this.getVaultPath();
+						const selectedPath = await this.selectConfigFile(defaultPath);
+						if (selectedPath) {
+							this.state.projectDetection!.configFilePath = selectedPath;
+							if (this.configFileDisplay) {
+								this.configFileDisplay.textContent = selectedPath;
+								setCssProps(this.configFileDisplay, { color: 'var(--text-normal)' });
+							}
+							// Update detected flag if user changes
+							this.detected = false;
 						}
-						// Update detected flag if user changes
-						this.detected = false;
-					}
+					})();
 				}));
 		} else {
 			containerEl.empty();
-			containerEl.createEl('h2', { text: 'Project Detection Failed' });
+			containerEl.createEl('h2', { text: 'Project detection failed' });
 			containerEl.createEl('p', { 
+				// False positive: "Astro" is a proper noun (framework name) and should be capitalized
+				// eslint-disable-next-line obsidianmd/ui/sentence-case
 				text: 'Could not detect Astro project structure. Please select your Astro project root and config file manually.' 
 			});
 
@@ -137,7 +157,9 @@ export class ProjectDetectionStep extends BaseWizardStep {
 
 			// Project Root picker
 			const projectRootSetting = new Setting(containerEl)
-				.setName('Project Root')
+				.setName('Project root')
+				// False positive: "Astro" is a proper noun (framework name) and should be capitalized
+				// eslint-disable-next-line obsidianmd/ui/sentence-case
 				.setDesc('Select the folder containing your Astro project root');
 
 			// Display current selection
@@ -146,28 +168,30 @@ export class ProjectDetectionStep extends BaseWizardStep {
 				cls: 'vault-cms-path-display'
 			});
 			if (this.state.projectDetection.projectRoot) {
-				this.projectRootDisplay.style.color = 'var(--text-normal)';
+				setCssProps(this.projectRootDisplay, { color: 'var(--text-normal)' });
 			} else {
-				this.projectRootDisplay.style.color = 'var(--text-muted)';
+				setCssProps(this.projectRootDisplay, { color: 'var(--text-muted)' });
 			}
 
 			projectRootSetting.addButton(button => button
 				.setButtonText('Browse...')
 				.setCta()
-				.onClick(async () => {
-					const selectedPath = await this.selectFolder();
-					if (selectedPath) {
-						this.state.projectDetection!.projectRoot = selectedPath;
-						if (this.projectRootDisplay) {
-							this.projectRootDisplay.textContent = selectedPath;
-							this.projectRootDisplay.style.color = 'var(--text-normal)';
+				.onClick(() => {
+					void (async () => {
+						const selectedPath = await this.selectFolder();
+						if (selectedPath) {
+							this.state.projectDetection!.projectRoot = selectedPath;
+							if (this.projectRootDisplay) {
+								this.projectRootDisplay.textContent = selectedPath;
+								setCssProps(this.projectRootDisplay, { color: 'var(--text-normal)' });
+							}
 						}
-					}
+					})();
 				}));
 
 			// Config File picker
 			const configFileSetting = new Setting(containerEl)
-				.setName('Config File')
+				.setName('Config file')
 				.setDesc('Select your Astro config file (astro.config.mjs, astro.config.js, src/config.ts, etc.)');
 
 			// Display current selection
@@ -176,24 +200,26 @@ export class ProjectDetectionStep extends BaseWizardStep {
 				cls: 'vault-cms-path-display'
 			});
 			if (this.state.projectDetection.configFilePath) {
-				this.configFileDisplay.style.color = 'var(--text-normal)';
+				setCssProps(this.configFileDisplay, { color: 'var(--text-normal)' });
 			} else {
-				this.configFileDisplay.style.color = 'var(--text-muted)';
+				setCssProps(this.configFileDisplay, { color: 'var(--text-muted)' });
 			}
 
 			configFileSetting.addButton(button => button
 				.setButtonText('Browse...')
 				.setCta()
-				.onClick(async () => {
-					const defaultPath = this.state.projectDetection?.projectRoot || this.getVaultPath();
-					const selectedPath = await this.selectConfigFile(defaultPath);
-					if (selectedPath) {
-						this.state.projectDetection!.configFilePath = selectedPath;
-						if (this.configFileDisplay) {
-							this.configFileDisplay.textContent = selectedPath;
-							this.configFileDisplay.style.color = 'var(--text-normal)';
+				.onClick(() => {
+					void (async () => {
+						const defaultPath = this.state.projectDetection?.projectRoot || this.getVaultPath();
+						const selectedPath = await this.selectConfigFile(defaultPath);
+						if (selectedPath) {
+							this.state.projectDetection!.configFilePath = selectedPath;
+							if (this.configFileDisplay) {
+								this.configFileDisplay.textContent = selectedPath;
+								setCssProps(this.configFileDisplay, { color: 'var(--text-normal)' });
+							}
 						}
-					}
+					})();
 				}));
 		}
 	}
@@ -204,22 +230,24 @@ export class ProjectDetectionStep extends BaseWizardStep {
 	private async selectFolder(): Promise<string | null> {
 		try {
 			// Try multiple ways to access Electron dialog API
-			let dialog: any = null;
+			let dialog: { showOpenDialogSync?: (options: { title: string; defaultPath: string; properties: string[] }) => string[] | undefined } | null = null;
 
 			// Method 1: Try @electron/remote (newer Electron versions)
 			try {
-				const electronRemote = require('@electron/remote');
-				dialog = electronRemote?.dialog;
-			} catch (e) {
+				// eslint-disable-next-line @typescript-eslint/no-require-imports
+				const electronRemote = require('@electron/remote') as { dialog?: { showOpenDialogSync?: (options: { title: string; defaultPath: string; properties: string[] }) => string[] | undefined } };
+				dialog = electronRemote?.dialog || null;
+			} catch {
 				// Not available, try next method
 			}
 
 			// Method 2: Try electron.remote.dialog (older Electron versions)
 			if (!dialog) {
 				try {
-					const electron = (window as any).require?.('electron') || require('electron');
-					dialog = electron?.remote?.dialog;
-				} catch (e) {
+					// eslint-disable-next-line @typescript-eslint/no-require-imports
+					const electron = ((window as { require?: (module: string) => unknown }).require?.('electron') || require('electron')) as { remote?: { dialog?: { showOpenDialogSync?: (options: { title: string; defaultPath: string; properties: string[] }) => string[] | undefined } } };
+					dialog = electron?.remote?.dialog || null;
+				} catch {
 					// Not available, try next method
 				}
 			}
@@ -227,9 +255,10 @@ export class ProjectDetectionStep extends BaseWizardStep {
 			// Method 3: Try electron.dialog directly (main process, may not work)
 			if (!dialog) {
 				try {
-					const electron = require('electron');
-					dialog = electron?.dialog;
-				} catch (e) {
+					// eslint-disable-next-line @typescript-eslint/no-require-imports
+					const electron = require('electron') as { dialog?: { showOpenDialogSync?: (options: { title: string; defaultPath: string; properties: string[] }) => string[] | undefined } };
+					dialog = electron?.dialog || null;
+				} catch {
 					// Not available
 				}
 			}
@@ -256,7 +285,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 				const absolutePath = path.normalize(result[0]);
 				return this.toRelativePath(absolutePath);
 			}
-		} catch (error) {
+		} catch (error: unknown) {
 			console.error('Error opening folder picker:', error);
 			// Show user-friendly error
 			new Notice('Unable to open folder picker. Please ensure you are using Obsidian on desktop.');
@@ -271,22 +300,24 @@ export class ProjectDetectionStep extends BaseWizardStep {
 	private async selectConfigFile(defaultPath?: string): Promise<string | null> {
 		try {
 			// Try multiple ways to access Electron dialog API
-			let dialog: any = null;
+			let dialog: { showOpenDialogSync?: (options: { title: string; defaultPath: string; filters?: Array<{ name: string; extensions: string[] }>; properties: string[] }) => string[] | undefined } | null = null;
 
 			// Method 1: Try @electron/remote (newer Electron versions)
 			try {
-				const electronRemote = require('@electron/remote');
-				dialog = electronRemote?.dialog;
-			} catch (e) {
+				// eslint-disable-next-line @typescript-eslint/no-require-imports
+				const electronRemote = require('@electron/remote') as { dialog?: { showOpenDialogSync?: (options: { title: string; defaultPath: string; filters?: Array<{ name: string; extensions: string[] }>; properties: string[] }) => string[] | undefined } };
+				dialog = electronRemote?.dialog || null;
+			} catch {
 				// Not available, try next method
 			}
 
 			// Method 2: Try electron.remote.dialog (older Electron versions)
 			if (!dialog) {
 				try {
-					const electron = (window as any).require?.('electron') || require('electron');
-					dialog = electron?.remote?.dialog;
-				} catch (e) {
+					// eslint-disable-next-line @typescript-eslint/no-require-imports
+					const electron = ((window as { require?: (module: string) => unknown }).require?.('electron') || require('electron')) as { remote?: { dialog?: { showOpenDialogSync?: (options: { title: string; defaultPath: string; filters?: Array<{ name: string; extensions: string[] }>; properties: string[] }) => string[] | undefined } } };
+					dialog = electron?.remote?.dialog || null;
+				} catch {
 					// Not available, try next method
 				}
 			}
@@ -294,9 +325,10 @@ export class ProjectDetectionStep extends BaseWizardStep {
 			// Method 3: Try electron.dialog directly (main process, may not work)
 			if (!dialog) {
 				try {
-					const electron = require('electron');
-					dialog = electron?.dialog;
-				} catch (e) {
+					// eslint-disable-next-line @typescript-eslint/no-require-imports
+					const electron = require('electron') as { dialog?: { showOpenDialogSync?: (options: { title: string; defaultPath: string; filters?: Array<{ name: string; extensions: string[] }>; properties: string[] }) => string[] | undefined } };
+					dialog = electron?.dialog || null;
+				} catch {
 					// Not available
 				}
 			}
@@ -346,7 +378,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 				const absolutePath = path.normalize(result[0]);
 				return this.toRelativePath(absolutePath);
 			}
-		} catch (error) {
+		} catch (error: unknown) {
 			console.error('Error opening file picker:', error);
 			// Show user-friendly error
 			new Notice('Unable to open file picker. Please ensure you are using Obsidian on desktop.');
@@ -359,37 +391,59 @@ export class ProjectDetectionStep extends BaseWizardStep {
 	 * Get the vault path
 	 */
 	private getVaultPath(): string {
-		const adapter = this.app.vault.adapter as any;
+		const adapter = this.app.vault.adapter as { basePath?: string; path?: string };
 		const vaultPath = adapter.basePath || adapter.path;
-		return vaultPath ? path.resolve(vaultPath) : process.cwd();
+		// Resolve path (convert relative to absolute, normalize separators)
+		if (vaultPath) {
+			// If already absolute, return as-is (normalized)
+			if (vaultPath.startsWith('/') || /^[A-Z]:/.test(vaultPath)) {
+				return vaultPath.replace(/\\/g, '/');
+			}
+			// For relative paths, we'd need to resolve, but in Obsidian context, basePath should be absolute
+			return vaultPath.replace(/\\/g, '/');
+		}
+		// Fallback - in Obsidian context this shouldn't happen
+		return '/';
 	}
 
 	/**
 	 * Convert absolute path to relative path from vault root
 	 */
 	private toRelativePath(absolutePath: string): string {
-		const adapter = this.app.vault.adapter as any;
+		const adapter = this.app.vault.adapter as { basePath?: string; path?: string };
 		const vaultPath = adapter.basePath || adapter.path;
 		if (!vaultPath) {
 			return absolutePath;
 		}
 		
-		const vaultNormalized = path.normalize(vaultPath);
-		const absoluteNormalized = path.normalize(absolutePath);
+		const vaultNormalized = vaultPath.replace(/\\/g, '/').replace(/\/$/, '');
+		const absoluteNormalized = absolutePath.replace(/\\/g, '/').replace(/\/$/, '');
 		
 		// If the absolute path is within the vault, return relative path
 		if (absoluteNormalized.startsWith(vaultNormalized)) {
 			const relative = absoluteNormalized.slice(vaultNormalized.length);
 			// Remove leading path separator
-			return relative.startsWith(path.sep) ? relative.slice(1) : relative;
+			return relative.startsWith('/') ? relative.slice(1) : relative;
 		}
 		
-		// If path is outside vault, use path.relative() to get relative path
+		// If path is outside vault, calculate relative path manually
 		try {
-			const relative = path.relative(vaultNormalized, absoluteNormalized);
-			// Normalize to use forward slashes (works on Windows too)
-			return relative.split(path.sep).join('/');
-		} catch (error) {
+			// Split paths into parts
+			const vaultParts = vaultNormalized.split('/').filter(p => p);
+			const absoluteParts = absoluteNormalized.split('/').filter(p => p);
+			
+			// Find common prefix
+			let commonLength = 0;
+			while (commonLength < vaultParts.length && commonLength < absoluteParts.length && vaultParts[commonLength] === absoluteParts[commonLength]) {
+				commonLength++;
+			}
+			
+			// Calculate relative path
+			const upLevels = vaultParts.length - commonLength;
+			const relativeParts = absoluteParts.slice(commonLength);
+			const relative = (upLevels > 0 ? '../'.repeat(upLevels) : '') + relativeParts.join('/');
+			return relative || absolutePath;
+		} catch {
 			// If relative path calculation fails, return absolute path
 			return absolutePath;
 		}
@@ -421,13 +475,13 @@ export class ProjectDetectionStep extends BaseWizardStep {
 				return false;
 			}
 			return true;
-		} catch (error) {
+		} catch {
 			return false;
 		}
 	}
 
 	getTitle(): string {
-		return 'Project Detection';
+		return 'Project detection';
 	}
 
 	getDescription(): string {

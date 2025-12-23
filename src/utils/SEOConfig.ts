@@ -2,6 +2,20 @@ import { App, TFile } from 'obsidian';
 import { SEOConfig, ContentTypeConfig, FrontmatterProperties, ProjectDetectionResult } from '../types';
 import { PathResolver } from './PathResolver';
 
+type SEOPlugin = {
+	settings?: {
+		scanDirectories?: string;
+		titleProperty?: string;
+		descriptionProperty?: string;
+		[key: string]: unknown;
+	};
+	saveSettings?: () => Promise<void>;
+};
+
+type PluginsAPI = {
+	plugins?: Record<string, SEOPlugin>;
+};
+
 export class SEOConfigurator {
 	private app: App;
 	private pathResolver: PathResolver;
@@ -48,7 +62,7 @@ export class SEOConfigurator {
 	async saveConfig(config: SEOConfig): Promise<void> {
 		try {
 			// Try to use plugin's saveSettings method first (like Astro Composer)
-			const plugins = (this.app as any).plugins;
+			const plugins = (this.app as { plugins?: PluginsAPI }).plugins;
 			const seoPlugin = plugins?.plugins?.['seo'];
 			
 			if (seoPlugin && seoPlugin.settings) {
@@ -73,14 +87,14 @@ export class SEOConfigurator {
 				// Save the settings using plugin's saveSettings method
 				if (typeof seoPlugin.saveSettings === 'function') {
 					await seoPlugin.saveSettings();
-					console.log('SEOConfig: Successfully saved via plugin.saveSettings()');
+					console.debug('SEOConfig: Successfully saved via plugin.saveSettings()');
 					return;
 				}
 			}
 			
 			// Fallback to file method
 			await this.saveConfigFallback(config);
-		} catch (error) {
+		} catch (error: unknown) {
 			console.error('Failed to save SEO config via plugin method:', error);
 			// Fallback to file method
 			await this.saveConfigFallback(config);
@@ -89,17 +103,18 @@ export class SEOConfigurator {
 
 	private async saveConfigFallback(config: SEOConfig): Promise<void> {
 		const pluginId = 'seo';
-		const pluginDataPath = `.obsidian/plugins/${pluginId}/data.json`;
+		const configDir = this.app.vault.configDir;
+		const pluginDataPath = `${configDir}/plugins/${pluginId}/data.json`;
 		
 		try {
-			let existingData: any = {};
+			let existingData: Record<string, unknown> = {};
 			const dataFile = this.app.vault.getAbstractFileByPath(pluginDataPath);
 			
 			// Read existing data if file exists
 			if (dataFile && dataFile instanceof TFile) {
 				try {
-					existingData = JSON.parse(await this.app.vault.read(dataFile));
-				} catch (error) {
+					existingData = JSON.parse(await this.app.vault.read(dataFile)) as Record<string, unknown>;
+				} catch (error: unknown) {
 					console.warn('Failed to parse existing SEO data.json, starting fresh:', error);
 					existingData = {};
 				}
@@ -124,21 +139,21 @@ export class SEOConfigurator {
 			};
 			
 			// Try to modify first, if file doesn't exist it will throw, then create
-			if (dataFile && dataFile instanceof TFile) {
+			if (dataFile instanceof TFile) {
 				await this.app.vault.modify(dataFile, JSON.stringify(mergedData, null, 2));
-				console.log('SEOConfig: Successfully updated SEO plugin data.json (via file)');
+				console.debug('SEOConfig: Successfully updated SEO plugin data.json (via file)');
 			} else {
 				// Ensure plugin directory exists
-				const pluginDir = `.obsidian/plugins/${pluginId}`;
+				const pluginDir = `${configDir}/plugins/${pluginId}`;
 				const pluginDirFile = this.app.vault.getAbstractFileByPath(pluginDir);
 				if (!pluginDirFile) {
 					await this.app.vault.createFolder(pluginDir);
 				}
 				// Create the file
 				await this.app.vault.create(pluginDataPath, JSON.stringify(mergedData, null, 2));
-				console.log('SEOConfig: Successfully created SEO plugin data.json (via file)');
+				console.debug('SEOConfig: Successfully created SEO plugin data.json (via file)');
 			}
-		} catch (error) {
+		} catch (error: unknown) {
 			console.error('Failed to save SEO config (fallback):', error);
 			throw error;
 		}

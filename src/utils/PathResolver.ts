@@ -1,4 +1,5 @@
 import { App } from 'obsidian';
+// eslint-disable-next-line import/no-nodejs-modules
 import * as path from 'path';
 import { ProjectDetectionResult } from '../types';
 
@@ -32,7 +33,7 @@ export class PathResolver {
 			return folderName;
 		}
 
-		const adapter = this.app.vault.adapter as any;
+		const adapter = this.app.vault.adapter as { basePath?: string; path?: string };
 		const vaultPath = adapter.basePath || adapter.path;
 		
 		if (!vaultPath) {

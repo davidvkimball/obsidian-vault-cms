@@ -1,6 +1,15 @@
 import { App, Modal } from 'obsidian';
+
+// Helper function for setCssProps (may not be in types yet)
+function setCssProps(element: HTMLElement, props: Record<string, string>): void {
+	for (const [key, value] of Object.entries(props)) {
+		const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase();
+		element.style.setProperty(cssKey, value);
+	}
+}
 import { WizardState } from '../types';
 import { BaseWizardStep } from './wizard/BaseWizardStep';
+import VaultCMSPlugin from '../main';
 import { WelcomeStep } from './wizard/WelcomeStep';
 import { ProjectDetectionStep } from './wizard/ProjectDetectionStep';
 import { ContentTypeStep } from './wizard/ContentTypeStep';
@@ -19,9 +28,9 @@ export class SetupWizardModal extends Modal {
 	private steps: (new (app: App, containerEl: HTMLElement, state: WizardState, onNext: () => void, onBack: () => void, onCancel: () => void) => BaseWizardStep)[];
 	private currentStepInstance: BaseWizardStep | null = null;
 	private saveCallback?: (state: WizardState) => Promise<void>;
-	private pluginInstance?: any; // Reference to plugin for saving
+	private pluginInstance?: VaultCMSPlugin; // Reference to plugin for saving
 
-	constructor(app: App, initialState?: Partial<WizardState>, pluginInstance?: any) {
+	constructor(app: App, initialState?: Partial<WizardState>, pluginInstance?: VaultCMSPlugin) {
 		super(app);
 		this.pluginInstance = pluginInstance;
 		
@@ -104,14 +113,14 @@ export class SetupWizardModal extends Modal {
 
 		const StepClass = this.steps[this.currentStepIndex];
 		const stepName = StepClass.name || 'Unknown';
-		console.log(`SetupWizardModal: Displaying step ${this.currentStepIndex + 1}/${this.steps.length}: ${stepName}`);
+		console.debug(`SetupWizardModal: Displaying step ${this.currentStepIndex + 1}/${this.steps.length}: ${stepName}`);
 		
 		this.currentStepInstance = new StepClass(
 			this.app,
 			contentEl,
 			this.state,
-			() => this.nextStep(),
-			() => this.previousStep(),
+			() => void this.nextStep(),
+			() => void this.previousStep(),
 			() => this.close()
 		);
 
@@ -122,16 +131,15 @@ export class SetupWizardModal extends Modal {
 		// Add navigation buttons after content is displayed (with proper spacing like astro-modular-settings)
 		const footer = contentEl.createDiv({ cls: 'wizard-footer' });
 		const buttonContainer = footer.createDiv({ cls: 'wizard-buttons' });
-		buttonContainer.style.display = 'flex';
-		buttonContainer.style.gap = '10px';
+		setCssProps(buttonContainer, { display: 'flex', gap: '10px' });
 		
 		if (this.currentStepIndex > 0) {
 			const backButton = buttonContainer.createEl('button', { 
 				text: 'Previous',
 				cls: 'mod-button'
 			});
-			backButton.addEventListener('click', async () => {
-				await this.previousStep();
+			backButton.addEventListener('click', () => {
+				void this.previousStep();
 			});
 		}
 
@@ -140,11 +148,13 @@ export class SetupWizardModal extends Modal {
 				text: 'Next',
 				cls: 'mod-button mod-cta'
 			});
-			nextButton.addEventListener('click', async () => {
+			nextButton.addEventListener('click', () => {
 				if (this.currentStepInstance && this.currentStepInstance.validate()) {
 					// Save current step state to data.json before proceeding
-					await this.saveCurrentStepState();
-					await this.nextStep();
+					void (async () => {
+						await this.saveCurrentStepState();
+						await this.nextStep();
+					})();
 				}
 			});
 
@@ -153,22 +163,24 @@ export class SetupWizardModal extends Modal {
 				text: 'Skip',
 				cls: 'mod-button'
 			});
-			skipButton.style.opacity = '0.6';
-			skipButton.addEventListener('click', async () => {
+			setCssProps(skipButton, { opacity: '0.6' });
+			skipButton.addEventListener('click', () => {
 				// Skip without saving current step changes to disk
 				// State changes in memory are preserved, but nothing is written to data.json files
-				await this.nextStep();
+				void this.nextStep();
 			});
 		} else {
 			// Last step - Finish button
 			const finishButton = buttonContainer.createEl('button', { 
-				text: 'Complete Setup',
+				text: 'Complete setup',
 				cls: 'mod-button mod-cta'
 			});
-			finishButton.addEventListener('click', async () => {
+			finishButton.addEventListener('click', () => {
 				if (this.currentStepInstance && this.currentStepInstance.validate()) {
-					await this.saveStateIfNeeded();
-					this.close();
+					void (async () => {
+						await this.saveStateIfNeeded();
+						this.close();
+					})();
 				}
 			});
 		}
@@ -211,7 +223,7 @@ export class SetupWizardModal extends Modal {
 				// Save to data.json
 				await this.pluginInstance.saveSettings();
 			}
-		} catch (error) {
+		} catch (error: unknown) {
 			console.error('Error saving current step state:', error);
 			// Don't block navigation on save errors
 		}

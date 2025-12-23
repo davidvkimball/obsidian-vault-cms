@@ -1,14 +1,17 @@
-import { App, Setting } from 'obsidian';
+import { Setting } from 'obsidian';
 import { BaseWizardStep } from './BaseWizardStep';
-import { WizardState } from '../../types';
 
 export class WYSIWYGPreferenceStep extends BaseWizardStep {
 	display(): void {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		containerEl.createEl('h2', { text: 'WYSIWYG Editing Toolbar' });
+		// False positive: "WYSIWYG" is an acronym and should be capitalized
+		// eslint-disable-next-line obsidianmd/ui/sentence-case
+		containerEl.createEl('h2', { text: 'WYSIWYG editing toolbar' });
 		containerEl.createEl('p', { 
+			// False positive: "WYSIWYG" is an acronym and should be capitalized
+			// eslint-disable-next-line obsidianmd/ui/sentence-case
 			text: 'Do you want to use the WYSIWYG editing toolbar?' 
 		});
 		containerEl.createEl('p', { 
@@ -16,7 +19,9 @@ export class WYSIWYGPreferenceStep extends BaseWizardStep {
 		});
 
 		new Setting(containerEl)
-			.setName('Enable WYSIWYG Toolbar')
+			// False positive: "WYSIWYG" is an acronym and should be capitalized
+			// eslint-disable-next-line obsidianmd/ui/sentence-case
+			.setName('Enable WYSIWYG toolbar')
 			.setDesc('Show the editing toolbar command in the page header')
 			.addToggle(toggle => toggle
 				.setValue(this.state.enableWYSIWYG)
@@ -30,7 +35,7 @@ export class WYSIWYGPreferenceStep extends BaseWizardStep {
 	}
 
 	getTitle(): string {
-		return 'WYSIWYG Preference';
+		return 'WYSIWYG preference';
 	}
 
 	getDescription(): string {
