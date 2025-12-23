@@ -234,7 +234,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 
 			// Method 1: Try @electron/remote (newer Electron versions)
 			try {
-				// eslint-disable-next-line @typescript-eslint/no-require-imports
+				// eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef
 				const electronRemote = require('@electron/remote') as { dialog?: { showOpenDialogSync?: (options: { title: string; defaultPath: string; properties: string[] }) => string[] | undefined } };
 				dialog = electronRemote?.dialog || null;
 			} catch {
@@ -244,7 +244,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 			// Method 2: Try electron.remote.dialog (older Electron versions)
 			if (!dialog) {
 				try {
-					// eslint-disable-next-line @typescript-eslint/no-require-imports
+					// eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef
 					const electron = ((window as { require?: (module: string) => unknown }).require?.('electron') || require('electron')) as { remote?: { dialog?: { showOpenDialogSync?: (options: { title: string; defaultPath: string; properties: string[] }) => string[] | undefined } } };
 					dialog = electron?.remote?.dialog || null;
 				} catch {
@@ -255,7 +255,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 			// Method 3: Try electron.dialog directly (main process, may not work)
 			if (!dialog) {
 				try {
-					// eslint-disable-next-line @typescript-eslint/no-require-imports
+					// eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef
 					const electron = require('electron') as { dialog?: { showOpenDialogSync?: (options: { title: string; defaultPath: string; properties: string[] }) => string[] | undefined } };
 					dialog = electron?.dialog || null;
 				} catch {
@@ -302,36 +302,36 @@ export class ProjectDetectionStep extends BaseWizardStep {
 			// Try multiple ways to access Electron dialog API
 			let dialog: { showOpenDialogSync?: (options: { title: string; defaultPath: string; filters?: Array<{ name: string; extensions: string[] }>; properties: string[] }) => string[] | undefined } | null = null;
 
-			// Method 1: Try @electron/remote (newer Electron versions)
+		// Method 1: Try @electron/remote (newer Electron versions)
+		try {
+			// eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef
+			const electronRemote = require('@electron/remote') as { dialog?: { showOpenDialogSync?: (options: { title: string; defaultPath: string; filters?: Array<{ name: string; extensions: string[] }>; properties: string[] }) => string[] | undefined } };
+			dialog = electronRemote?.dialog || null;
+		} catch {
+			// Not available, try next method
+		}
+
+		// Method 2: Try electron.remote.dialog (older Electron versions)
+		if (!dialog) {
 			try {
-				// eslint-disable-next-line @typescript-eslint/no-require-imports
-				const electronRemote = require('@electron/remote') as { dialog?: { showOpenDialogSync?: (options: { title: string; defaultPath: string; filters?: Array<{ name: string; extensions: string[] }>; properties: string[] }) => string[] | undefined } };
-				dialog = electronRemote?.dialog || null;
+				// eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef
+				const electron = ((window as { require?: (module: string) => unknown }).require?.('electron') || require('electron')) as { remote?: { dialog?: { showOpenDialogSync?: (options: { title: string; defaultPath: string; filters?: Array<{ name: string; extensions: string[] }>; properties: string[] }) => string[] | undefined } } };
+				dialog = electron?.remote?.dialog || null;
 			} catch {
 				// Not available, try next method
 			}
+		}
 
-			// Method 2: Try electron.remote.dialog (older Electron versions)
-			if (!dialog) {
-				try {
-					// eslint-disable-next-line @typescript-eslint/no-require-imports
-					const electron = ((window as { require?: (module: string) => unknown }).require?.('electron') || require('electron')) as { remote?: { dialog?: { showOpenDialogSync?: (options: { title: string; defaultPath: string; filters?: Array<{ name: string; extensions: string[] }>; properties: string[] }) => string[] | undefined } } };
-					dialog = electron?.remote?.dialog || null;
-				} catch {
-					// Not available, try next method
-				}
+		// Method 3: Try electron.dialog directly (main process, may not work)
+		if (!dialog) {
+			try {
+				// eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef
+				const electron = require('electron') as { dialog?: { showOpenDialogSync?: (options: { title: string; defaultPath: string; filters?: Array<{ name: string; extensions: string[] }>; properties: string[] }) => string[] | undefined } };
+				dialog = electron?.dialog || null;
+			} catch {
+				// Not available
 			}
-
-			// Method 3: Try electron.dialog directly (main process, may not work)
-			if (!dialog) {
-				try {
-					// eslint-disable-next-line @typescript-eslint/no-require-imports
-					const electron = require('electron') as { dialog?: { showOpenDialogSync?: (options: { title: string; defaultPath: string; filters?: Array<{ name: string; extensions: string[] }>; properties: string[] }) => string[] | undefined } };
-					dialog = electron?.dialog || null;
-				} catch {
-					// Not available
-				}
-			}
+		}
 
 			if (!dialog || typeof dialog.showOpenDialogSync !== 'function') {
 				throw new Error('Electron dialog API not available');

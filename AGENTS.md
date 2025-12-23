@@ -16,21 +16,72 @@ Applicability: Plugin
 
 ### Project Overview
 
-- **Architecture**: Organized structure - main code in `src/main.ts` and settings in `src/settings.ts`
+- **Plugin**: Vault CMS - Setup wizard for configuring Obsidian vault as a CMS
+- **Purpose**: Helps users configure their Obsidian vault to work as a content management system, particularly for Astro projects
+- **Architecture**: Wizard-based configuration (unorthodox - uses modal instead of traditional settings)
+- **Key Features**:
+  - Multi-step setup wizard for initial configuration
+  - Project detection (Astro project structure)
+  - Content type detection and configuration
+  - Frontmatter property mapping
+  - Integration with multiple plugins (Astro Composer, Bases CMS, SEO, etc.)
+  - Plugin and theme configuration
 
 ### Important Project-Specific Details
 
+- **Project Type**: Plugin
+- **Status**: Production (version 0.1.1)
+- **Main entry**: `src/main.ts`
+- **Settings**: `src/settings.ts` (stores wizard state)
+- **UI**: `src/ui/SettingsTab.ts` (minimal - just wizard access), `src/ui/SetupWizardModal.ts` (main configuration UI)
+- **Wizard Steps**: `src/ui/wizard/` - Individual wizard step implementations
+
 ### Maintenance Tasks
+
+- Keep reference projects in sync (6 local projects in `.ref/plugins/`)
+- Update ESLint config as needed
+- Monitor Obsidian API changes for SettingGroup compatibility
 
 ### Project-Specific Conventions
 
+- **Wizard-based configuration**: Not traditional settings - uses modal instead
+- **Settings tab is minimal**: Just provides access to wizard (2 settings: open wizard button, run wizard on startup toggle)
+- **All configuration happens through multi-step wizard modal**
+- **Wizard state is saved to plugin settings after each step** (incremental saving)
+- **Supports both detected and manual project configuration**
+
 ### Project-Specific References
+
+- `.ref/plugins/obsidian-astro-composer/` - Astro Composer plugin integration
+- `.ref/plugins/astro-modular/` - Astro modular structure reference
+- `.ref/plugins/obsidian-astro-modular-settings/` - Settings pattern reference
+- `.ref/plugins/obsidian-bases-cms/` - Bases CMS plugin integration
+- `.ref/plugins/obsidian-property-over-file-name/` - Property over file name plugin
+- `.ref/plugins/obsidian-seo/` - SEO plugin integration
 
 ### Overrides (Optional)
 
+None currently. This project follows the general `.agents` guidance, with the exception that it uses a wizard-based configuration pattern instead of traditional settings.
+
 ### Key Files and Their Purposes
 
+- `src/main.ts` - Main plugin class, handles wizard on startup
+- `src/settings.ts` - Settings interface and defaults
+- `src/ui/SettingsTab.ts` - Minimal settings tab (wizard access) - uses SettingGroup via compatibility utility
+- `src/ui/SetupWizardModal.ts` - Main wizard modal with step management
+- `src/ui/wizard/` - Individual wizard step implementations (WelcomeStep, ProjectDetectionStep, ContentTypeStep, etc.)
+- `src/utils/settings-compat.ts` - SettingGroup compatibility utility for backward compatibility
+- `src/utils/` - Various utility classes for detection and configuration (ProjectDetector, ContentTypeDetector, etc.)
+
 ### Development Notes
+
+- **Uses wizard modal for configuration** instead of traditional settings tab
+- **Wizard state is saved incrementally** (after each "Next" click)
+- **Supports both detected and manual project configuration**
+- **Integrates with multiple other Obsidian plugins** (Astro Composer, Bases CMS, SEO, Property Over File Name, Image Inserter, Commander)
+- **Uses `requireApiVersion('1.11.0')` for SettingGroup compatibility** - settings tab uses SettingGroup via compatibility utility for proper spacing
+- **Settings tab is minimal** - only 2 settings in a single group without heading (following UI Tweaker pattern)
+- **Wizard steps have custom structure** - they don't use SettingGroup as they have their own custom headings, descriptions, and dynamic content
 
 ---
 

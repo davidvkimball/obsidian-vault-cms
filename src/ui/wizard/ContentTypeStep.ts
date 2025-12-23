@@ -436,7 +436,7 @@ export class ContentTypeStep extends BaseWizardStep {
 
 			// Method 1: Try @electron/remote (newer Electron versions)
 			try {
-				// eslint-disable-next-line @typescript-eslint/no-require-imports
+				// eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef
 				const electronRemote = require('@electron/remote') as { dialog?: { showOpenDialogSync?: (options: { title: string; defaultPath: string; properties: string[] }) => string[] | undefined } };
 				dialog = electronRemote?.dialog || null;
 			} catch {
@@ -446,7 +446,7 @@ export class ContentTypeStep extends BaseWizardStep {
 			// Method 2: Try electron.remote.dialog (older Electron versions)
 			if (!dialog) {
 				try {
-					// eslint-disable-next-line @typescript-eslint/no-require-imports
+					// eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef
 					const electron = ((window as { require?: (module: string) => unknown }).require?.('electron') || require('electron')) as { remote?: { dialog?: { showOpenDialogSync?: (options: { title: string; defaultPath: string; properties: string[] }) => string[] | undefined } } };
 					dialog = electron?.remote?.dialog || null;
 				} catch {
@@ -457,7 +457,7 @@ export class ContentTypeStep extends BaseWizardStep {
 			// Method 3: Try electron.dialog directly (main process, may not work)
 			if (!dialog) {
 				try {
-					// eslint-disable-next-line @typescript-eslint/no-require-imports
+					// eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef
 					const electron = require('electron') as { dialog?: { showOpenDialogSync?: (options: { title: string; defaultPath: string; properties: string[] }) => string[] | undefined } };
 					dialog = electron?.dialog || null;
 				} catch {
