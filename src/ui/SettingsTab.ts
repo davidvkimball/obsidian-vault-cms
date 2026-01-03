@@ -17,7 +17,7 @@ export class SettingsTab extends PluginSettingTab {
 		containerEl.empty();
 
 		// First group (no heading) - following UI Tweaker pattern
-		const generalGroup = createSettingsGroup(containerEl);
+		const generalGroup = createSettingsGroup(containerEl, undefined, 'vault-cms');
 
 		generalGroup.addSetting((setting) => {
 			setting
