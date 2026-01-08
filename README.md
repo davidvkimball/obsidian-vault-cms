@@ -1,94 +1,122 @@
-# Obsidian Sample Plugin
+# Vault CMS Plugin for Obsidian
 
-This is a sample plugin for Obsidian (https://obsidian.md).
+Obsidian plugin for setup and configuration management of Obsidian vaults as content management systems, particularly optimized for [Astro](https://astro.build) projects. Provides a setup wizard, automatic project detection, and plugin configuration management.
 
-This project uses TypeScript to provide type checking and documentation.
-The repo depends on the latest plugin API (obsidian.d.ts) in TypeScript Definition format, which contains TSDoc comments describing what it does.
+> [!NOTE]
+> This plugin is designed to work with the [Vault CMS](https://github.com/davidvkimball/vault-cms) specifically and is not a general purpose Obsidian plugin.
 
-This sample plugin demonstrates some of the basic functionality the plugin API can do.
-- Adds a ribbon icon, which shows a Notice when clicked.
-- Adds a command "Open Sample Modal" which opens a Modal.
-- Adds a plugin setting tab to the settings page.
-- Registers a global click event and output 'click' to the console.
-- Registers a global interval which logs 'setInterval' to the console.
+## Made for Vault CMS
 
-## First time developing plugins?
+Part of the [Vault CMS](https://github.com/davidvkimball/vault-cms) project.
 
-Quick starting guide for new plugin devs:
+## Features
 
-- Check if [someone already developed a plugin for what you want](https://obsidian.md/plugins)! There might be an existing plugin similar enough that you can partner up with.
-- Make a copy of this repo as a template with the "Use this template" button (login to GitHub if you don't see it).
-- Clone your repo to a local development folder. For convenience, you can place this folder in your `.obsidian/plugins/your-plugin-name` folder.
-- Install NodeJS, then run `npm i` in the command line under your repo folder.
-- Run `npm run dev` to compile your plugin from `main.ts` to `main.js`.
-- Make changes to `main.ts` (or create new `.ts` files). Those changes should be automatically compiled into `main.js`.
-- Reload Obsidian to load the new version of your plugin.
-- Enable plugin in settings window.
-- For updates to the Obsidian API run `npm update` in the command line under your repo folder.
+- **Setup Wizard**: Multi-step onboarding with project detection, content type identification, frontmatter mapping, and automatic plugin configuration
+- **Auto-detection**: Automatically detects Astro project structure, content types, and frontmatter properties
+- **Plugin Integration**: Configures Astro Composer, Bases CMS, SEO, Property Over File Name, Image Inserter, Commander, and more
+- **Content Type Management**: Identifies and configures content types (posts, pages, docs, etc.) from your project structure
+- **MDX Support**: Optional MDX file support with auto-detection
+- **Plugin Presets**: Choose from vanilla, opinionated, or custom plugin configurations
 
-## Releasing new releases
+## Installation
 
-- Update your `manifest.json` with your new version number, such as `1.0.1`, and the minimum Obsidian version required for your latest release.
-- Update your `versions.json` file with `"new-plugin-version": "minimum-obsidian-version"` so older versions of Obsidian can download an older version of your plugin that's compatible.
-- Create new GitHub release using your new version number as the "Tag version". Use the exact version number, don't include a prefix `v`. See here for an example: https://github.com/obsidianmd/obsidian-sample-plugin/releases
-- Upload the files `manifest.json`, `main.js`, `styles.css` as binary attachments. Note: The manifest.json file must be in two places, first the root path of your repository and also in the release.
-- Publish the release.
+The Vault CMS plugin will not be available in the Community plugins section. Install using [BRAT](https://github.com/TfTHacker/obsidian42-brat) or manually:
 
-> You can simplify the version bump process by running `npm version patch`, `npm version minor` or `npm version major` after updating `minAppVersion` manually in `manifest.json`.
-> The command will bump version in `manifest.json` and `package.json`, and add the entry for the new version to `versions.json`
+### BRAT
 
-## Adding your plugin to the community plugin list
+1. Download the [Beta Reviewers Auto-update Tester (BRAT)](https://github.com/TfTHacker/obsidian42-brat) plugin from the [Obsidian community plugins directory](https://obsidian.md/plugins?id=obsidian42-brat) and enable it.
+2. In the BRAT plugin settings, select `Add beta plugin`.
+3. Paste the following: `https://github.com/davidvkimball/obsidian-home-base` and select `Add plugin`.
 
-- Check the [plugin guidelines](https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines).
-- Publish an initial version.
-- Make sure you have a `README.md` file in the root of your repo.
-- Make a pull request at https://github.com/obsidianmd/obsidian-releases to add your plugin.
+### Manual Installation
+1. Download latest release from [GitHub](https://github.com/davidvkimball/obsidian-vault-cms/releases)
+2. Extract to `.obsidian/plugins/vault-cms/`
+3. Reload Obsidian and enable in **Settings → Community plugins**
 
-## How to use
+## Quick Start
 
-- Clone this repo.
-- Make sure your NodeJS is at least v16 (`node --version`).
-- `npm i` or `yarn` to install dependencies.
-- `npm run dev` to start compilation in watch mode.
+1. Enable plugin in **Settings → Community plugins**
+2. The setup wizard will automatically open on first launch (if enabled)
+3. Follow wizard: project detection, content types, frontmatter properties, and plugin configuration
+4. Access settings: **Settings → Plugin Options → Vault CMS**
 
-## Manually installing the plugin
+## Commands
 
-- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`.
+Via Command Palette (`Ctrl/Cmd + P`):
+- **Open setup wizard** - Launch the configuration wizard
 
-## Improve code quality with eslint (optional)
-- [ESLint](https://eslint.org/) is a tool that analyzes your code to quickly find problems. You can run ESLint against your plugin to find common bugs and ways to improve your code. 
-- To use eslint with this project, make sure to install eslint from terminal:
-  - `npm install -g eslint`
-- To use eslint to analyze this project use this command:
-  - `eslint main.ts`
-  - eslint will then create a report with suggestions for code improvement by file and line number.
-- If your source code is in a folder, such as `src`, you can use eslint with this command to analyze all files in that folder:
-  - `eslint ./src/`
+## Configuration
 
-## Funding URL
+### Wizard Steps
 
-You can include funding URLs where people who use your plugin can financially support it.
+1. **Welcome** - Introduction to setup process
+2. **Project Detection** - Automatically finds Astro project by locating config files
+3. **Content Types** - Scans content folders and identifies them as content types
+4. **Default Content Type** - Choose which content type to use for new notes
+5. **Frontmatter Properties** - Analyzes existing content to detect frontmatter properties
+6. **WYSIWYG Preference** - Enable or disable the editing toolbar
+7. **Bases CMS Configuration** - Set up CMS views for your content types
+8. **Astro Composer Configuration** - Configure Astro Composer plugin settings
+9. **SEO Configuration** - Set up SEO plugin scanning directories and properties
+10. **Optional Plugins** - Enable or disable additional plugins
+11. **Finalize** - Review and apply all configuration
 
-The simple way is to set the `fundingUrl` field to your link in your `manifest.json` file:
+### Auto-Detection
 
-```json
-{
-    "fundingUrl": "https://buymeacoffee.com"
-}
+The wizard automatically detects:
+- **Project Structure**: Finds Astro project by locating `astro.config.mjs`, `astro.config.ts`, or other config files
+- **Content Types**: Scans content folders (posts, pages, docs, etc.) and identifies them as content types
+- **Frontmatter Properties**: Analyzes existing content files to detect properties (title, date, description, etc.)
+
+### Plugin Integration
+
+Automatically configures:
+- **Astro Composer**: Custom content types, default templates, and MDX support
+- **Bases CMS**: Creates CMS views for each content type with property mappings
+- **SEO**: Sets up scan directories and property mappings for SEO audits
+- **Property Over File Name**: Configures title property display instead of filenames
+- **Commander**: Sets up editing toolbar toggle and other commands
+- **Image Inserter**: Configures image insertion formats based on attachment handling
+- **Image Manager**: Optional image management configuration
+- **Home Base**: Optional homepage configuration
+- **Simple Banner**: Configures banner images from frontmatter properties
+
+### Plugin Presets
+
+- **Vanilla**: Minimal plugin setup with core functionality
+- **Opinionated**: Full-featured setup with additional plugins and optimizations
+- **Custom**: Manual selection of plugins to enable/disable
+
+## Troubleshooting
+
+- **Wizard not appearing**: Check "Run wizard on startup" setting in plugin settings, or run manually via Command Palette → "Open setup wizard"
+- **Project not detected**: Ensure you're opening the vault from within or near your Astro project directory. The wizard searches for `astro.config.mjs` or `astro.config.ts` files
+- **Content types not detected**: Verify your content folders exist and contain markdown files. The wizard scans folders in your content directory
+- **Plugins not configuring**: Ensure required plugins (Astro Composer, Bases CMS, SEO) are installed. The wizard will attempt to configure them automatically
+- **Settings not saving**: Check console for errors, ensure you're clicking "Next" on each step (settings save incrementally)
+- **Configuration not applied**: Click "Apply configuration" on the Finalize step. You may need to restart Obsidian to see all changes
+
+## Development
+
+```bash
+pnpm install
+pnpm dev    # Watch mode
+pnpm build  # Production build
 ```
 
-If you have multiple URLs, you can also do:
-
-```json
-{
-    "fundingUrl": {
-        "Buy Me a Coffee": "https://buymeacoffee.com",
-        "GitHub Sponsor": "https://github.com/sponsors",
-        "Patreon": "https://www.patreon.com/"
-    }
-}
+Project structure:
+```
+src/
+├── main.ts, settings.ts, types.ts
+├── commands/
+├── ui/
+│   ├── SetupWizardModal.ts
+│   └── wizard/  # Individual wizard steps
+└── utils/  # Detection and configuration utilities
 ```
 
-## API Documentation
+See [AGENTS.md](AGENTS.md) for detailed development instructions.
 
-See https://github.com/obsidianmd/obsidian-api
+## License
+
+MIT License - see [LICENSE](LICENSE) for details.
