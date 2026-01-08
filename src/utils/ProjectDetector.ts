@@ -12,7 +12,7 @@ export class ProjectDetector {
 		this.app = app;
 	}
 
-	async detectProject(): Promise<ProjectDetectionResult | null> {
+	detectProject(): ProjectDetectionResult | null {
 		const vault = this.app.vault;
 		const adapter = vault.adapter as { basePath?: string; path?: string };
 		const vaultPath = adapter.basePath || adapter.path;
@@ -22,7 +22,7 @@ export class ProjectDetector {
 		}
 
 		// Search upward from vault path for astro.config files
-		const configResult = await this.searchUpwardForConfig(vaultPath);
+		const configResult = this.searchUpwardForConfig(vaultPath);
 		
 		if (!configResult) {
 			return null;
@@ -43,7 +43,7 @@ export class ProjectDetector {
 	 * This allows the vault to be anywhere within the Astro project structure.
 	 * Prioritizes root-level astro.config.mjs, then other root config files, then src/config.ts.
 	 */
-	private async searchUpwardForConfig(startPath: string): Promise<{ projectRoot: string; configFilePath: string } | null> {
+	private searchUpwardForConfig(startPath: string): { projectRoot: string; configFilePath: string } | null {
 		// Priority order: root-level .mjs files first, then other root config files, then src/config.ts
 		const rootConfigFileNames = [
 			'astro.config.mjs',  // Prioritize .mjs in root

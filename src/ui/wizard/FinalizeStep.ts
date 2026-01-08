@@ -16,6 +16,8 @@ import { CommanderConfigurator } from '../../utils/CommanderConfig';
 import { PropertyOverFileNameConfigurator } from '../../utils/PropertyOverFileNameConfig';
 import { ImageInserterConfigurator } from '../../utils/ImageInserterConfig';
 import { SimpleBannerConfigurator } from '../../utils/SimpleBannerConfig';
+import { ImageManagerConfigurator } from '../../utils/ImageManagerConfig';
+import { HomeBaseConfigurator } from '../../utils/HomeBaseConfig';
 
 export class FinalizeStep extends BaseWizardStep {
 	private pluginManager: PluginManager;
@@ -26,6 +28,8 @@ export class FinalizeStep extends BaseWizardStep {
 	private propertyOverFileNameConfigurator: PropertyOverFileNameConfigurator;
 	private imageInserterConfigurator: ImageInserterConfigurator;
 	private simpleBannerConfigurator: SimpleBannerConfigurator;
+	private imageManagerConfigurator: ImageManagerConfigurator;
+	private homeBaseConfigurator: HomeBaseConfigurator;
 	private applied: boolean = false;
 
 	constructor(app: App, containerEl: HTMLElement, state: WizardState, onNext: () => void, onBack: () => void, onCancel: () => void) {
@@ -38,6 +42,8 @@ export class FinalizeStep extends BaseWizardStep {
 		this.propertyOverFileNameConfigurator = new PropertyOverFileNameConfigurator(app);
 		this.imageInserterConfigurator = new ImageInserterConfigurator(app);
 		this.simpleBannerConfigurator = new SimpleBannerConfigurator(app);
+		this.imageManagerConfigurator = new ImageManagerConfigurator(app);
+		this.homeBaseConfigurator = new HomeBaseConfigurator(app);
 	}
 
 	display(): void {
@@ -168,6 +174,16 @@ export class FinalizeStep extends BaseWizardStep {
 					imageInserterConfig.insertFormat = `[[${folderName}/{image-url}]]`;
 				}
 				await this.imageInserterConfigurator.saveConfig(imageInserterConfig, imageProperty);
+			}
+
+			// Configure Image Manager (if enabled)
+			if (this.state.enabledPlugins.includes('image-manager')) {
+				await this.imageManagerConfigurator.saveConfig(this.state.imageManager);
+			}
+
+			// Configure Home Base (if enabled)
+			if (this.state.enabledPlugins.includes('home-base')) {
+				await this.homeBaseConfigurator.saveConfig(this.state.homeBase);
 			}
 
 			// Configure default content type and Obsidian settings (following astro-modular-settings pattern)

@@ -12,9 +12,9 @@ export class ContentTypeDetector {
 		this.app = app;
 	}
 
-	async detectContentTypes(projectDetection?: ProjectDetectionResult): Promise<ContentTypeConfig[]> {
+	detectContentTypes(projectDetection?: ProjectDetectionResult): ContentTypeConfig[] {
 		// Find the correct src/content directory
-		const contentFolder = await this.findContentDirectory(projectDetection);
+		const contentFolder = this.findContentDirectory(projectDetection);
 		
 		if (!contentFolder) {
 			// Fallback to old behavior if we can't find src/content
@@ -41,7 +41,7 @@ export class ContentTypeDetector {
 	 * - src/content level (already there)
 	 * - src/content/post level (vault is inside a content type, can't access parent, return null to use fallback)
 	 */
-	private async findContentDirectory(projectDetection?: ProjectDetectionResult): Promise<TFolder | null> {
+	private findContentDirectory(projectDetection?: ProjectDetectionResult): TFolder | null {
 		if (!projectDetection || !projectDetection.projectRoot) {
 			return null;
 		}

@@ -37,26 +37,28 @@ export class OptionalPluginsStep extends BaseWizardStep {
 
 		// Define all plugins with their categories
 		const allPlugins: PluginInfo[] = [
-			// Essential plugins
+			// Essential plugins (alphabetically ordered)
 			{ id: 'astro-composer', name: 'Astro Composer', category: 'essential' },
 			{ id: 'bases-cms', name: 'Bases CMS', category: 'essential' },
 			{ id: 'cmdr', name: 'Commander', category: 'essential' },
 			{ id: 'new-tab-default-page', name: 'Default New Tab Page', category: 'essential' },
 			{ id: 'editing-toolbar', name: 'Editing Toolbar', category: 'essential' },
+			{ id: 'home-base', name: 'Home Base', category: 'essential' },
 			{ id: 'homepage', name: 'Homepage', category: 'essential' },
+			{ id: 'image-manager', name: 'Image Manager', category: 'essential' },
 			{ id: 'obsidian-paste-image-rename', name: 'Paste Image Rename', category: 'essential' },
 			{ id: 'property-over-file-name', name: 'Property Over File Name', category: 'essential' },
 			{ id: 'seo', name: 'SEO', category: 'essential' },
 			{ id: 'simple-focus', name: 'Simple Focus', category: 'essential' },
 			{ id: 'statusbar-organizer', name: 'Status Bar Organizer', category: 'essential' },
-			{ id: 'zenmode', name: 'Zen Mode', category: 'essential' },
 			// Nice to have plugins
 			{ id: 'iconic', name: 'Iconic', category: 'nice-to-have' },
+			{ id: 'insert-unsplash-image', name: 'Image Inserter', category: 'nice-to-have' },
+			{ id: 'paste-image-into-property', name: 'Paste Image Into Property', category: 'nice-to-have' },
 			{ id: 'settings-search', name: 'Settings Search', category: 'nice-to-have' },
 			{ id: 'simple-banner', name: 'Simple Banner', category: 'nice-to-have' },
 			{ id: 'tag-wrangler', name: 'Tag Wrangler', category: 'nice-to-have' },
-			{ id: 'insert-unsplash-image', name: 'Image Inserter', category: 'nice-to-have' },
-			{ id: 'paste-image-into-property', name: 'Paste Image Into Property', category: 'nice-to-have' }
+			{ id: 'zenmode', name: 'Zen Mode', category: 'nice-to-have' }
 		];
 
 		// Get installed plugins

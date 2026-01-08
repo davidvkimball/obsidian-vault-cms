@@ -45,6 +45,8 @@ export interface WizardState {
 	commanderConfig: CommanderConfig;
 	propertyOverFileName: PropertyOverFileNameConfig;
 	imageInserter: ImageInserterConfig;
+	imageManager: ImageManagerConfig;
+	homeBase: HomeBaseConfig;
 }
 
 export interface BasesCMSConfig {
@@ -123,6 +125,12 @@ export interface ImageInserterConfig {
 	valueFormat: string;
 	insertFormat: string;
 }
+
+// Complex nested structure - using Record<string, unknown> to handle all properties
+export type ImageManagerConfig = Record<string, unknown>;
+
+// Complex nested structure - using Record<string, unknown> to handle all properties
+export type HomeBaseConfig = Record<string, unknown>;
 
 export interface ExampleFrontmatter {
 	file: string;

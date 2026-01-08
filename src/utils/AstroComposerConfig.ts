@@ -22,7 +22,7 @@ export class AstroComposerConfigurator {
 		this.pathResolver = new PathResolver(app);
 	}
 
-	async configureAstroComposer(
+	configureAstroComposer(
 		contentTypes: ContentTypeConfig[],
 		frontmatterProperties: { [contentTypeId: string]: FrontmatterProperties },
 		projectRoot: string,
@@ -120,7 +120,7 @@ export class AstroComposerConfigurator {
 			});
 		}
 
-		return config;
+		return Promise.resolve(config);
 	}
 
 	private generateTemplate(props: FrontmatterProperties | undefined, includeDate: boolean): string {

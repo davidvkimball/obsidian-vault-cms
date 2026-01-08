@@ -26,28 +26,7 @@ export default class VaultCMSPlugin extends Plugin {
 						// Reload settings to check if user disabled the setting
 						await this.loadSettings();
 						if (this.settings.runWizardOnStartup) {
-							const wizard = new SetupWizardModal(this.app, this.settings, this);
-							wizard.setSaveCallback(async (state) => {
-								// Save wizard state to settings
-								this.settings.projectRoot = state.projectDetection?.projectRoot || '';
-								this.settings.configFilePath = state.projectDetection?.configFilePath || '';
-								this.settings.contentTypes = state.contentTypes;
-								this.settings.frontmatterProperties = state.frontmatterProperties;
-								this.settings.defaultContentTypeId = state.defaultContentTypeId;
-								this.settings.preset = state.preset;
-								this.settings.enableWYSIWYG = state.enableWYSIWYG;
-								this.settings.enabledPlugins = state.enabledPlugins;
-								this.settings.disabledPlugins = state.disabledPlugins;
-								this.settings.theme = state.theme;
-								this.settings.basesCMSConfig = state.basesCMSConfig;
-								this.settings.astroComposerConfig = state.astroComposerConfig;
-								this.settings.seoConfig = state.seoConfig;
-								this.settings.commanderConfig = state.commanderConfig;
-								this.settings.propertyOverFileName = state.propertyOverFileName;
-								this.settings.imageInserter = state.imageInserter;
-								this.settings.wizardCompleted = true;
-								await this.saveSettings();
-							});
+							const wizard = new SetupWizardModal(this.app, undefined, this);
 							wizard.open();
 						}
 					})();

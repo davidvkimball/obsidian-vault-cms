@@ -232,7 +232,7 @@ export class ContentTypeStep extends BaseWizardStep {
 			
 			// Then scan for new folders that aren't already mapped
 			// Pass project detection info so it can find src/content directory correctly
-			const scannedTypes = await this.contentTypeDetector.detectContentTypes(this.state.projectDetection);
+			const scannedTypes = this.contentTypeDetector.detectContentTypes(this.state.projectDetection);
 			
 			// Merge: use imported types, then add any scanned types that don't exist yet
 			const existingFolders = new Set(importedTypes.map(ct => ct.folder));
@@ -406,7 +406,7 @@ export class ContentTypeStep extends BaseWizardStep {
 		setCssProps(addButton, { marginTop: '20px', marginBottom: '30px' });
 		addButton.addEventListener('click', () => {
 			void (async () => {
-				const selectedFolder = await this.selectContentTypeFolder();
+				const selectedFolder = this.selectContentTypeFolder();
 				if (selectedFolder) {
 					// Extract folder name from path (last segment)
 					const pathParts = selectedFolder.split(/[/\\]/);
@@ -429,7 +429,7 @@ export class ContentTypeStep extends BaseWizardStep {
 	/**
 	 * Select folder for additional content type
 	 */
-	private async selectContentTypeFolder(): Promise<string | null> {
+	private selectContentTypeFolder(): string | null {
 		try {
 			// Try multiple ways to access Electron dialog API
 			let dialog: { showOpenDialogSync?: (options: { title: string; defaultPath: string; properties: string[] }) => string[] | undefined } | null = null;

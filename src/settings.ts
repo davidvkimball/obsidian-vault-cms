@@ -1,4 +1,4 @@
-import { ContentTypeConfig, FrontmatterProperties, BasesCMSConfig, AstroComposerConfig, SEOConfig, CommanderConfig, PropertyOverFileNameConfig, ImageInserterConfig } from './types';
+import { ContentTypeConfig, FrontmatterProperties, BasesCMSConfig, AstroComposerConfig, SEOConfig, CommanderConfig, PropertyOverFileNameConfig, ImageInserterConfig, ImageManagerConfig, HomeBaseConfig } from './types';
 
 export interface VaultCMSSettings {
 	projectRoot: string;
@@ -17,6 +17,8 @@ export interface VaultCMSSettings {
 	commanderConfig: CommanderConfig;
 	propertyOverFileName: PropertyOverFileNameConfig;
 	imageInserter: ImageInserterConfig;
+	imageManager: ImageManagerConfig;
+	homeBase: HomeBaseConfig;
 	runWizardOnStartup: boolean;
 	wizardCompleted: boolean;
 }
@@ -57,6 +59,8 @@ export const DEFAULT_SETTINGS: VaultCMSSettings = {
 		valueFormat: '[[attachments/{image-url}]]',
 		insertFormat: '[[attachments/{image-url}]]'
 	},
+	imageManager: {},
+	homeBase: {},
 	runWizardOnStartup: true,
 	wizardCompleted: false
 };

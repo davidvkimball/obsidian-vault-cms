@@ -40,7 +40,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 				text: 'Detecting your Astro project structure...' 
 			});
 
-			const result = await this.projectDetector.detectProject();
+			const result = this.projectDetector.detectProject();
 			
 			if (result) {
 				// Convert absolute paths to relative paths (like browse button does)
@@ -93,8 +93,8 @@ export class ProjectDetectionStep extends BaseWizardStep {
 				.setButtonText('Browse...')
 				.setCta()
 				.onClick(() => {
-					void (async () => {
-						const selectedPath = await this.selectFolder();
+					(() => {
+						const selectedPath = this.selectFolder();
 						if (selectedPath) {
 							this.state.projectDetection!.projectRoot = selectedPath;
 							if (this.projectRootDisplay) {
@@ -123,9 +123,9 @@ export class ProjectDetectionStep extends BaseWizardStep {
 				.setButtonText('Browse...')
 				.setCta()
 				.onClick(() => {
-					void (async () => {
+					(() => {
 						const defaultPath = this.state.projectDetection?.projectRoot || this.getVaultPath();
-						const selectedPath = await this.selectConfigFile(defaultPath);
+						const selectedPath = this.selectConfigFile(defaultPath);
 						if (selectedPath) {
 							this.state.projectDetection!.configFilePath = selectedPath;
 							if (this.configFileDisplay) {
@@ -177,8 +177,8 @@ export class ProjectDetectionStep extends BaseWizardStep {
 				.setButtonText('Browse...')
 				.setCta()
 				.onClick(() => {
-					void (async () => {
-						const selectedPath = await this.selectFolder();
+					(() => {
+						const selectedPath = this.selectFolder();
 						if (selectedPath) {
 							this.state.projectDetection!.projectRoot = selectedPath;
 							if (this.projectRootDisplay) {
@@ -209,9 +209,9 @@ export class ProjectDetectionStep extends BaseWizardStep {
 				.setButtonText('Browse...')
 				.setCta()
 				.onClick(() => {
-					void (async () => {
+					(() => {
 						const defaultPath = this.state.projectDetection?.projectRoot || this.getVaultPath();
-						const selectedPath = await this.selectConfigFile(defaultPath);
+						const selectedPath = this.selectConfigFile(defaultPath);
 						if (selectedPath) {
 							this.state.projectDetection!.configFilePath = selectedPath;
 							if (this.configFileDisplay) {
@@ -227,7 +227,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 	/**
 	 * Open native folder picker dialog
 	 */
-	private async selectFolder(): Promise<string | null> {
+	private selectFolder(): string | null {
 		try {
 			// Try multiple ways to access Electron dialog API
 			let dialog: { showOpenDialogSync?: (options: { title: string; defaultPath: string; properties: string[] }) => string[] | undefined } | null = null;
@@ -297,7 +297,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 	/**
 	 * Open native file picker dialog for config file
 	 */
-	private async selectConfigFile(defaultPath?: string): Promise<string | null> {
+	private selectConfigFile(defaultPath?: string): string | null {
 		try {
 			// Try multiple ways to access Electron dialog API
 			let dialog: { showOpenDialogSync?: (options: { title: string; defaultPath: string; filters?: Array<{ name: string; extensions: string[] }>; properties: string[] }) => string[] | undefined } | null = null;

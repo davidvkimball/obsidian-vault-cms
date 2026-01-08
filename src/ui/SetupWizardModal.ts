@@ -1,4 +1,4 @@
-import { App, Modal } from 'obsidian';
+import { App, Modal, Notice } from 'obsidian';
 
 // Helper function for setCssProps (may not be in types yet)
 function setCssProps(element: HTMLElement, props: Record<string, string>): void {
@@ -9,6 +9,7 @@ function setCssProps(element: HTMLElement, props: Record<string, string>): void 
 }
 import { WizardState } from '../types';
 import { BaseWizardStep } from './wizard/BaseWizardStep';
+import { WizardStateManager } from './wizard/WizardStateManager';
 import VaultCMSPlugin from '../main';
 import { WelcomeStep } from './wizard/WelcomeStep';
 import { ProjectDetectionStep } from './wizard/ProjectDetectionStep';
@@ -23,56 +24,27 @@ import { OptionalPluginsStep } from './wizard/OptionalPluginsStep';
 import { FinalizeStep } from './wizard/FinalizeStep';
 
 export class SetupWizardModal extends Modal {
-	private state: WizardState;
-	private currentStepIndex: number = 0;
+	private stateManager: WizardStateManager;
+	private plugin: VaultCMSPlugin;
 	private steps: (new (app: App, containerEl: HTMLElement, state: WizardState, onNext: () => void, onBack: () => void, onCancel: () => void) => BaseWizardStep)[];
 	private currentStepInstance: BaseWizardStep | null = null;
-	private saveCallback?: (state: WizardState) => Promise<void>;
-	private pluginInstance?: VaultCMSPlugin; // Reference to plugin for saving
+	private isCompleting: boolean = false;
+	private initialSettingsSnapshot: Partial<WizardState> | null = null;
 
 	constructor(app: App, initialState?: Partial<WizardState>, pluginInstance?: VaultCMSPlugin) {
 		super(app);
-		this.pluginInstance = pluginInstance;
+		this.plugin = pluginInstance || (app as { plugins?: { plugins?: Record<string, VaultCMSPlugin> } }).plugins?.plugins?.['vault-cms'] as VaultCMSPlugin;
 		
-		// Initialize project detection from saved settings if available
-		const savedProjectDetection = initialState?.projectDetection || 
-			(pluginInstance?.settings?.projectRoot && pluginInstance?.settings?.configFilePath ? {
-				projectRoot: pluginInstance.settings.projectRoot,
-				configFilePath: pluginInstance.settings.configFilePath,
-				vaultLocation: 'content' as const
-			} : undefined);
-
-		this.state = {
-			currentStep: 0,
-			contentTypes: initialState?.contentTypes || pluginInstance?.settings?.contentTypes || [],
-			frontmatterProperties: initialState?.frontmatterProperties || pluginInstance?.settings?.frontmatterProperties || {},
-			projectDetection: savedProjectDetection,
-			defaultContentTypeId: initialState?.defaultContentTypeId || pluginInstance?.settings?.defaultContentTypeId,
-			attachmentHandlingMode: initialState?.attachmentHandlingMode || 'subfolder',
-			attachmentFolderName: initialState?.attachmentFolderName,
-			preset: initialState?.preset || pluginInstance?.settings?.preset || 'vanilla',
-			enableWYSIWYG: initialState?.enableWYSIWYG ?? pluginInstance?.settings?.enableWYSIWYG ?? false,
-			enabledPlugins: initialState?.enabledPlugins || pluginInstance?.settings?.enabledPlugins || [],
-			disabledPlugins: initialState?.disabledPlugins || pluginInstance?.settings?.disabledPlugins || [],
-			theme: initialState?.theme || pluginInstance?.settings?.theme || '',
-			basesCMSConfig: initialState?.basesCMSConfig || pluginInstance?.settings?.basesCMSConfig || { views: [] },
-			astroComposerConfig: initialState?.astroComposerConfig || pluginInstance?.settings?.astroComposerConfig || {
-				customContentTypes: [],
-				defaultTemplate: '',
-				configFilePath: '',
-				terminalProjectRootPath: ''
-			},
-			seoConfig: initialState?.seoConfig || pluginInstance?.settings?.seoConfig || {
-				titleProperty: 'title',
-				scanDirectories: '',
-				useFilenameAsTitle: false,
-				useFilenameAsSlug: true
-			},
-			commanderConfig: initialState?.commanderConfig || pluginInstance?.settings?.commanderConfig || { pageHeaderCommands: [] },
-			propertyOverFileName: initialState?.propertyOverFileName || pluginInstance?.settings?.propertyOverFileName || { propertyKey: 'title' },
-			imageInserter: initialState?.imageInserter || pluginInstance?.settings?.imageInserter || { valueFormat: '[[attachments/{image-url}]]', insertFormat: '[[attachments/{image-url}]]' },
-			...initialState
-		} as WizardState;
+		if (!this.plugin) {
+			throw new Error('VaultCMSPlugin instance is required');
+		}
+		
+		this.stateManager = new WizardStateManager(this.plugin);
+		
+		// Apply any initial state overrides
+		if (initialState) {
+			this.stateManager.updateState(initialState);
+		}
 
 		this.steps = [
 			WelcomeStep,
@@ -89,165 +61,349 @@ export class SetupWizardModal extends Modal {
 		];
 	}
 
-	onOpen() {
+	async onOpen() {
 		const { contentEl } = this;
 		contentEl.empty();
-		this.displayCurrentStep().catch(err => {
-			console.error('Error displaying wizard step:', err);
-		});
+		contentEl.addClass('vault-cms-wizard');
+		
+		// Refresh the wizard state with current settings
+		await this.stateManager.refreshState();
+		
+		// Store a snapshot of initial settings to detect changes later
+		this.initialSettingsSnapshot = this.createSettingsSnapshot();
+		
+		// Render current step (may be async, but we don't await it)
+		void this.renderCurrentStep();
 	}
 
 	onClose() {
 		const { contentEl } = this;
 		contentEl.empty();
+		
+		// Save any wizard state changes to data.json if modal is closed
+		// This ensures changes are preserved even if user closes modal without completing wizard
+		// Only show notification if not completing (Complete Setup already shows its own notification)
+		void this.saveWizardStateToDataJson(!this.isCompleting);
+		
+		// Reset the flag
+		this.isCompleting = false;
 	}
 
-	private async displayCurrentStep() {
+	private scrollToTop() {
 		const { contentEl } = this;
-		contentEl.empty();
-
-		if (this.currentStepIndex >= this.steps.length) {
-			this.close();
-			return;
+		
+		// Method 1: Find and scroll the actual scrollable parent
+		let scrollableParent: HTMLElement | null = contentEl;
+		while (scrollableParent && scrollableParent !== document.body) {
+			const style = window.getComputedStyle(scrollableParent);
+			if (scrollableParent.scrollHeight > scrollableParent.clientHeight && 
+				(style.overflowY === 'auto' || style.overflowY === 'scroll' || style.overflow === 'auto' || style.overflow === 'scroll')) {
+				scrollableParent.scrollTop = 0;
+				break;
+			}
+			scrollableParent = scrollableParent.parentElement;
 		}
-
-		const StepClass = this.steps[this.currentStepIndex];
-		const stepName = StepClass.name || 'Unknown';
-		console.debug(`SetupWizardModal: Displaying step ${this.currentStepIndex + 1}/${this.steps.length}: ${stepName}`);
 		
-		this.currentStepInstance = new StepClass(
-			this.app,
-			contentEl,
-			this.state,
-			() => void this.nextStep(),
-			() => void this.previousStep(),
-			() => this.close()
-		);
-
-		// Await display() since it may be async
-		await this.currentStepInstance.display();
-		this.state.currentStep = this.currentStepIndex;
-
-		// Add navigation buttons after content is displayed (with proper spacing like astro-modular-settings)
-		const footer = contentEl.createDiv({ cls: 'wizard-footer' });
-		const buttonContainer = footer.createDiv({ cls: 'wizard-buttons' });
-		setCssProps(buttonContainer, { display: 'flex', gap: '10px' });
+		// Method 2: Try common Obsidian modal containers
+		const modalContent = contentEl.closest('.modal-content');
+		if (modalContent) {
+			(modalContent as HTMLElement).scrollTop = 0;
+		}
 		
-		if (this.currentStepIndex > 0) {
-			const backButton = buttonContainer.createEl('button', { 
+		const modalContainer = contentEl.closest('.modal-container');
+		if (modalContainer) {
+			(modalContainer as HTMLElement).scrollTop = 0;
+		}
+		
+		// Also try contentEl itself
+		contentEl.scrollTop = 0;
+	}
+
+	private async renderCurrentStep() {
+		const { contentEl } = this;
+		
+		// Scroll to top IMMEDIATELY before clearing content to prevent visual jump
+		this.scrollToTop();
+		
+		// Clear content
+		contentEl.empty();
+		contentEl.addClass('vault-cms-wizard');
+
+		// Scroll to top again after clearing (in case clearing changed scroll position)
+		this.scrollToTop();
+
+		// Render progress
+		this.renderProgress(contentEl);
+
+		// Render step content (may be async, but we don't await it)
+		const stepContent = contentEl.createDiv('wizard-content');
+		await this.renderStepContent(stepContent);
+
+		// Render footer
+		this.renderFooter(contentEl);
+		
+		// Final scroll to top after all rendering is complete
+		requestAnimationFrame(() => {
+			this.scrollToTop();
+		});
+	}
+
+	private renderProgress(container: HTMLElement) {
+		const state = this.stateManager.getState();
+		const totalSteps = this.steps.length;
+		const progress = container.createDiv('wizard-progress');
+		
+		const progressBar = progress.createDiv('progress-bar');
+		const progressFill = progressBar.createDiv('progress-fill');
+		// Set dynamic width using setCssProps
+		setCssProps(progressFill, { width: `${this.stateManager.getProgress(totalSteps)}%` });
+		
+		// Add step text below the progress bar
+		const progressText = progress.createDiv('progress-text');
+		progressText.textContent = `Step ${state.currentStep + 1} of ${totalSteps}`;
+	}
+
+	private async renderStepContent(container: HTMLElement) {
+		const state = this.stateManager.getState();
+		const stepIndex = state.currentStep;
+		
+		if (stepIndex >= 0 && stepIndex < this.steps.length) {
+			const StepClass = this.steps[stepIndex];
+			const stepName = StepClass.name || 'Unknown';
+			console.debug(`SetupWizardModal: Displaying step ${stepIndex + 1}/${this.steps.length}: ${stepName}`);
+			
+			this.currentStepInstance = new StepClass(
+				this.app,
+				container,
+				state,
+				() => {
+					// Next handler - save and advance
+					void (async () => {
+						if (this.currentStepInstance && this.currentStepInstance.validate()) {
+							await this.saveCurrentStepToWizardState();
+							this.stateManager.nextStep();
+							await this.renderCurrentStep();
+						}
+					})();
+				},
+				() => {
+					// Back handler - discard and go back
+					this.discardCurrentStepChanges();
+					this.stateManager.previousStep();
+					void this.renderCurrentStep();
+				},
+				() => this.close()
+			);
+
+			// Await display() since it may be async
+			await this.currentStepInstance.display();
+		}
+	}
+
+	private renderFooter(container: HTMLElement) {
+		const footer = container.createDiv('wizard-footer');
+		
+		const buttons = footer.createDiv('wizard-buttons');
+		setCssProps(buttons, { display: 'flex', gap: '10px' });
+		
+		// Previous button
+		if (this.stateManager.canGoPrevious()) {
+			const prevBtn = buttons.createEl('button', {
 				text: 'Previous',
 				cls: 'mod-button'
 			});
-			backButton.addEventListener('click', () => {
-				void this.previousStep();
+			prevBtn.addEventListener('click', () => {
+				// Discard any changes made on current step and go back
+				this.discardCurrentStepChanges();
+				this.stateManager.previousStep();
+				void this.renderCurrentStep();
 			});
 		}
 
-		if (this.currentStepIndex < this.steps.length - 1) {
-			const nextButton = buttonContainer.createEl('button', { 
+		// Next/Complete button
+		if (this.stateManager.canGoNext(this.steps.length)) {
+			const nextBtn = buttons.createEl('button', {
 				text: 'Next',
 				cls: 'mod-button mod-cta'
 			});
-			nextButton.addEventListener('click', () => {
-				if (this.currentStepInstance && this.currentStepInstance.validate()) {
-					// Save current step state to data.json before proceeding
-					void (async () => {
-						await this.saveCurrentStepState();
-						await this.nextStep();
-					})();
-				}
-			});
-
-			// Skip button (for all steps except the last)
-			const skipButton = buttonContainer.createEl('button', { 
-				text: 'Skip',
-				cls: 'mod-button'
-			});
-			setCssProps(skipButton, { opacity: '0.6' });
-			skipButton.addEventListener('click', () => {
-				// Skip without saving current step changes to disk
-				// State changes in memory are preserved, but nothing is written to data.json files
-				void this.nextStep();
+			nextBtn.addEventListener('click', () => {
+				// Save current step changes to wizard state and data.json
+				void (async () => {
+					if (this.currentStepInstance && this.currentStepInstance.validate()) {
+						await this.saveCurrentStepToWizardState();
+						this.stateManager.nextStep();
+						await this.renderCurrentStep();
+					}
+				})();
 			});
 		} else {
-			// Last step - Finish button
-			const finishButton = buttonContainer.createEl('button', { 
+			const completeBtn = buttons.createEl('button', {
 				text: 'Complete setup',
 				cls: 'mod-button mod-cta'
 			});
-			finishButton.addEventListener('click', () => {
-				if (this.currentStepInstance && this.currentStepInstance.validate()) {
-					void (async () => {
-						await this.saveStateIfNeeded();
+			completeBtn.addEventListener('click', () => {
+				// Mark that we're completing the wizard to avoid duplicate notifications
+				this.isCompleting = true;
+				
+				// Complete the wizard (fire and forget)
+				void (async () => {
+					if (this.currentStepInstance && this.currentStepInstance.validate()) {
+						// Complete the wizard - FinalizeStep handles its own applyConfiguration
+						// The "Apply configuration" button in FinalizeStep will be clicked programmatically
+						// or we can call it directly if it's exposed
+						const finalStep = this.currentStepInstance as FinalizeStep;
+						
+						// Save the final settings first
+						await this.saveCurrentStepToWizardState();
+						
+						// Mark wizard as completed
+						this.plugin.settings.wizardCompleted = true;
+						await this.plugin.saveSettings();
+						
+						// CRITICAL: Reload settings from disk to ensure everything is synchronized
+						await this.plugin.loadSettings();
+						
 						this.close();
-					})();
-				}
+					}
+				})();
+			});
+		}
+
+		// Skip button (for all steps except the last)
+		if (this.stateManager.canGoNext(this.steps.length)) {
+			const skipBtn = buttons.createEl('button', {
+				text: 'Skip',
+				cls: 'mod-button'
+			});
+			skipBtn.addClass('wizard-skip-button');
+			setCssProps(skipBtn, { opacity: '0.6' });
+			skipBtn.addEventListener('click', () => {
+				// Skip without saving current step changes to wizard state
+				this.stateManager.nextStep();
+				void this.renderCurrentStep();
 			});
 		}
 	}
 
-	private async nextStep() {
-		if (this.currentStepIndex < this.steps.length - 1) {
-			this.currentStepIndex++;
-			await this.displayCurrentStep();
-		} else {
-			await this.saveStateIfNeeded();
-			this.close();
+	private async saveCurrentStepToWizardState(): Promise<void> {
+		// Save current step changes to wizard state and data.json
+		// This is called when NEXT is clicked to ensure data.json stays in sync
+		try {
+			// Build final settings from wizard state (updates plugin.settings)
+			this.stateManager.buildFinalSettings();
+			
+			// Save to data.json
+			await this.plugin.saveSettings();
+			
+			// Reload settings to ensure the plugin has the latest values
+			await this.plugin.loadSettings();
+		} catch (error: unknown) {
+			console.error('Error saving current step to data.json:', error);
+			// Don't show error to user - just log it, as this shouldn't block navigation
 		}
 	}
 
-	/**
-	 * Save current step state to data.json (called when Next is clicked)
-	 */
-	private async saveCurrentStepState(): Promise<void> {
+	private discardCurrentStepChanges(): void {
+		// Discard changes made on current step - this is called when PREVIOUS is clicked
+		// Refresh the wizard state to show original values from data.json
+		void this.stateManager.refreshState();
+	}
+
+	private async saveWizardStateToDataJson(showNotification: boolean = true): Promise<void> {
+		// Save wizard state changes to data.json when modal is closed
+		// This ensures changes are preserved even if user closes modal without completing wizard
 		try {
-			if (this.saveCallback && this.pluginInstance) {
-				// Update plugin settings with current wizard state
-				this.pluginInstance.settings.projectRoot = this.state.projectDetection?.projectRoot || '';
-				this.pluginInstance.settings.configFilePath = this.state.projectDetection?.configFilePath || '';
-				this.pluginInstance.settings.contentTypes = this.state.contentTypes;
-				this.pluginInstance.settings.frontmatterProperties = this.state.frontmatterProperties;
-				this.pluginInstance.settings.defaultContentTypeId = this.state.defaultContentTypeId;
-				this.pluginInstance.settings.preset = this.state.preset;
-				this.pluginInstance.settings.enableWYSIWYG = this.state.enableWYSIWYG;
-				this.pluginInstance.settings.enabledPlugins = this.state.enabledPlugins;
-				this.pluginInstance.settings.disabledPlugins = this.state.disabledPlugins;
-				this.pluginInstance.settings.theme = this.state.theme;
-				this.pluginInstance.settings.basesCMSConfig = this.state.basesCMSConfig;
-				this.pluginInstance.settings.astroComposerConfig = this.state.astroComposerConfig;
-				this.pluginInstance.settings.seoConfig = this.state.seoConfig;
-				this.pluginInstance.settings.commanderConfig = this.state.commanderConfig;
-				this.pluginInstance.settings.propertyOverFileName = this.state.propertyOverFileName;
-				this.pluginInstance.settings.imageInserter = this.state.imageInserter;
-				
-				// Save to data.json
-				await this.pluginInstance.saveSettings();
+			// Build final settings from wizard state
+			this.stateManager.buildFinalSettings();
+			
+			// Check if any changes were actually made
+			const hasChanges = this.hasSettingsChanged();
+			
+			// Only save to data.json if there were actual changes
+			if (!hasChanges) {
+				return; // No changes, don't save anything
+			}
+			
+			// Save to data.json
+			await this.plugin.saveSettings();
+			
+			// Reload settings to ensure the plugin has the latest values
+			await this.plugin.loadSettings();
+			
+			// Only show notification if requested
+			if (showNotification) {
+				new Notice('Configuration saved');
 			}
 		} catch (error: unknown) {
-			console.error('Error saving current step state:', error);
-			// Don't block navigation on save errors
+			console.error('Error saving wizard state to data.json:', error);
+			if (showNotification) {
+				new Notice(`Failed to save configuration: ${error instanceof Error ? error.message : String(error)}`);
+			}
 		}
 	}
-
-	private async previousStep() {
-		if (this.currentStepIndex > 0) {
-			this.currentStepIndex--;
-			await this.displayCurrentStep();
+	
+	private createSettingsSnapshot(): Partial<WizardState> {
+		// Create a deep copy of current state for comparison
+		const state = this.stateManager.getState();
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-return
+		return JSON.parse(JSON.stringify({
+			projectDetection: state.projectDetection,
+			contentTypes: state.contentTypes,
+			frontmatterProperties: state.frontmatterProperties,
+			defaultContentTypeId: state.defaultContentTypeId,
+			preset: state.preset,
+			enableWYSIWYG: state.enableWYSIWYG,
+			enabledPlugins: state.enabledPlugins,
+			disabledPlugins: state.disabledPlugins,
+			theme: state.theme,
+			basesCMSConfig: state.basesCMSConfig,
+			astroComposerConfig: state.astroComposerConfig,
+			seoConfig: state.seoConfig,
+			commanderConfig: state.commanderConfig,
+			propertyOverFileName: state.propertyOverFileName,
+			imageInserter: state.imageInserter,
+			imageManager: state.imageManager,
+			homeBase: state.homeBase
+		}));
+	}
+	
+	private hasSettingsChanged(): boolean {
+		if (!this.initialSettingsSnapshot) {
+			return false;
 		}
+		
+		const currentSnapshot = this.createSettingsSnapshot();
+		
+		// Compare key settings that can be changed in the wizard
+		return (
+			JSON.stringify(currentSnapshot.projectDetection) !== JSON.stringify(this.initialSettingsSnapshot.projectDetection) ||
+			JSON.stringify(currentSnapshot.contentTypes) !== JSON.stringify(this.initialSettingsSnapshot.contentTypes) ||
+			JSON.stringify(currentSnapshot.frontmatterProperties) !== JSON.stringify(this.initialSettingsSnapshot.frontmatterProperties) ||
+			currentSnapshot.defaultContentTypeId !== this.initialSettingsSnapshot.defaultContentTypeId ||
+			currentSnapshot.preset !== this.initialSettingsSnapshot.preset ||
+			currentSnapshot.enableWYSIWYG !== this.initialSettingsSnapshot.enableWYSIWYG ||
+			JSON.stringify(currentSnapshot.enabledPlugins) !== JSON.stringify(this.initialSettingsSnapshot.enabledPlugins) ||
+			JSON.stringify(currentSnapshot.disabledPlugins) !== JSON.stringify(this.initialSettingsSnapshot.disabledPlugins) ||
+			currentSnapshot.theme !== this.initialSettingsSnapshot.theme ||
+			JSON.stringify(currentSnapshot.basesCMSConfig) !== JSON.stringify(this.initialSettingsSnapshot.basesCMSConfig) ||
+			JSON.stringify(currentSnapshot.astroComposerConfig) !== JSON.stringify(this.initialSettingsSnapshot.astroComposerConfig) ||
+			JSON.stringify(currentSnapshot.seoConfig) !== JSON.stringify(this.initialSettingsSnapshot.seoConfig) ||
+			JSON.stringify(currentSnapshot.commanderConfig) !== JSON.stringify(this.initialSettingsSnapshot.commanderConfig) ||
+			JSON.stringify(currentSnapshot.propertyOverFileName) !== JSON.stringify(this.initialSettingsSnapshot.propertyOverFileName) ||
+			JSON.stringify(currentSnapshot.imageInserter) !== JSON.stringify(this.initialSettingsSnapshot.imageInserter) ||
+			JSON.stringify(currentSnapshot.imageManager) !== JSON.stringify(this.initialSettingsSnapshot.imageManager) ||
+			JSON.stringify(currentSnapshot.homeBase) !== JSON.stringify(this.initialSettingsSnapshot.homeBase)
+		);
 	}
 
 	getState(): WizardState {
-		return this.state;
+		return this.stateManager.getState();
 	}
 
-	// Callback to save state to plugin settings
+	// Callback to save state to plugin settings (kept for backward compatibility)
 	setSaveCallback(callback: (state: WizardState) => Promise<void>) {
-		this.saveCallback = callback;
-	}
-
-	private async saveStateIfNeeded(): Promise<void> {
-		if (this.saveCallback && this.currentStepIndex === this.steps.length - 1) {
-			await this.saveCallback(this.state);
-		}
+		// This is now handled by saveCurrentStepToWizardState and saveWizardStateToDataJson
+		// But we keep the method for backward compatibility
+		console.warn('setSaveCallback is deprecated - state is now managed automatically');
 	}
 }
