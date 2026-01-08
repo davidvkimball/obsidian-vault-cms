@@ -30,6 +30,7 @@ export class SetupWizardModal extends Modal {
 	private currentStepInstance: BaseWizardStep | null = null;
 	private isCompleting: boolean = false;
 	private initialSettingsSnapshot: Partial<WizardState> | null = null;
+	private lastSavedStepIndex: number = -1; // Track the last step where "Next" was clicked
 
 	constructor(app: App, initialState?: Partial<WizardState>, pluginInstance?: VaultCMSPlugin) {
 		super(app);
@@ -80,10 +81,10 @@ export class SetupWizardModal extends Modal {
 		const { contentEl } = this;
 		contentEl.empty();
 		
-		// Save any wizard state changes to data.json if modal is closed
-		// This ensures changes are preserved even if user closes modal without completing wizard
-		// Only show notification if not completing (Complete Setup already shows its own notification)
-		void this.saveWizardStateToDataJson(!this.isCompleting);
+		// When closing, only preserve changes from steps where "Next" was clicked
+		// Discard unsaved changes from the current step (equivalent to "Skip")
+		// The "Next" button already saved those steps, so we don't need to save again
+		// Just close without saving - this discards current step changes but preserves previous "Next" saves
 		
 		// Reset the flag
 		this.isCompleting = false;
@@ -231,6 +232,8 @@ export class SetupWizardModal extends Modal {
 				void (async () => {
 					if (this.currentStepInstance && this.currentStepInstance.validate()) {
 						await this.saveCurrentStepToWizardState();
+						// Track that this step was saved
+						this.lastSavedStepIndex = this.stateManager.getState().currentStep;
 						this.stateManager.nextStep();
 						await this.renderCurrentStep();
 					}
@@ -251,7 +254,6 @@ export class SetupWizardModal extends Modal {
 						// Complete the wizard - FinalizeStep handles its own applyConfiguration
 						// The "Apply configuration" button in FinalizeStep will be clicked programmatically
 						// or we can call it directly if it's exposed
-						const finalStep = this.currentStepInstance as FinalizeStep;
 						
 						// Save the final settings first
 						await this.saveCurrentStepToWizardState();

@@ -1,4 +1,4 @@
-import { App, Setting, Notice, TFolder, TFile, AbstractInputSuggest } from 'obsidian';
+import { App, Setting, Notice, TFolder, TFile, AbstractInputSuggest, setIcon } from 'obsidian';
 
 // Helper function for setCssProps (may not be in types yet)
 function setCssProps(element: HTMLElement, props: Record<string, string>): void {
@@ -259,14 +259,14 @@ export class ContentTypeStep extends BaseWizardStep {
 				const detectedType = detectedTypesMap.get(folder);
 				
 				if (savedType) {
-					// Use saved type to preserve enabled state and all other settings
+					// Use saved type to preserve enabled state, custom name, and all other settings
 					// If there's also a detected type, merge in any new info while preserving saved settings
 					if (detectedType) {
 						mergedTypes.push({
-							...savedType, // Preserve all saved settings (enabled, linkBasePath, etc.)
-							// Only update folder/name if they're different (shouldn't happen, but be safe)
+							...savedType, // Preserve all saved settings (enabled, custom name, linkBasePath, etc.)
+							// Always preserve saved folder and name (user may have customized the name)
 							folder: savedType.folder,
-							name: savedType.name || detectedType.name
+							name: savedType.name // Always use saved name (may be customized)
 						});
 					} else {
 						// Saved type not detected - keep it as is (user might have deleted the folder)
@@ -274,6 +274,7 @@ export class ContentTypeStep extends BaseWizardStep {
 					}
 				} else if (detectedType) {
 					// New type not in saved settings - add it (default to enabled for new types)
+					// Use auto-detected name as starting point (user can customize it)
 					mergedTypes.push(detectedType);
 				}
 				
@@ -350,9 +351,107 @@ export class ContentTypeStep extends BaseWizardStep {
 		stepContentWrapper.createEl('h3', { text: 'Content types', cls: 'vault-cms-section-header' });
 
 		for (const contentType of this.state.contentTypes) {
-			new Setting(stepContentWrapper)
-				.setName(contentType.name)
-				.setDesc(`Folder: ${contentType.folder}`)
+			const setting = new Setting(stepContentWrapper);
+			
+			// Create click-to-edit name element with icon
+			const nameContainer = setting.nameEl.createDiv({ cls: 'vault-cms-editable-name' });
+			setCssProps(nameContainer, { display: 'flex', alignItems: 'center', gap: '0.5rem' });
+			
+			// Function to create the display element with click handler
+			const createNameDisplay = (name: string) => {
+				// Clear container first
+				nameContainer.empty();
+				
+				const display = nameContainer.createSpan({ 
+					text: name,
+					cls: 'vault-cms-name-display'
+				});
+				
+				// Add pencil icon
+				const iconContainer = nameContainer.createDiv({ cls: 'vault-cms-edit-icon' });
+				setCssProps(iconContainer, { opacity: '0.6' });
+				setIcon(iconContainer, 'lucide-pencil-line');
+				
+				// Make name and icon editable on click
+				const startEdit = () => {
+					const currentName = contentType.name;
+					
+					// Clear container
+					nameContainer.empty();
+					
+					// Create input using native Obsidian styling
+					const nameInput = nameContainer.createEl('input', {
+						type: 'text',
+						value: currentName
+					});
+					// Use native Obsidian input styling class (same as Setting.addText uses)
+					nameInput.addClass('mod-text-input');
+					
+					// Focus and select text
+					nameInput.focus();
+					nameInput.select();
+					
+					// Save on blur
+					const saveName = () => {
+						let newName = nameInput.value.trim();
+						// Validate: ensure name is not empty
+						if (!newName) {
+							newName = currentName; // Revert to original if empty
+						}
+						// Validate: remove any problematic characters that might break Astro Composer
+						// Remove characters that could cause issues in config files or UI
+						// eslint-disable-next-line no-control-regex
+						newName = newName.replace(/[<>:"/\\|?*\x00-\x1F]/g, '');
+						// Ensure it's still not empty after cleaning
+						if (!newName.trim()) {
+							newName = currentName; // Revert to original if empty after cleaning
+						} else {
+							newName = newName.trim();
+						}
+						contentType.name = newName;
+						
+						// Replace input with display
+						createNameDisplay(newName);
+						
+						// Re-render to update all references to the name
+						void this.display();
+					};
+					
+					// Save on Enter
+					nameInput.addEventListener('keydown', (e) => {
+						if (e.key === 'Enter') {
+							e.preventDefault();
+							saveName();
+						} else if (e.key === 'Escape') {
+							e.preventDefault();
+							// Cancel: revert to original
+							createNameDisplay(currentName);
+						}
+					});
+					
+					// Save on blur
+					nameInput.addEventListener('blur', saveName);
+				};
+				
+				// Add click handlers to both name and icon
+				display.addEventListener('click', startEdit);
+				iconContainer.addEventListener('click', startEdit);
+				
+				// Add hover effect to icon
+				iconContainer.addEventListener('mouseenter', () => {
+					setCssProps(iconContainer, { opacity: '1' });
+				});
+				iconContainer.addEventListener('mouseleave', () => {
+					setCssProps(iconContainer, { opacity: '0.6' });
+				});
+				
+				return display;
+			};
+			
+			// Create initial display
+			createNameDisplay(contentType.name);
+			
+			setting.setDesc(`Folder: ${contentType.folder}`)
 				.addToggle(toggle => toggle
 					.setValue(contentType.enabled)
 					.onChange(value => {

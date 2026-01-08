@@ -56,6 +56,27 @@
 	opacity: 0.6;
 }
 
+/* Editable name input styling - match native Obsidian input */
+.vault-cms-editable-name input.mod-text-input {
+	border: none;
+	background: transparent;
+	box-shadow: none;
+	padding: 0;
+	margin: 0;
+	font-size: inherit;
+	font-family: inherit;
+	color: inherit;
+	width: auto;
+	min-width: 200px;
+}
+
+.vault-cms-editable-name input.mod-text-input:focus {
+	border: none;
+	box-shadow: none;
+	outline: none;
+	background: transparent;
+}
+
 /*
 
 This CSS file will be included with your plugin, and
