@@ -7,27 +7,7 @@ export function registerCommands(plugin: VaultCMSPlugin): void {
 		name: 'Open setup wizard',
 		callback: () => {
 			const wizard = new SetupWizardModal(plugin.app, plugin.settings, plugin);
-			wizard.setSaveCallback(async (state) => {
-				// Save wizard state to settings
-				plugin.settings.projectRoot = state.projectDetection?.projectRoot || '';
-				plugin.settings.configFilePath = state.projectDetection?.configFilePath || '';
-				plugin.settings.contentTypes = state.contentTypes;
-				plugin.settings.frontmatterProperties = state.frontmatterProperties;
-				plugin.settings.defaultContentTypeId = state.defaultContentTypeId;
-				plugin.settings.preset = state.preset;
-				plugin.settings.enableWYSIWYG = state.enableWYSIWYG;
-				plugin.settings.enabledPlugins = state.enabledPlugins;
-				plugin.settings.disabledPlugins = state.disabledPlugins;
-				plugin.settings.theme = state.theme;
-				plugin.settings.basesCMSConfig = state.basesCMSConfig;
-				plugin.settings.astroComposerConfig = state.astroComposerConfig;
-				plugin.settings.seoConfig = state.seoConfig;
-				plugin.settings.commanderConfig = state.commanderConfig;
-				plugin.settings.propertyOverFileName = state.propertyOverFileName;
-				plugin.settings.imageInserter = state.imageInserter;
-				plugin.settings.wizardCompleted = true;
-				await plugin.saveSettings();
-			});
+			// Note: setSaveCallback is deprecated - state is now managed automatically by SetupWizardModal
 			wizard.open();
 		}
 	});

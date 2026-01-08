@@ -32,6 +32,10 @@ export class FinalizeStep extends BaseWizardStep {
 	private homeBaseConfigurator: HomeBaseConfigurator;
 	private applied: boolean = false;
 
+	isApplied(): boolean {
+		return this.applied;
+	}
+
 	constructor(app: App, containerEl: HTMLElement, state: WizardState, onNext: () => void, onBack: () => void, onCancel: () => void) {
 		super(app, containerEl, state, onNext, onBack, onCancel);
 		this.pluginManager = new PluginManager(app);
@@ -85,11 +89,15 @@ export class FinalizeStep extends BaseWizardStep {
 		});
 
 		applyButton.addEventListener('click', () => {
-			void this.applyConfiguration();
+			void this.applyConfigurationInternal();
 		});
 	}
 
-	private async applyConfiguration(): Promise<void> {
+	async applyConfiguration(): Promise<void> {
+		return this.applyConfigurationInternal();
+	}
+
+	private async applyConfigurationInternal(): Promise<void> {
 		if (this.applied) {
 			return;
 		}
@@ -114,14 +122,17 @@ export class FinalizeStep extends BaseWizardStep {
 
 			// Configure Astro Composer
 			if (this.state.projectDetection) {
+				console.debug('FinalizeStep: Configuring Astro Composer, enableMdxSupport =', this.state.enableMdxSupport);
 				const astroConfig = await this.astroComposerConfigurator.configureAstroComposer(
 					this.state.contentTypes,
 					this.state.frontmatterProperties,
 					this.state.projectDetection.projectRoot,
 					this.state.projectDetection.configFilePath,
 					this.state.defaultContentTypeId,
-					this.state.projectDetection
+					this.state.projectDetection,
+					this.state.enableMdxSupport
 				);
+				console.debug('FinalizeStep: Astro Composer config.showMdxFilesInExplorer =', astroConfig.showMdxFilesInExplorer);
 				this.state.astroComposerConfig = astroConfig;
 				await this.astroComposerConfigurator.saveConfig(astroConfig);
 			}
@@ -130,7 +141,8 @@ export class FinalizeStep extends BaseWizardStep {
 			const seoConfig = this.seoConfigurator.generateSEOConfig(
 				this.state.contentTypes,
 				this.state.frontmatterProperties,
-				this.state.projectDetection
+				this.state.projectDetection,
+				this.state.enableMdxSupport
 			);
 			this.state.seoConfig = seoConfig;
 			await this.seoConfigurator.saveConfig(seoConfig);
@@ -150,8 +162,21 @@ export class FinalizeStep extends BaseWizardStep {
 			const firstProps = firstType ? this.state.frontmatterProperties[firstType.id] : undefined;
 			if (firstProps && firstProps.titleProperty) {
 				this.state.propertyOverFileName.propertyKey = firstProps.titleProperty;
-				await this.propertyOverFileNameConfigurator.saveConfig(this.state.propertyOverFileName);
 			}
+			// Set MDX support based on state (ALWAYS set explicitly, even if false)
+			console.debug('FinalizeStep: Configuring Property Over File Name');
+			console.debug('FinalizeStep: this.state.enableMdxSupport =', this.state.enableMdxSupport);
+			console.debug('FinalizeStep: this.state.propertyOverFileName before =', JSON.stringify(this.state.propertyOverFileName));
+			
+			// Ensure enableMdxSupport is ALWAYS set (never undefined)
+			const mdxSupportValue = this.state.enableMdxSupport === true;
+			this.state.propertyOverFileName.enableMdxSupport = mdxSupportValue;
+			
+			console.debug('FinalizeStep: Set enableMdxSupport to', mdxSupportValue);
+			console.debug('FinalizeStep: this.state.propertyOverFileName after =', JSON.stringify(this.state.propertyOverFileName));
+			console.debug('FinalizeStep: About to call saveConfig with:', JSON.stringify(this.state.propertyOverFileName));
+			
+			await this.propertyOverFileNameConfigurator.saveConfig(this.state.propertyOverFileName);
 
 			// Configure Simple Banner (if enabled)
 			const imageProperty = firstProps?.imageProperty;
@@ -244,10 +269,11 @@ export class FinalizeStep extends BaseWizardStep {
 			}
 
 			this.applied = true;
-			new Notice('Configuration applied successfully!');
+			// Create a longer-lasting notice with restart message
+			new Notice('Configuration applied successfully! You may need to restart Obsidian to see all changes.', 8000);
 		} catch (error: unknown) {
 			console.error('Failed to apply configuration:', error);
-			new Notice('Failed to apply configuration. Please check the console for details.');
+			new Notice('Failed to apply configuration. Please check the console for details.', 6000);
 		}
 	}
 

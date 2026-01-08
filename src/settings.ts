@@ -8,6 +8,7 @@ export interface VaultCMSSettings {
 	defaultContentTypeId?: string;
 	preset: 'vanilla' | 'opinionated' | 'custom';
 	enableWYSIWYG: boolean;
+	enableMdxSupport?: boolean;
 	enabledPlugins: string[];
 	disabledPlugins: string[];
 	theme: string;
@@ -30,6 +31,7 @@ export const DEFAULT_SETTINGS: VaultCMSSettings = {
 	frontmatterProperties: {},
 	preset: 'vanilla',
 	enableWYSIWYG: false,
+	enableMdxSupport: false,
 	enabledPlugins: [],
 	disabledPlugins: [],
 	theme: '',

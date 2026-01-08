@@ -28,7 +28,8 @@ export class AstroComposerConfigurator {
 		projectRoot: string,
 		configFilePath: string,
 		defaultContentTypeId?: string,
-		projectDetection?: ProjectDetectionResult
+		projectDetection?: ProjectDetectionResult,
+		enableMdxSupport?: boolean
 	): Promise<AstroComposerConfig> {
 		// Store frontmatterProperties and contentTypes for use in saveConfig
 		this.frontmatterProperties = frontmatterProperties;
@@ -38,7 +39,8 @@ export class AstroComposerConfigurator {
 			customContentTypes: [],
 			defaultTemplate: '',
 			configFilePath: this.relativePath(configFilePath),
-			terminalProjectRootPath: this.relativePath(projectRoot)
+			terminalProjectRootPath: this.relativePath(projectRoot),
+			showMdxFilesInExplorer: enableMdxSupport ?? false
 		};
 
 		// Find posts and pages content types (for legacy support)
@@ -243,6 +245,14 @@ export class AstroComposerConfigurator {
 				pluginSettings.terminalProjectRootPath = config.terminalProjectRootPath;
 			}
 			
+			// Update MDX support flag
+			if (config.showMdxFilesInExplorer !== undefined) {
+				pluginSettings.showMdxFilesInExplorer = config.showMdxFilesInExplorer;
+				console.debug('AstroComposerConfig: Set showMdxFilesInExplorer to', config.showMdxFilesInExplorer);
+			} else {
+				console.debug('AstroComposerConfig: showMdxFilesInExplorer is undefined, not updating');
+			}
+			
 			// Update contentTypes array (new unified structure)
 			// Initialize contentTypes array if it doesn't exist
 			if (!Array.isArray(pluginSettings.contentTypes)) {
@@ -346,6 +356,7 @@ export class AstroComposerConfigurator {
 		if (config.pagesIndexFileName) existingData.pagesIndexFileName = config.pagesIndexFileName;
 		if (config.configFilePath) existingData.configFilePath = config.configFilePath;
 		if (config.terminalProjectRootPath) existingData.terminalProjectRootPath = config.terminalProjectRootPath;
+		if (config.showMdxFilesInExplorer !== undefined) existingData.showMdxFilesInExplorer = config.showMdxFilesInExplorer;
 		
 		// Update contentTypes array (new unified structure)
 		if (!Array.isArray(existingData.contentTypes)) {

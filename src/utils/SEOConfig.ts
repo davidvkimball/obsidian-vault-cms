@@ -28,7 +28,8 @@ export class SEOConfigurator {
 	generateSEOConfig(
 		contentTypes: ContentTypeConfig[],
 		frontmatterProperties: { [contentTypeId: string]: FrontmatterProperties },
-		projectDetection?: ProjectDetectionResult
+		projectDetection?: ProjectDetectionResult,
+		enableMdxSupport?: boolean
 	): SEOConfig {
 		// Use the first content type's properties as defaults
 		const firstType = contentTypes.find(ct => ct.enabled);
@@ -53,7 +54,8 @@ export class SEOConfigurator {
 			// Don't set these - we don't collect them in the wizard
 			keywordProperty: undefined,
 			useFilenameAsTitle: false,
-			useFilenameAsSlug: true
+			useFilenameAsSlug: true,
+			enableMDXSupport: enableMdxSupport ?? false
 		};
 
 		return config;
@@ -80,6 +82,10 @@ export class SEOConfigurator {
 				// 3. descriptionProperty - update if provided (collected in wizard)
 				if (config.descriptionProperty !== undefined) {
 					pluginSettings.descriptionProperty = config.descriptionProperty;
+				}
+				// 4. enableMDXSupport - update if provided (collected in wizard)
+				if (config.enableMDXSupport !== undefined) {
+					pluginSettings.enableMDXSupport = config.enableMDXSupport;
 				}
 				// Don't update keywordProperty, useFilenameAsTitle, or useFilenameAsSlug
 				// - we don't collect these in the wizard, let user configure in SEO plugin settings
@@ -133,7 +139,9 @@ export class SEOConfigurator {
 				// Update titleProperty if provided (from wizard)
 				...(config.titleProperty !== undefined && { titleProperty: config.titleProperty }),
 				// Update descriptionProperty if provided (from wizard)
-				...(config.descriptionProperty !== undefined && { descriptionProperty: config.descriptionProperty })
+				...(config.descriptionProperty !== undefined && { descriptionProperty: config.descriptionProperty }),
+				// Update enableMDXSupport if provided (from wizard)
+				...(config.enableMDXSupport !== undefined && { enableMDXSupport: config.enableMDXSupport })
 				// All other properties (keywordProperty, useFilenameAsTitle, useFilenameAsSlug, etc.)
 				// are preserved from existingData - we don't collect them in the wizard
 			};

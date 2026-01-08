@@ -251,12 +251,16 @@ export class SetupWizardModal extends Modal {
 				// Complete the wizard (fire and forget)
 				void (async () => {
 					if (this.currentStepInstance && this.currentStepInstance.validate()) {
-						// Complete the wizard - FinalizeStep handles its own applyConfiguration
-						// The "Apply configuration" button in FinalizeStep will be clicked programmatically
-						// or we can call it directly if it's exposed
-						
-						// Save the final settings first
-						await this.saveCurrentStepToWizardState();
+						// If we're on FinalizeStep, apply configuration first (if not already applied)
+						if (this.currentStepInstance instanceof FinalizeStep) {
+							// Apply configuration if not already applied
+							if (!this.currentStepInstance.isApplied()) {
+								await this.currentStepInstance.applyConfiguration();
+							}
+						} else {
+							// For other steps, just save the current step
+							await this.saveCurrentStepToWizardState();
+						}
 						
 						// Mark wizard as completed
 						this.plugin.settings.wizardCompleted = true;

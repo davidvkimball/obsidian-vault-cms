@@ -13,9 +13,13 @@ import * as fs from 'fs';
 import { BaseWizardStep } from './BaseWizardStep';
 import { WizardState } from '../../types';
 import { ProjectDetector } from '../../utils/ProjectDetector';
+import { MdxDetector } from '../../utils/MdxDetector';
+import { ContentTypeDetector } from '../../utils/ContentTypeDetector';
 
 export class ProjectDetectionStep extends BaseWizardStep {
 	private projectDetector: ProjectDetector;
+	private mdxDetector: MdxDetector;
+	private contentTypeDetector: ContentTypeDetector;
 	private detected: boolean = false;
 	private projectRootDisplay: HTMLElement | null = null;
 	private configFileDisplay: HTMLElement | null = null;
@@ -23,14 +27,19 @@ export class ProjectDetectionStep extends BaseWizardStep {
 	constructor(app: App, containerEl: HTMLElement, state: WizardState, onNext: () => void, onBack: () => void, onCancel: () => void) {
 		super(app, containerEl, state, onNext, onBack, onCancel);
 		this.projectDetector = new ProjectDetector(app);
+		this.mdxDetector = new MdxDetector(app);
+		this.contentTypeDetector = new ContentTypeDetector(app);
 	}
 
 	async display(): Promise<void> {
+		console.debug('ProjectDetectionStep.display: called');
 		const { containerEl } = this;
 		containerEl.empty();
 
 		// Check if we have saved project detection values
 		const hasSavedValues = this.state.projectDetection?.projectRoot && this.state.projectDetection?.configFilePath;
+		console.debug('ProjectDetectionStep.display: hasSavedValues =', hasSavedValues);
+		console.debug('ProjectDetectionStep.display: current enableMdxSupport =', this.state.enableMdxSupport);
 		
 		if (!hasSavedValues) {
 			containerEl.createEl('h2', { text: 'Project detection' });
@@ -41,6 +50,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 			});
 
 			const result = this.projectDetector.detectProject();
+			console.debug('ProjectDetectionStep.display: detection result =', result);
 			
 			if (result) {
 				// Convert absolute paths to relative paths (like browse button does)
@@ -53,6 +63,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 					configFilePath: relativeConfigFilePath,
 					vaultLocation: result.vaultLocation
 				};
+				console.debug('ProjectDetectionStep.display: set projectDetection =', this.state.projectDetection);
 				this.detected = true;
 			} else {
 				// No detection, show manual selection
@@ -60,6 +71,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 			}
 		} else {
 			// Use saved values
+			console.debug('ProjectDetectionStep.display: using saved projectDetection =', this.state.projectDetection);
 			this.detected = true;
 		}
 		
@@ -137,6 +149,79 @@ export class ProjectDetectionStep extends BaseWizardStep {
 						}
 					})();
 				}));
+
+			// MDX Support checkbox
+			// Auto-detect MDX files if project is detected
+			let autoDetectedMdx = false;
+			if (this.state.projectDetection) {
+				try {
+					console.debug('ProjectDetectionStep: Starting MDX detection');
+					console.debug('ProjectDetectionStep: projectDetection =', this.state.projectDetection);
+					console.debug('ProjectDetectionStep: existing contentTypes =', this.state.contentTypes.length);
+					
+					// Get content types - use existing ones if available, otherwise detect them
+					let contentTypesToUse = this.state.contentTypes;
+					if (contentTypesToUse.length === 0) {
+						console.debug('ProjectDetectionStep: No content types in state, detecting now...');
+						// Content types not detected yet, detect them now for MDX scanning
+						contentTypesToUse = this.contentTypeDetector.detectContentTypes(this.state.projectDetection);
+						console.debug('ProjectDetectionStep: Detected content types =', contentTypesToUse.length, contentTypesToUse.map(ct => `${ct.name} (${ct.folder}, enabled: ${ct.enabled})`));
+					} else {
+						console.debug('ProjectDetectionStep: Using existing content types =', contentTypesToUse.map(ct => `${ct.name} (${ct.folder}, enabled: ${ct.enabled})`));
+					}
+					
+					if (contentTypesToUse.length > 0) {
+						console.debug('ProjectDetectionStep: Calling mdxDetector.detectMdxUsage...');
+						autoDetectedMdx = this.mdxDetector.detectMdxUsage(
+							this.state.projectDetection,
+							contentTypesToUse
+						);
+						console.debug('ProjectDetectionStep: MDX detection result =', autoDetectedMdx);
+					} else {
+						console.debug('ProjectDetectionStep: No content types to scan');
+					}
+				} catch (error) {
+					// If detection fails, default to false
+					console.error('ProjectDetectionStep: MDX detection failed:', error);
+					autoDetectedMdx = false;
+				}
+			} else {
+				console.debug('ProjectDetectionStep: No projectDetection, skipping MDX detection');
+			}
+
+			// Always update enableMdxSupport with auto-detection result
+			// This ensures detection runs even if a previous value exists
+			this.state.enableMdxSupport = autoDetectedMdx;
+			console.debug('ProjectDetectionStep: Set enableMdxSupport to', autoDetectedMdx, 'based on auto-detection');
+
+			const mdxSetting = new Setting(containerEl)
+				// False positive: "MDX" is an acronym (file format name) and should be capitalized
+				// eslint-disable-next-line obsidianmd/ui/sentence-case
+				.setName('MDX file support')
+				// False positive: "MDX" is an acronym (file format name) and should be capitalized
+				// eslint-disable-next-line obsidianmd/ui/sentence-case
+				.setDesc('Enable MDX file support for Astro Composer, Property Over File Name, and SEO plugins.');
+			
+			mdxSetting.addToggle(toggle => {
+				toggle
+					.setValue(this.state.enableMdxSupport ?? false)
+					.onChange(value => {
+						this.state.enableMdxSupport = value;
+					});
+				
+				// Show auto-detection message if MDX was detected
+				if (autoDetectedMdx && this.state.enableMdxSupport) {
+					const autoDetectMsg = mdxSetting.descEl.createDiv({
+						text: 'MDX files detected in content folders',
+						cls: 'vault-cms-auto-detect-msg'
+					});
+					setCssProps(autoDetectMsg, { 
+						color: 'var(--text-muted)', 
+						fontSize: '0.9em',
+						marginTop: '4px'
+					});
+				}
+			});
 		} else {
 			containerEl.empty();
 			containerEl.createEl('h2', { text: 'Project detection failed' });
@@ -221,6 +306,59 @@ export class ProjectDetectionStep extends BaseWizardStep {
 						}
 					})();
 				}));
+
+			// MDX Support checkbox (for manual project selection)
+			// Try to auto-detect MDX if we have project detection
+			let autoDetectedMdx = false;
+			if (this.state.projectDetection && this.state.projectDetection.projectRoot && this.state.projectDetection.configFilePath) {
+				// Try to detect content types first
+				try {
+					const detectedContentTypes = this.contentTypeDetector.detectContentTypes(this.state.projectDetection);
+					if (detectedContentTypes.length > 0) {
+						autoDetectedMdx = this.mdxDetector.detectMdxUsage(
+							this.state.projectDetection,
+							detectedContentTypes
+						);
+					}
+				} catch {
+					// If detection fails, default to false
+					autoDetectedMdx = false;
+				}
+			}
+
+			// Always update enableMdxSupport with auto-detection result
+			// This ensures detection runs even if a previous value exists
+			this.state.enableMdxSupport = autoDetectedMdx;
+			console.debug('ProjectDetectionStep (manual): Set enableMdxSupport to', autoDetectedMdx, 'based on auto-detection');
+
+			const mdxSetting = new Setting(containerEl)
+				// False positive: "MDX" is an acronym (file format name) and should be capitalized
+				// eslint-disable-next-line obsidianmd/ui/sentence-case
+				.setName('MDX file support')
+				// False positive: "MDX" is an acronym (file format name) and should be capitalized
+				// eslint-disable-next-line obsidianmd/ui/sentence-case
+				.setDesc('Enable MDX file support for Astro Composer, Property Over File Name, and SEO plugins.');
+			
+			mdxSetting.addToggle(toggle => {
+				toggle
+					.setValue(this.state.enableMdxSupport ?? false)
+					.onChange(value => {
+						this.state.enableMdxSupport = value;
+					});
+				
+				// Show auto-detection message if MDX was detected
+				if (autoDetectedMdx && this.state.enableMdxSupport) {
+					const autoDetectMsg = mdxSetting.descEl.createDiv({
+						text: 'MDX files detected in content folders',
+						cls: 'vault-cms-auto-detect-msg'
+					});
+					setCssProps(autoDetectMsg, { 
+						color: 'var(--text-muted)', 
+						fontSize: '0.9em',
+						marginTop: '4px'
+					});
+				}
+			});
 		}
 	}
 

@@ -51,13 +51,15 @@ export class OptionalPluginsStep extends BaseWizardStep {
 			{ id: 'seo', name: 'SEO', category: 'essential' },
 			{ id: 'simple-focus', name: 'Simple Focus', category: 'essential' },
 			{ id: 'statusbar-organizer', name: 'Status Bar Organizer', category: 'essential' },
-			// Nice to have plugins
+			// Nice to have plugins (alphabetically ordered)
+			{ id: 'alias-file-name-history', name: 'Alias File Name History', category: 'nice-to-have' },
 			{ id: 'iconic', name: 'Iconic', category: 'nice-to-have' },
 			{ id: 'insert-unsplash-image', name: 'Image Inserter', category: 'nice-to-have' },
 			{ id: 'paste-image-into-property', name: 'Paste Image Into Property', category: 'nice-to-have' },
 			{ id: 'settings-search', name: 'Settings Search', category: 'nice-to-have' },
 			{ id: 'simple-banner', name: 'Simple Banner', category: 'nice-to-have' },
 			{ id: 'tag-wrangler', name: 'Tag Wrangler', category: 'nice-to-have' },
+			{ id: 'ui-tweaker', name: 'UI Tweaker', category: 'nice-to-have' },
 			{ id: 'zenmode', name: 'Zen Mode', category: 'nice-to-have' }
 		];
 
@@ -69,7 +71,6 @@ export class OptionalPluginsStep extends BaseWizardStep {
 		const ignoredPlugins = [
 			'obsidian42-brat',
 			'astro-modular-settings',
-			'alias-file-name-history',
 			'folder-notes',
 			'disable-tabs',
 			'vault-cms' // Don't show Vault CMS plugin itself
@@ -80,11 +81,14 @@ export class OptionalPluginsStep extends BaseWizardStep {
 			installedPluginIds.includes(p.id) && 
 			!ignoredPlugins.includes(p.id)
 		);
-		const niceToHavePlugins = allPlugins.filter(p => 
-			p.category === 'nice-to-have' && 
-			installedPluginIds.includes(p.id) && 
-			!ignoredPlugins.includes(p.id)
-		);
+		// Filter nice-to-have plugins and sort alphabetically by name
+		const niceToHavePlugins = allPlugins
+			.filter(p => 
+				p.category === 'nice-to-have' && 
+				installedPluginIds.includes(p.id) && 
+				!ignoredPlugins.includes(p.id)
+			)
+			.sort((a, b) => a.name.localeCompare(b.name));
 
 		// Essential plugins section
 		if (essentialPlugins.length > 0) {

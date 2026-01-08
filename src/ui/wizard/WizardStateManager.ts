@@ -33,6 +33,7 @@ export class WizardStateManager {
 			attachmentFolderName: undefined, // Not saved in settings, only in wizard state
 			preset: settings.preset || 'vanilla',
 			enableWYSIWYG: settings.enableWYSIWYG ?? false,
+			enableMdxSupport: undefined, // Always start undefined so auto-detection can override any saved value
 			enabledPlugins: settings.enabledPlugins || [],
 			disabledPlugins: settings.disabledPlugins || [],
 			theme: settings.theme || '',
@@ -116,6 +117,7 @@ export class WizardStateManager {
 		this.state.attachmentFolderName = undefined; // Not saved in settings, only in wizard state
 		this.state.preset = settings.preset || 'vanilla';
 		this.state.enableWYSIWYG = settings.enableWYSIWYG ?? false;
+		this.state.enableMdxSupport = undefined; // Always reset to undefined so auto-detection can run
 		this.state.enabledPlugins = settings.enabledPlugins || [];
 		this.state.disabledPlugins = settings.disabledPlugins || [];
 		this.state.theme = settings.theme || '';
@@ -183,6 +185,7 @@ export class WizardStateManager {
 		settings.defaultContentTypeId = this.state.defaultContentTypeId;
 		settings.preset = this.state.preset;
 		settings.enableWYSIWYG = this.state.enableWYSIWYG;
+		settings.enableMdxSupport = this.state.enableMdxSupport ?? false;
 		settings.enabledPlugins = this.state.enabledPlugins;
 		settings.disabledPlugins = this.state.disabledPlugins;
 		settings.theme = this.state.theme;

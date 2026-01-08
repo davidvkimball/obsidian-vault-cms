@@ -393,6 +393,9 @@ export class ContentTypeStep extends BaseWizardStep {
 					
 					// Save on blur
 					const saveName = () => {
+						// Remove blur listener to prevent double execution
+						nameInput.removeEventListener('blur', saveName);
+						
 						let newName = nameInput.value.trim();
 						// Validate: ensure name is not empty
 						if (!newName) {
@@ -410,10 +413,8 @@ export class ContentTypeStep extends BaseWizardStep {
 						}
 						contentType.name = newName;
 						
-						// Replace input with display
-						createNameDisplay(newName);
-						
 						// Re-render to update all references to the name
+						// Don't call createNameDisplay here as display() will recreate everything
 						void this.display();
 					};
 					

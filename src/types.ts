@@ -24,6 +24,7 @@ export interface ProjectDetectionResult {
 	projectRoot: string;
 	configFilePath: string;
 	vaultLocation: 'content' | 'nested-content' | 'root';
+	enableMdxSupport?: boolean; // Optional, for auto-detection
 }
 
 export interface WizardState {
@@ -36,6 +37,7 @@ export interface WizardState {
 	attachmentFolderName?: string; // Folder name for specified-folder or subfolder modes (defaults to "attachments")
 	preset: 'vanilla' | 'opinionated' | 'custom';
 	enableWYSIWYG: boolean;
+	enableMdxSupport?: boolean; // MDX file support flag (optional to allow auto-detection)
 	enabledPlugins: string[];
 	disabledPlugins: string[];
 	theme: string;
@@ -84,6 +86,7 @@ export interface AstroComposerConfig {
 	pageTemplate?: string;
 	configFilePath: string;
 	terminalProjectRootPath: string;
+	showMdxFilesInExplorer?: boolean;
 }
 
 export interface AstroComposerCustomType {
@@ -104,6 +107,7 @@ export interface SEOConfig {
 	keywordProperty?: string;
 	useFilenameAsTitle: boolean;
 	useFilenameAsSlug: boolean;
+	enableMDXSupport?: boolean; // Note: SEO plugin uses capital MDX
 }
 
 export interface CommanderConfig {
@@ -119,6 +123,7 @@ export interface CommanderCommand {
 
 export interface PropertyOverFileNameConfig {
 	propertyKey: string;
+	enableMdxSupport?: boolean;
 }
 
 export interface ImageInserterConfig {
