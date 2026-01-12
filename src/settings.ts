@@ -1,4 +1,4 @@
-import { ContentTypeConfig, FrontmatterProperties, BasesCMSConfig, AstroComposerConfig, SEOConfig, CommanderConfig, PropertyOverFileNameConfig, ImageInserterConfig, ImageManagerConfig, HomeBaseConfig } from './types';
+import { ContentTypeConfig, FrontmatterProperties, BasesCMSConfig, AstroComposerConfig, SEOConfig, CommanderConfig, PropertyOverFileNameConfig, UITweakerConfig, ImageInserterConfig, ImageManagerConfig, HomeBaseConfig } from './types';
 
 export interface VaultCMSSettings {
 	projectRoot: string;
@@ -17,6 +17,7 @@ export interface VaultCMSSettings {
 	seoConfig: SEOConfig;
 	commanderConfig: CommanderConfig;
 	propertyOverFileName: PropertyOverFileNameConfig;
+	uiTweaker: UITweakerConfig;
 	imageInserter: ImageInserterConfig;
 	imageManager: ImageManagerConfig;
 	homeBase: HomeBaseConfig;
@@ -31,7 +32,6 @@ export const DEFAULT_SETTINGS: VaultCMSSettings = {
 	frontmatterProperties: {},
 	preset: 'vanilla',
 	enableWYSIWYG: false,
-	enableMdxSupport: false,
 	enabledPlugins: [],
 	disabledPlugins: [],
 	theme: '',
@@ -56,6 +56,184 @@ export const DEFAULT_SETTINGS: VaultCMSSettings = {
 	},
 	propertyOverFileName: {
 		propertyKey: 'title'
+	},
+	uiTweaker: {
+		"titleBar": "show",
+		"fileExplorerNavHeader": "show",
+		"otherNavHeaders": "show",
+		"leftTabHeaders": "show",
+		"rightTabHeaders": "show",
+		"ribbonRevealOnHover": false,
+		"vaultSwitcher": "reveal",
+		"helpButton": "show",
+		"settingsButton": "show",
+		"tabBar": false,
+		"enableWindowDragging": false,
+		"newNoteButton": true,
+		"newFolderButton": true,
+		"sortOrderButton": false,
+		"autoRevealButton": false,
+		"collapseAllButton": true,
+		"readingModeButton": false,
+		"searchSettingsButton": false,
+		"tabListIcon": "show",
+		"newTabIcon": "show",
+		"tabCloseButton": "show",
+		"statusBar": false,
+		"scrollBars": "show",
+		"leftSidebarToggleButton": "show",
+		"rightSidebarToggleButton": "show",
+		"tooltips": false,
+		"searchSuggestions": false,
+		"searchTermCounts": false,
+		"propertiesInReadingView": true,
+		"propertiesInHeading": true,
+		"addPropertyButton": true,
+		"instructions": false,
+		"mobileChevronsIcon": false,
+		"navigateBackButton": false,
+		"navigateForwardButton": false,
+		"quickSwitcherButton": false,
+		"mobileNewTabButton": false,
+		"openTabButton": false,
+		"ribbonMenuButton": false,
+		"swapMobileNewTabIcon": false,
+		"hideMobileTitle": false,
+		"hideMobileSyncIcon": false,
+		"navigateButtonPosition": "1",
+		"navigationButtonPosition": "2",
+		"quickSwitcherPosition": "3",
+		"newTabPosition": "4",
+		"openTabsPosition": "5",
+		"ribbonMenuPosition": "6",
+		"vaultSwitcherBackgroundTransparency": 1,
+		"helpButtonReplacement": {
+			"enabled": false,
+			"commandId": "ui-tweaker:open-settings",
+			"iconId": "wrench"
+		},
+		"syncButtonReplacement": {
+			"enabled": false,
+			"commandId": "",
+			"iconId": "wrench"
+		},
+		"tabBarCommands": [
+			{
+				"id": "editing-toolbar:hide-show-menu",
+				"icon": "lucide-chevron-down",
+				"name": "Toggle editing toolbar",
+				"displayName": "Editing Toolbar: Hide/Show ",
+				"mode": "any",
+				"toggleIcon": "lucide-chevron-up",
+				"showOnFileTypes": "md,mdx"
+			}
+		],
+		"statusBarItems": [
+			{
+				"id": "plugin-editor-status;1",
+				"name": "plugin-editor-status",
+				"type": "existing",
+				"hidden": false,
+				"mdOnly": false,
+				"sticky": "left"
+			},
+			{
+				"id": "plugin-backlink;1",
+				"name": "0 backlinks",
+				"type": "existing",
+				"hidden": false,
+				"mdOnly": false
+			},
+			{
+				"id": "plugin-word-count;1",
+				"name": "0 words0 characters",
+				"type": "existing",
+				"hidden": false,
+				"mdOnly": false
+			},
+			{
+				"id": "plugin-editing-toolbar-editingToolbar-statusbar-button;1",
+				"name": "plugin-editing-toolbar-editingToolbar-statusbar-button",
+				"type": "existing",
+				"hidden": true,
+				"mdOnly": false
+			},
+			{
+				"id": "plugin-obsidian-git;2",
+				"name": "master",
+				"type": "existing",
+				"hidden": false,
+				"mdOnly": false,
+				"sticky": "right"
+			},
+			{
+				"id": "plugin-obsidian-git;1",
+				"name": "plugin-obsidian-git",
+				"type": "existing",
+				"hidden": false,
+				"mdOnly": false,
+				"sticky": "right"
+			},
+			{
+				"id": "custom-obsidian-git:push",
+				"name": "Git: Commit-and-sync",
+				"displayName": "Git: Commit-and-sync",
+				"icon": "lucide-arrow-up-circle",
+				"type": "custom",
+				"hidden": false,
+				"mdOnly": false,
+				"commandId": "obsidian-git:push",
+				"mode": "any",
+				"sticky": "right"
+			}
+		],
+		"explorerCommands": [],
+		"explorerButtonItems": [
+			{
+				"id": "native-newNote",
+				"name": "New note",
+				"ariaLabel": "New note",
+				"type": "native",
+				"hidden": false
+			},
+			{
+				"id": "native-newFolder",
+				"name": "New folder",
+				"ariaLabel": "New folder",
+				"type": "native",
+				"hidden": false
+			},
+			{
+				"id": "native-sortOrder",
+				"name": "Change sort order",
+				"ariaLabel": "Change sort order",
+				"type": "native",
+				"hidden": false
+			},
+			{
+				"id": "native-autoReveal",
+				"name": "Auto-reveal current file",
+				"ariaLabel": "Auto-reveal current file",
+				"type": "native",
+				"hidden": false
+			},
+			{
+				"id": "native-collapseAll",
+				"name": "Expand all",
+				"ariaLabel": "Collapse all",
+				"type": "native",
+				"hidden": false
+			},
+			{
+				"id": "external-toggle-focus",
+				"name": "Toggle focus",
+				"ariaLabel": "Toggle focus",
+				"type": "external",
+				"hidden": false
+			}
+		],
+		"nativeExplorerButtonColors": {},
+		"nativeExplorerButtonIcons": {}
 	},
 	imageInserter: {
 		valueFormat: '[[attachments/{image-url}]]',

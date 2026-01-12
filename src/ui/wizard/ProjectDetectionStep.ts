@@ -189,10 +189,14 @@ export class ProjectDetectionStep extends BaseWizardStep {
 				console.debug('ProjectDetectionStep: No projectDetection, skipping MDX detection');
 			}
 
-			// Always update enableMdxSupport with auto-detection result
-			// This ensures detection runs even if a previous value exists
-			this.state.enableMdxSupport = autoDetectedMdx;
-			console.debug('ProjectDetectionStep: Set enableMdxSupport to', autoDetectedMdx, 'based on auto-detection');
+			// Always update enableMdxSupport with auto-detection result if it hasn't been set/detected yet
+			// This ensures detection runs on first run but remembers user's manual choice thereafter
+			if (this.state.enableMdxSupport === undefined) {
+				this.state.enableMdxSupport = autoDetectedMdx;
+				console.debug('ProjectDetectionStep: Set enableMdxSupport to', autoDetectedMdx, 'based on auto-detection');
+			} else {
+				console.debug('ProjectDetectionStep: enableMdxSupport already set to', this.state.enableMdxSupport, ', skipping auto-detection overwrite');
+			}
 
 			const mdxSetting = new Setting(containerEl)
 				// False positive: "MDX" is an acronym (file format name) and should be capitalized
@@ -200,7 +204,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 				.setName('MDX file support')
 				// False positive: "MDX" is an acronym (file format name) and should be capitalized
 				// eslint-disable-next-line obsidianmd/ui/sentence-case
-				.setDesc('Enable MDX file support for Astro Composer, Property Over File Name, and SEO plugins.');
+				.setDesc('Enable MDX file support for Astro Composer, Property Over File Name, SEO, and UI Tweaker plugins.');
 			
 			mdxSetting.addToggle(toggle => {
 				toggle
@@ -326,10 +330,14 @@ export class ProjectDetectionStep extends BaseWizardStep {
 				}
 			}
 
-			// Always update enableMdxSupport with auto-detection result
-			// This ensures detection runs even if a previous value exists
-			this.state.enableMdxSupport = autoDetectedMdx;
-			console.debug('ProjectDetectionStep (manual): Set enableMdxSupport to', autoDetectedMdx, 'based on auto-detection');
+			// Always update enableMdxSupport with auto-detection result if it hasn't been set/detected yet
+			// This ensures detection runs on first run but remembers user's manual choice thereafter
+			if (this.state.enableMdxSupport === undefined) {
+				this.state.enableMdxSupport = autoDetectedMdx;
+				console.debug('ProjectDetectionStep (manual): Set enableMdxSupport to', autoDetectedMdx, 'based on auto-detection');
+			} else {
+				console.debug('ProjectDetectionStep (manual): enableMdxSupport already set to', this.state.enableMdxSupport, ', skipping auto-detection overwrite');
+			}
 
 			const mdxSetting = new Setting(containerEl)
 				// False positive: "MDX" is an acronym (file format name) and should be capitalized
@@ -337,7 +345,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 				.setName('MDX file support')
 				// False positive: "MDX" is an acronym (file format name) and should be capitalized
 				// eslint-disable-next-line obsidianmd/ui/sentence-case
-				.setDesc('Enable MDX file support for Astro Composer, Property Over File Name, and SEO plugins.');
+				.setDesc('Enable MDX file support for Astro Composer, Property Over File Name, SEO, and UI Tweaker plugins.');
 			
 			mdxSetting.addToggle(toggle => {
 				toggle

@@ -14,6 +14,7 @@ import { AstroComposerConfigurator } from '../../utils/AstroComposerConfig';
 import { SEOConfigurator } from '../../utils/SEOConfig';
 import { CommanderConfigurator } from '../../utils/CommanderConfig';
 import { PropertyOverFileNameConfigurator } from '../../utils/PropertyOverFileNameConfig';
+import { UITweakerConfigurator } from '../../utils/UITweakerConfig';
 import { ImageInserterConfigurator } from '../../utils/ImageInserterConfig';
 import { SimpleBannerConfigurator } from '../../utils/SimpleBannerConfig';
 import { ImageManagerConfigurator } from '../../utils/ImageManagerConfig';
@@ -26,6 +27,7 @@ export class FinalizeStep extends BaseWizardStep {
 	private seoConfigurator: SEOConfigurator;
 	private commanderConfigurator: CommanderConfigurator;
 	private propertyOverFileNameConfigurator: PropertyOverFileNameConfigurator;
+	private uiTweakerConfigurator: UITweakerConfigurator;
 	private imageInserterConfigurator: ImageInserterConfigurator;
 	private simpleBannerConfigurator: SimpleBannerConfigurator;
 	private imageManagerConfigurator: ImageManagerConfigurator;
@@ -44,6 +46,7 @@ export class FinalizeStep extends BaseWizardStep {
 		this.seoConfigurator = new SEOConfigurator(app);
 		this.commanderConfigurator = new CommanderConfigurator(app);
 		this.propertyOverFileNameConfigurator = new PropertyOverFileNameConfigurator(app);
+		this.uiTweakerConfigurator = new UITweakerConfigurator(app);
 		this.imageInserterConfigurator = new ImageInserterConfigurator(app);
 		this.simpleBannerConfigurator = new SimpleBannerConfigurator(app);
 		this.imageManagerConfigurator = new ImageManagerConfigurator(app);
@@ -177,6 +180,10 @@ export class FinalizeStep extends BaseWizardStep {
 			console.debug('FinalizeStep: About to call saveConfig with:', JSON.stringify(this.state.propertyOverFileName));
 			
 			await this.propertyOverFileNameConfigurator.saveConfig(this.state.propertyOverFileName);
+
+			// Configure UI Tweaker
+			console.debug('FinalizeStep: Configuring UI Tweaker');
+			await this.uiTweakerConfigurator.saveConfig(this.state.uiTweaker, this.state.enableMdxSupport === true);
 
 			// Configure Simple Banner (if enabled)
 			const imageProperty = firstProps?.imageProperty;

@@ -33,7 +33,7 @@ export class WizardStateManager {
 			attachmentFolderName: undefined, // Not saved in settings, only in wizard state
 			preset: settings.preset || 'vanilla',
 			enableWYSIWYG: settings.enableWYSIWYG ?? false,
-			enableMdxSupport: undefined, // Always start undefined so auto-detection can override any saved value
+			enableMdxSupport: settings.enableMdxSupport,
 			enabledPlugins: settings.enabledPlugins || [],
 			disabledPlugins: settings.disabledPlugins || [],
 			theme: settings.theme || '',
@@ -52,6 +52,7 @@ export class WizardStateManager {
 			},
 			commanderConfig: settings.commanderConfig || { pageHeaderCommands: [] },
 			propertyOverFileName: settings.propertyOverFileName || { propertyKey: 'title' },
+			uiTweaker: settings.uiTweaker || { tabBarCommands: [] },
 			imageInserter: settings.imageInserter || { valueFormat: '[[attachments/{image-url}]]', insertFormat: '[[attachments/{image-url}]]' },
 			imageManager: settings.imageManager || {},
 			homeBase: settings.homeBase || {}
@@ -117,7 +118,7 @@ export class WizardStateManager {
 		this.state.attachmentFolderName = undefined; // Not saved in settings, only in wizard state
 		this.state.preset = settings.preset || 'vanilla';
 		this.state.enableWYSIWYG = settings.enableWYSIWYG ?? false;
-		this.state.enableMdxSupport = undefined; // Always reset to undefined so auto-detection can run
+		this.state.enableMdxSupport = settings.enableMdxSupport;
 		this.state.enabledPlugins = settings.enabledPlugins || [];
 		this.state.disabledPlugins = settings.disabledPlugins || [];
 		this.state.theme = settings.theme || '';
@@ -136,6 +137,7 @@ export class WizardStateManager {
 		};
 		this.state.commanderConfig = settings.commanderConfig || { pageHeaderCommands: [] };
 		this.state.propertyOverFileName = settings.propertyOverFileName || { propertyKey: 'title' };
+		this.state.uiTweaker = settings.uiTweaker || { tabBarCommands: [] };
 		this.state.imageInserter = settings.imageInserter || { valueFormat: '[[attachments/{image-url}]]', insertFormat: '[[attachments/{image-url}]]' };
 		
 		// Load configs from plugin data.json files if they're empty
@@ -194,6 +196,7 @@ export class WizardStateManager {
 		settings.seoConfig = this.state.seoConfig;
 		settings.commanderConfig = this.state.commanderConfig;
 		settings.propertyOverFileName = this.state.propertyOverFileName;
+		settings.uiTweaker = this.state.uiTweaker;
 		settings.imageInserter = this.state.imageInserter;
 		settings.imageManager = this.state.imageManager;
 		settings.homeBase = this.state.homeBase;

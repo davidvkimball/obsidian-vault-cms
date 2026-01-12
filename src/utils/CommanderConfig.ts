@@ -78,13 +78,17 @@ export class CommanderConfigurator {
 			// Try to use plugin's saveSettings method first (like Astro Composer)
 			if (editingToolbarPlugin.settings && typeof editingToolbarPlugin.saveSettings === 'function') {
 				console.debug('CommanderConfig: Using plugin.saveSettings() method');
-				// Update cMenuVisibility via plugin settings API
+				// Update cMenuVisibility via plugin settings API - always set to true as requested
 				const oldValue = editingToolbarPlugin.settings.cMenuVisibility;
-				editingToolbarPlugin.settings.cMenuVisibility = enable;
-				console.debug(`CommanderConfig: Set cMenuVisibility from ${oldValue} to ${enable}`);
+				editingToolbarPlugin.settings.cMenuVisibility = true;
+				console.debug(`CommanderConfig: Set cMenuVisibility from ${oldValue} to true`);
 				
 				await editingToolbarPlugin.saveSettings();
 				console.debug('CommanderConfig: Successfully saved editing-toolbar via plugin.saveSettings()');
+				
+				// Dispatch the event that editing-toolbar listens for to trigger a rebuild
+				console.debug('CommanderConfig: Dispatching editingToolbar-NewCommand event');
+				window.dispatchEvent(new Event("editingToolbar-NewCommand"));
 				
 				// Verify the value was saved
 				if (editingToolbarPlugin.settings.cMenuVisibility === enable) {
@@ -110,28 +114,10 @@ export class CommanderConfigurator {
 						console.debug('CommanderConfig: Refreshing editing toolbar plugin');
 						editingToolbarPlugin.refresh();
 					}
-					
-					console.debug('CommanderConfig: Executing editing-toolbar:hide-show-menu command');
-					try {
-						// Try executing the command multiple times to ensure it works
-						for (let i = 0; i < 3; i++) {
-							const commands = (app as { commands?: CommandsAPI }).commands;
-							const command = commands?.commands?.['editing-toolbar:hide-show-menu'];
-							console.debug(`CommanderConfig: Command found (attempt ${i + 1}):`, !!command);
-							if (command) {
-								// Use setTimeout to execute asynchronously
-								setTimeout(() => {
-									const commands = (app as { commands?: { executeCommandById?: (id: string) => void } }).commands;
-									commands?.executeCommandById?.('editing-toolbar:hide-show-menu');
-								}, i * 500);
-								console.debug(`CommanderConfig: Scheduled hide-show-menu command (attempt ${i + 1})`);
-							} else {
-								console.warn(`CommanderConfig: Command editing-toolbar:hide-show-menu not found (attempt ${i + 1})`);
-							}
-						}
-					} catch (cmdError) {
-						console.error('CommanderConfig: Failed to execute editing toolbar show command:', cmdError);
-					}
+
+					// Removing the toggle command execution as setting cMenuVisibility to true 
+					// and calling saveSettings/refresh should be sufficient and prevents 
+					// toggling it back to hidden if it was already visible.
 				}
 				return;
 			} else {
@@ -169,8 +155,8 @@ export class CommanderConfigurator {
 			}
 		}
 
-		// Set cMenuVisibility based on enable state
-		existingData.cMenuVisibility = enable;
+		// Set cMenuVisibility to true (always visible when plugin is enabled)
+		existingData.cMenuVisibility = true;
 
 		// Always try to modify first (file likely exists)
 		if (dataFile instanceof TFile) {
@@ -221,16 +207,10 @@ export class CommanderConfigurator {
 				}
 			}
 		}
-
-		// If enabling, execute the hide/show command to ensure toolbar is visible
-		if (enable) {
-			try {
-				const commands = (app as { commands?: CommandsAPI }).commands;
-				await commands?.executeCommandById?.('editing-toolbar:hide-show-menu');
-			} catch (cmdError) {
-				console.warn('Failed to execute editing toolbar show command:', cmdError);
-			}
-		}
+		
+		// Removing the toggle command execution as setting cMenuVisibility to true 
+		// in data.json should be sufficient and prevents toggling it back to 
+		// hidden if it was already visible.
 	}
 
 	async saveConfig(config: CommanderConfig): Promise<void> {

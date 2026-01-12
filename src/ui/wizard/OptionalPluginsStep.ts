@@ -49,6 +49,7 @@ export class OptionalPluginsStep extends BaseWizardStep {
 			{ id: 'obsidian-paste-image-rename', name: 'Paste Image Rename', category: 'essential' },
 			{ id: 'property-over-file-name', name: 'Property Over File Name', category: 'essential' },
 			{ id: 'seo', name: 'SEO', category: 'essential' },
+			{ id: 'ui-tweaker', name: 'UI Tweaker', category: 'essential' },
 			{ id: 'simple-focus', name: 'Simple Focus', category: 'essential' },
 			{ id: 'statusbar-organizer', name: 'Status Bar Organizer', category: 'essential' },
 			// Nice to have plugins (alphabetically ordered)
@@ -59,7 +60,6 @@ export class OptionalPluginsStep extends BaseWizardStep {
 			{ id: 'settings-search', name: 'Settings Search', category: 'nice-to-have' },
 			{ id: 'simple-banner', name: 'Simple Banner', category: 'nice-to-have' },
 			{ id: 'tag-wrangler', name: 'Tag Wrangler', category: 'nice-to-have' },
-			{ id: 'ui-tweaker', name: 'UI Tweaker', category: 'nice-to-have' },
 			{ id: 'zenmode', name: 'Zen Mode', category: 'nice-to-have' }
 		];
 
