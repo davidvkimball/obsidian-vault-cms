@@ -483,8 +483,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 			// Initialize template if not exists
 			if (!props.template) {
 				// Generate default template based on properties
-				const isPosts = contentType.name === 'Posts';
-				props.template = this.generateDefaultTemplate(props, isPosts, example);
+				props.template = this.generateDefaultTemplate(props, example);
 			}
 
 			const templateTextArea = contentTypeWrapper.createEl('textarea', {
@@ -503,8 +502,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 		}
 	}
 
-	private generateDefaultTemplate(props: { titleProperty?: string; dateProperty?: string; descriptionProperty?: string; tagsProperty?: string; draftProperty?: string; draftLogic?: 'true-draft' | 'false-draft' }, includeDate: boolean, example: ExampleFrontmatter | undefined): string {
-		// Note: includeDate parameter is kept for backwards compatibility but we check props.dateProperty instead
+	private generateDefaultTemplate(props: { titleProperty?: string; dateProperty?: string; descriptionProperty?: string; tagsProperty?: string; draftProperty?: string; draftLogic?: 'true-draft' | 'false-draft' }, example: ExampleFrontmatter | undefined): string {
 		let template = '---\n';
 		
 		// Parse the original YAML to maintain order

@@ -1,5 +1,6 @@
 import { App } from 'obsidian';
 import { WizardState } from '../../types';
+import VaultCMSPlugin from '../../main';
 
 export abstract class BaseWizardStep {
 	protected app: App;

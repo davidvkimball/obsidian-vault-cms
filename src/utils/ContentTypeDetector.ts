@@ -176,19 +176,7 @@ export class ContentTypeDetector {
 	}
 
 	private detectContentType(folder: TFolder): ContentTypeConfig | null {
-		const folderName = folder.name.toLowerCase();
-		
-		// Smart detection based on folder name
-		let name: string;
-		
-		if (folderName === 'posts' || folderName === 'post' || folderName === 'blog') {
-			name = 'Posts';
-		} else if (folderName === 'pages' || folderName === 'page') {
-			name = 'Pages';
-		} else {
-			// Custom content type
-			name = this.capitalizeFirst(folder.name);
-		}
+		const name = this.capitalizeFirst(folder.name);
 		
 		// All discovered content folders are enabled by default
 		return {

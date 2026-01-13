@@ -43,33 +43,6 @@ export class AstroComposerConfigurator {
 			showMdxFilesInExplorer: enableMdxSupport ?? false
 		};
 
-		// Find posts and pages content types (for legacy support)
-		const postsType = contentTypes.find(ct => 
-			ct.name === 'Posts' && ct.enabled
-		);
-		const pagesType = contentTypes.find(ct => 
-			ct.name === 'Pages' && ct.enabled
-		);
-
-		if (postsType) {
-			const props = frontmatterProperties[postsType.id];
-			config.postsFolder = this.pathResolver.getAstroComposerFolderPath(postsType.folder, projectDetection);
-			config.postsCreationMode = postsType.fileOrganization;
-			config.postsIndexFileName = postsType.indexFileName || 'index';
-			// Use template from props if available, otherwise generate
-			config.defaultTemplate = props?.template || this.generateTemplate(props, true);
-		}
-
-		if (pagesType) {
-			const props = frontmatterProperties[pagesType.id];
-			config.enablePages = true;
-			config.pagesFolder = this.pathResolver.getAstroComposerFolderPath(pagesType.folder, projectDetection);
-			config.pagesCreationMode = pagesType.fileOrganization;
-			config.pagesIndexFileName = pagesType.indexFileName || 'index';
-			// Use template from props if available, otherwise generate
-			config.pageTemplate = props?.template || this.generateTemplate(props, false);
-		}
-
 		// Add all enabled content types to customContentTypes (new unified structure)
 		// Separate default content type from others to put it first
 		const defaultContentType = defaultContentTypeId ? contentTypes.find(ct => ct.id === defaultContentTypeId && ct.enabled) : null;
@@ -88,12 +61,18 @@ export class AstroComposerConfigurator {
 				id: defaultContentType.id,
 				name: defaultContentType.name,
 				folder: folderPath,
-				template: props?.template || this.generateTemplate(props, defaultContentType.name === 'Posts' || defaultContentType.name === 'Pages'),
+				template: props?.template || this.generateTemplate(props),
 				enabled: true,
 				linkBasePath: linkBasePath,
 				creationMode: defaultContentType.fileOrganization,
 				indexFileName: defaultContentType.indexFileName || 'index'
 			});
+
+			// Set legacy fields for backwards compatibility using the default content type
+			config.postsFolder = folderPath;
+			config.postsCreationMode = defaultContentType.fileOrganization;
+			config.postsIndexFileName = defaultContentType.indexFileName || 'index';
+			config.defaultTemplate = props?.template || this.generateTemplate(props);
 		}
 
 		// Add other content types
@@ -114,7 +93,7 @@ export class AstroComposerConfigurator {
 				name: contentType.name,
 				folder: folderPath,
 				// Use template from props if available, otherwise generate
-				template: props?.template || this.generateTemplate(props, contentType.name === 'Posts' || contentType.name === 'Pages'),
+				template: props?.template || this.generateTemplate(props),
 				enabled: true,
 				linkBasePath: linkBasePath,
 				creationMode: contentType.fileOrganization,
@@ -125,7 +104,7 @@ export class AstroComposerConfigurator {
 		return Promise.resolve(config);
 	}
 
-	private generateTemplate(props: FrontmatterProperties | undefined, includeDate: boolean): string {
+	private generateTemplate(props: FrontmatterProperties | undefined): string {
 		// Use template from props if available, otherwise generate default
 		if (props?.template) {
 			return props.template;
@@ -136,9 +115,9 @@ export class AstroComposerConfigurator {
 		}
 
 		let template = '---\n';
-		template += `${props.titleProperty}: "{{title}}"\n`;
+		template += `${props.titleProperty || 'title'}: "{{title}}"\n`;
 		
-		if (includeDate) {
+		if (props.dateProperty) {
 			template += `${props.dateProperty}: {{date}}\n`;
 		}
 		
@@ -146,8 +125,15 @@ export class AstroComposerConfigurator {
 			template += `${props.descriptionProperty}: ""\n`;
 		}
 		
-		template += 'tags: []\n';
-		template += 'draft: true\n';
+		if (props.tagsProperty) {
+			template += `${props.tagsProperty}: []\n`;
+		}
+		
+		if (props.draftProperty) {
+			const draftValue = props.draftLogic === 'false-draft' ? 'false' : 'true';
+			template += `${props.draftProperty}: ${draftValue}\n`;
+		}
+		
 		template += '---\n';
 
 		return template;

@@ -203,6 +203,24 @@ export class SetupWizardModal extends Modal {
 
 	private renderFooter(container: HTMLElement) {
 		const footer = container.createDiv('wizard-footer');
+		setCssProps(footer, { display: 'flex', justifyContent: 'space-between', alignItems: 'center' });
+		
+		// Startup setting checkbox (only on the first step)
+		if (this.stateManager.getState().currentStep === 0) {
+			const startupSetting = footer.createDiv('wizard-startup-setting-footer');
+			const label = startupSetting.createEl('label', { cls: 'wizard-checkbox-label' });
+			const checkbox = label.createEl('input', { type: 'checkbox' });
+			checkbox.checked = !this.plugin.settings.runWizardOnStartup;
+			label.createSpan({ text: " I've already set up my vault, don't show on startup" });
+			
+			checkbox.addEventListener('change', () => {
+				this.plugin.settings.runWizardOnStartup = !checkbox.checked;
+				void this.plugin.saveSettings();
+			});
+		} else {
+			// Empty div to keep buttons pushed to the right
+			footer.createDiv();
+		}
 		
 		const buttons = footer.createDiv('wizard-buttons');
 		setCssProps(buttons, { display: 'flex', gap: '10px' });
