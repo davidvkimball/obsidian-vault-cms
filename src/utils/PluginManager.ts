@@ -57,13 +57,13 @@ export class PluginManager {
 			'ui-tweaker',
 			'zenmode',
 			'cmdr',
-			'editing-toolbar',
 			'simple-focus',
 			'tag-wrangler'
 		];
 
 		// Optional plugins that can be enabled/disabled
 		const optionalPlugins = [
+			'editing-toolbar',
 			'insert-unsplash-image',
 			'custom-save',
 			'title-only-tab',

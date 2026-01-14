@@ -131,6 +131,15 @@ export class BasesCMSConfigurator {
 		// Bases uses a specific syntax - we need to generate it manually to match the format
 		const lines: string[] = [];
 		
+		// Find default content type
+		const defaultContentType = defaultContentTypeId ? 
+			contentTypes.find(ct => ct.id === defaultContentTypeId && ct.enabled) : null;
+
+		// Add defaultView property at the top level if a default content type is selected
+		if (defaultContentType) {
+			lines.push(`defaultView: "${defaultContentType.name}"`);
+		}
+
 		// Preserve formulas if they exist
 		if (existingBase?.formulas) {
 			lines.push('formulas:');
@@ -211,10 +220,6 @@ export class BasesCMSConfigurator {
 		// Views section - preserve existing views (except "All Content") and add new content type views
 		lines.push('views:');
 		
-		// Find default content type
-		const defaultContentType = defaultContentTypeId ? 
-			contentTypes.find(ct => ct.id === defaultContentTypeId && ct.enabled) : null;
-		
 		// Separate existing views: content type views, "All Content", "Guide", and others
 		const existingViews = (existingBase?.views as Array<{ name?: string }>) || [];
 		const existingContentTypeNames = new Set(contentTypes.filter(ct => ct.enabled).map(ct => ct.name));
@@ -231,7 +236,7 @@ export class BasesCMSConfigurator {
 			if (defaultViewProps) {
 				const folderPath = this.pathResolver.getBasesCMSFolderPath(defaultContentType.folder, projectDetection);
 				lines.push('  - type: bases-cms');
-				lines.push(`    name: ${defaultContentType.name}`);
+				lines.push(`    name: "${defaultContentType.name}"`);
 				lines.push('    filters:');
 				lines.push('      and:');
 				lines.push(`        - file.folder.startsWith("${folderPath}")`);
@@ -298,7 +303,7 @@ export class BasesCMSConfigurator {
 
 			const folderPath = this.pathResolver.getBasesCMSFolderPath(contentType.folder, projectDetection);
 			lines.push('  - type: bases-cms');
-			lines.push(`    name: ${contentType.name}`);
+			lines.push(`    name: "${contentType.name}"`);
 			lines.push('    filters:');
 			lines.push('      and:');
 			lines.push(`        - file.folder.startsWith("${folderPath}")`);

@@ -66,22 +66,13 @@ export class CommanderConfigurator {
 				console.debug(`CommanderConfig: Current cMenuVisibility:`, editingToolbarPlugin.settings.cMenuVisibility);
 			}
 
-			// Enable or disable the plugin itself
-			if (enable && !editingToolbarPlugin.enabled) {
-				console.debug('CommanderConfig: Enabling editing-toolbar plugin');
-				await plugins.enablePlugin?.('editing-toolbar');
-			} else if (!enable && editingToolbarPlugin.enabled) {
-				console.debug('CommanderConfig: Disabling editing-toolbar plugin');
-				await plugins.disablePlugin?.('editing-toolbar');
-			}
-
 			// Try to use plugin's saveSettings method first (like Astro Composer)
 			if (editingToolbarPlugin.settings && typeof editingToolbarPlugin.saveSettings === 'function') {
 				console.debug('CommanderConfig: Using plugin.saveSettings() method');
-				// Update cMenuVisibility via plugin settings API - always set to true as requested
+				// Update cMenuVisibility via plugin settings API
 				const oldValue = editingToolbarPlugin.settings.cMenuVisibility;
-				editingToolbarPlugin.settings.cMenuVisibility = true;
-				console.debug(`CommanderConfig: Set cMenuVisibility from ${oldValue} to true`);
+				editingToolbarPlugin.settings.cMenuVisibility = enable;
+				console.debug(`CommanderConfig: Set cMenuVisibility from ${oldValue} to ${enable}`);
 				
 				await editingToolbarPlugin.saveSettings();
 				console.debug('CommanderConfig: Successfully saved editing-toolbar via plugin.saveSettings()');
@@ -89,13 +80,6 @@ export class CommanderConfigurator {
 				// Dispatch the event that editing-toolbar listens for to trigger a rebuild
 				console.debug('CommanderConfig: Dispatching editingToolbar-NewCommand event');
 				window.dispatchEvent(new Event("editingToolbar-NewCommand"));
-				
-				// Verify the value was saved
-				if (editingToolbarPlugin.settings.cMenuVisibility === enable) {
-					console.debug(`CommanderConfig: Verified cMenuVisibility is now ${editingToolbarPlugin.settings.cMenuVisibility}`);
-				} else {
-					console.error(`CommanderConfig: ERROR - cMenuVisibility is ${editingToolbarPlugin.settings.cMenuVisibility}, expected ${enable}`);
-				}
 				
 				// If enabling, we need to reload the plugin or trigger a refresh
 				// The command execution alone may not be enough - the plugin needs to read the new settings
@@ -114,10 +98,6 @@ export class CommanderConfigurator {
 						console.debug('CommanderConfig: Refreshing editing toolbar plugin');
 						editingToolbarPlugin.refresh();
 					}
-
-					// Removing the toggle command execution as setting cMenuVisibility to true 
-					// and calling saveSettings/refresh should be sufficient and prevents 
-					// toggling it back to hidden if it was already visible.
 				}
 				return;
 			} else {
@@ -155,8 +135,8 @@ export class CommanderConfigurator {
 			}
 		}
 
-		// Set cMenuVisibility to true (always visible when plugin is enabled)
-		existingData.cMenuVisibility = true;
+		// Set cMenuVisibility
+		existingData.cMenuVisibility = enable;
 
 		// Always try to modify first (file likely exists)
 		if (dataFile instanceof TFile) {
