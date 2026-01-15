@@ -61,6 +61,13 @@ Via Command Palette (`Ctrl/Cmd + P`):
 10. **Optional Plugins** - Enable or disable additional plugins
 11. **Finalize** - Review and apply all configuration
 
+### Bases CMS Configuration
+
+The plugin dynamically detects your Bases CMS configuration folder. It prefers `_bases` as the default location for new setups, but will continue to work with the legacy `bases` folder for backwards compatibility.
+
+- **New Installations**: Will create `_bases/Home.base` by default.
+- **Existing Installations**: If `bases/Home.base` exists, it will be used and updated.
+
 ### Auto-Detection
 
 The wizard automatically detects:

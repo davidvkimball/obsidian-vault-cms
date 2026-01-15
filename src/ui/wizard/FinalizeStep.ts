@@ -105,7 +105,8 @@ export class FinalizeStep extends BaseWizardStep {
 				this.state.contentTypes,
 				this.state.frontmatterProperties,
 				this.state.defaultContentTypeId,
-				this.state.projectDetection
+				this.state.projectDetection,
+				this.state.enableMdxSupport === true
 			);
 			console.debug('FinalizeStep: Bases CMS configuration complete');
 
@@ -293,7 +294,7 @@ export class FinalizeStep extends BaseWizardStep {
 	 * Closes old tabs and reopens them to force a clean reload if not restarting.
 	 */
 	private async updateActiveBasesViews(defaultViewName: string, shouldRestart: boolean): Promise<void> {
-		const baseFilePath = 'bases/Home.base';
+		const baseFilePath = await this.basesCMSConfigurator.resolveBaseFilePath();
 		let reopened = false;
 		
 		// Collect leaves to close

@@ -12,24 +12,48 @@ export class BasesCMSConfigurator {
 		this.pathResolver = new PathResolver(app);
 	}
 
+	async resolveBaseFilePath(): Promise<string> {
+		const preferredPath = '_bases/Home.base';
+		const legacyPath = 'bases/Home.base';
+		
+		if (await this.app.vault.adapter.exists(preferredPath)) {
+			return preferredPath;
+		}
+		if (await this.app.vault.adapter.exists(legacyPath)) {
+			return legacyPath;
+		}
+		
+		// Check if folders exist even if file doesn't
+		if (await this.app.vault.adapter.exists('_bases')) {
+			return preferredPath;
+		}
+		if (await this.app.vault.adapter.exists('bases')) {
+			return legacyPath;
+		}
+		
+		return preferredPath;
+	}
+
 	async createOrUpdateBaseFile(
 		contentTypes: ContentTypeConfig[],
 		frontmatterProperties: { [contentTypeId: string]: FrontmatterProperties },
 		defaultContentTypeId?: string,
-		projectDetection?: ProjectDetectionResult
+		projectDetection?: ProjectDetectionResult,
+		enableMdxSupport?: boolean
 	): Promise<void> {
-		const baseFilePath = 'bases/Home.base';
+		const baseFilePath = await this.resolveBaseFilePath();
+		const folderPath = baseFilePath.split('/')[0];
 		
 		// Ensure bases directory exists
-		const basesFolder = this.app.vault.getAbstractFileByPath('bases');
+		const basesFolder = this.app.vault.getAbstractFileByPath(folderPath);
 		if (!basesFolder) {
 			try {
-				await this.app.vault.createFolder('bases');
+				await this.app.vault.createFolder(folderPath);
 			} catch (error: unknown) {
 				// Folder might already exist, ignore error
 				const errorMessage = error instanceof Error ? error.message : String(error);
 				if (!errorMessage || !errorMessage.includes('already exists')) {
-					console.warn('BasesCMSConfig: Could not create bases folder:', error);
+					console.warn(`BasesCMSConfig: Could not create ${folderPath} folder:`, error);
 				}
 			}
 		}
@@ -53,7 +77,7 @@ export class BasesCMSConfigurator {
 		console.debug('BasesCMSConfig: Generating base content for', contentTypes.length, 'content types');
 		console.debug('BasesCMSConfig: Enabled content types:', enabledTypes.map(ct => ct.name));
 		
-		const baseContent = this.generateBaseContent(contentTypes, frontmatterProperties, defaultContentTypeId, existingBase, projectDetection);
+		const baseContent = this.generateBaseContent(contentTypes, frontmatterProperties, defaultContentTypeId, existingBase, projectDetection, enableMdxSupport);
 		
 		// Count views in generated content to verify they're being created
 		const viewMatches = baseContent.match(/^\s*-\s+type:\s+bases-cms/gm);
@@ -66,10 +90,10 @@ export class BasesCMSConfigurator {
 		baseFile = baseFileAbstract2 instanceof TFile ? baseFileAbstract2 : null;
 		
 		if (baseFile) {
-			console.debug('BasesCMSConfig: Modifying existing Home.base file');
+			console.debug(`BasesCMSConfig: Modifying existing ${baseFilePath} file`);
 			try {
 				await this.app.vault.modify(baseFile, baseContent);
-				console.debug('BasesCMSConfig: Successfully modified Home.base file');
+				console.debug(`BasesCMSConfig: Successfully modified ${baseFilePath} file`);
 				return; // Success, exit early
 			} catch (error: unknown) {
 				console.error('BasesCMSConfig: Failed to modify file:', error);
@@ -78,10 +102,10 @@ export class BasesCMSConfigurator {
 		}
 		
 		// File doesn't exist (or can't be found), try to create it
-		console.debug('BasesCMSConfig: Creating new Home.base file');
+		console.debug(`BasesCMSConfig: Creating new ${baseFilePath} file`);
 		try {
 			await this.app.vault.create(baseFilePath, baseContent);
-			console.debug('BasesCMSConfig: Successfully created Home.base file');
+			console.debug(`BasesCMSConfig: Successfully created ${baseFilePath} file`);
 		} catch (error) {
 			// If create fails because file exists, the file was created between check and create
 			// Try to modify it directly using the path string
@@ -108,7 +132,7 @@ export class BasesCMSConfigurator {
 							}
 						}
 						console.error('BasesCMSConfig: File exists but cannot be found after all retries');
-						throw new Error('File exists but cannot be accessed. Please try again or manually edit bases/Home.base');
+						throw new Error(`File exists but cannot be accessed. Please try again or manually edit ${baseFilePath}`);
 					}
 				} catch (writeError) {
 					console.error('BasesCMSConfig: Failed to write file via adapter:', writeError);
@@ -126,7 +150,8 @@ export class BasesCMSConfigurator {
 		frontmatterProperties: { [contentTypeId: string]: FrontmatterProperties },
 		defaultContentTypeId: string | undefined,
 		existingBase: Record<string, unknown> | null,
-		projectDetection?: ProjectDetectionResult
+		projectDetection?: ProjectDetectionResult,
+		enableMdxSupport?: boolean
 	): string {
 		// Bases uses a specific syntax - we need to generate it manually to match the format
 		const lines: string[] = [];
@@ -157,8 +182,14 @@ export class BasesCMSConfigurator {
 		
 		// Filters section
 		lines.push('filters:');
-		lines.push('  and:');
-		lines.push('    - file.ext == "md"');
+		if (enableMdxSupport) {
+			lines.push('  or:');
+			lines.push('    - file.ext == "md"');
+			lines.push('    - file.ext == "mdx"');
+		} else {
+			lines.push('  and:');
+			lines.push('    - file.ext == "md"');
+		}
 		lines.push('');
 
 		// Properties section - collect all properties from content types
