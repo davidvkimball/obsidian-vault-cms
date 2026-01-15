@@ -114,6 +114,15 @@ export class FinalizeStep extends BaseWizardStep {
 			);
 			console.debug('FinalizeStep: Bases CMS configuration complete');
 
+			// Switch active Bases views to the new default view
+			if (this.state.defaultContentTypeId) {
+				const defaultType = this.state.contentTypes.find(ct => ct.id === this.state.defaultContentTypeId);
+				if (defaultType) {
+					console.debug('FinalizeStep: Updating active Bases views to:', defaultType.name);
+					await this.updateActiveBasesViews(defaultType.name, shouldRestart);
+				}
+			}
+
 			// Configure Astro Composer
 			if (this.state.projectDetection) {
 				console.debug('FinalizeStep: Configuring Astro Composer, enableMdxSupport =', this.state.enableMdxSupport);
@@ -281,6 +290,49 @@ export class FinalizeStep extends BaseWizardStep {
 		} catch (error: unknown) {
 			console.error('Failed to apply configuration:', error);
 			new Notice('Failed to apply configuration. Please check the console for details.', 6000);
+		}
+	}
+
+	/**
+	 * Find any active Bases views and switch them to the new default view.
+	 * Closes old tabs and reopens them to force a clean reload if not restarting.
+	 */
+	private async updateActiveBasesViews(defaultViewName: string, shouldRestart: boolean): Promise<void> {
+		const baseFilePath = 'bases/Home.base';
+		let reopened = false;
+		
+		// Collect leaves to close
+		const leavesToClose: any[] = [];
+		this.app.workspace.iterateAllLeaves((leaf) => {
+			const viewType = leaf.view.getViewType();
+			if (viewType === 'bases' || viewType === 'bases-cms') {
+				const state = leaf.getViewState();
+				if (state.state?.file === baseFilePath) {
+					leavesToClose.push(leaf);
+				}
+			}
+		});
+
+		// Close leaves
+		for (const leaf of leavesToClose) {
+			console.debug('FinalizeStep: Closing old Bases leaf');
+			leaf.detach();
+		}
+
+		// Reopen if not restarting
+		if (!shouldRestart && leavesToClose.length > 0 && !reopened) {
+			console.debug('FinalizeStep: Reopening Bases leaf with fresh state');
+			const leaf = this.app.workspace.getLeaf('tab');
+			await leaf.setViewState({
+				type: 'bases-cms',
+				active: true,
+				state: {
+					file: baseFilePath,
+					view: defaultViewName
+				}
+			});
+			this.app.workspace.setActiveLeaf(leaf, { focus: true });
+			reopened = true;
 		}
 	}
 
