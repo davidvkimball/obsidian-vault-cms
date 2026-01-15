@@ -258,39 +258,33 @@ export class SetupWizardModal extends Modal {
 				})();
 			});
 		} else {
-			const completeBtn = buttons.createEl('button', {
-				text: 'Complete setup',
-				cls: 'mod-button mod-cta'
-			});
-			completeBtn.addEventListener('click', () => {
-				// Mark that we're completing the wizard to avoid duplicate notifications
-				this.isCompleting = true;
-				
-				// Complete the wizard (fire and forget)
-				void (async () => {
-					if (this.currentStepInstance && this.currentStepInstance.validate()) {
-						// If we're on FinalizeStep, apply configuration first (if not already applied)
-						if (this.currentStepInstance instanceof FinalizeStep) {
-							// Apply configuration if not already applied
-							if (!this.currentStepInstance.isApplied()) {
-								await this.currentStepInstance.applyConfiguration();
-							}
-						} else {
-							// For other steps, just save the current step
-							await this.saveCurrentStepToWizardState();
-						}
-						
-						// Mark wizard as completed
-						this.plugin.settings.wizardCompleted = true;
-						await this.plugin.saveSettings();
-						
-						// CRITICAL: Reload settings from disk to ensure everything is synchronized
-						await this.plugin.loadSettings();
-						
-						this.close();
-					}
-				})();
-			});
+			// Final step - provide Apply and Apply & Restart options
+			if (this.currentStepInstance instanceof FinalizeStep) {
+				const applyBtn = buttons.createEl('button', {
+					text: 'Apply',
+					cls: 'mod-button'
+				});
+				applyBtn.addEventListener('click', () => {
+					void this.handleComplete(false);
+				});
+
+				const applyRestartBtn = buttons.createEl('button', {
+					text: 'Apply & Restart',
+					cls: 'mod-button mod-cta'
+				});
+				applyRestartBtn.addEventListener('click', () => {
+					void this.handleComplete(true);
+				});
+			} else {
+				// Fallback for other steps that might be the last step
+				const completeBtn = buttons.createEl('button', {
+					text: 'Complete setup',
+					cls: 'mod-button mod-cta'
+				});
+				completeBtn.addEventListener('click', () => {
+					void this.handleComplete(false);
+				});
+			}
 		}
 
 		// Skip button (for all steps except the last)
@@ -306,6 +300,45 @@ export class SetupWizardModal extends Modal {
 				this.stateManager.nextStep();
 				void this.renderCurrentStep();
 			});
+		}
+	}
+
+	private async handleComplete(shouldRestart: boolean): Promise<void> {
+		if (this.isCompleting) return;
+		this.isCompleting = true;
+
+		try {
+			if (this.currentStepInstance && this.currentStepInstance.validate()) {
+				// If we're on FinalizeStep, apply configuration first
+				if (this.currentStepInstance instanceof FinalizeStep) {
+					await this.currentStepInstance.applyConfiguration(shouldRestart);
+				} else {
+					// For other steps, just save the current step
+					await this.saveCurrentStepToWizardState();
+				}
+				
+				// Mark wizard as completed
+				this.plugin.settings.wizardCompleted = true;
+				await this.plugin.saveSettings();
+				
+				// CRITICAL: Reload settings from disk to ensure everything is synchronized
+				await this.plugin.loadSettings();
+				
+				this.close();
+
+				// Trigger restart if requested
+				if (shouldRestart) {
+					// Small delay to ensure Notice is visible and settings are saved
+					setTimeout(() => {
+						(this.app as any).commands.executeCommandById('app:reload');
+					}, 1000);
+				}
+			}
+		} catch (error: unknown) {
+			console.error('Error completing wizard:', error);
+			new Notice('Failed to complete setup. Please check the console for details.');
+		} finally {
+			this.isCompleting = false;
 		}
 	}
 

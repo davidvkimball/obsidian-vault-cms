@@ -9,7 +9,7 @@ export interface ContentTypeConfig {
 }
 
 export interface FrontmatterProperties {
-	titleProperty?: string; // If blank, uses file.name
+	titleProperty?: string; // If blank, uses file.fullname
 	dateProperty?: string; // If blank, uses file.ctime
 	descriptionProperty?: string;
 	tagsProperty?: string;

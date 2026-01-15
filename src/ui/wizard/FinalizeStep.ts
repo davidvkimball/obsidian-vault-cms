@@ -63,7 +63,7 @@ export class FinalizeStep extends BaseWizardStep {
 		containerEl.createEl('h2', { text: 'Finalize configuration' });
 		containerEl.createEl('p', { 
 			// eslint-disable-next-line obsidianmd/ui/sentence-case
-			text: 'Review your configuration and click "Apply" to save all settings.' 
+			text: 'Review your configuration and click "Apply & Restart" below to save and apply all settings.' 
 		});
 
 		const summary = containerEl.createEl('div', { cls: 'finalize-summary' });
@@ -85,25 +85,13 @@ export class FinalizeStep extends BaseWizardStep {
 		const seoDirectories = enabledContentTypes.map(ct => ct.folder);
 		const seoDirectoriesCount = seoDirectories.length;
 		summary.createEl('p', { text: `SEO Scan Directories: ${seoDirectoriesCount} director${seoDirectoriesCount !== 1 ? 'ies' : 'y'} (${seoDirectories.join(', ')})` });
-
-		const applyButtonContainer = containerEl.createDiv();
-		setCssProps(applyButtonContainer, { marginBottom: '30px' });
-		
-		const applyButton = applyButtonContainer.createEl('button', { 
-			text: 'Apply configuration',
-			cls: 'mod-cta'
-		});
-
-		applyButton.addEventListener('click', () => {
-			void this.applyConfigurationInternal();
-		});
 	}
 
-	async applyConfiguration(): Promise<void> {
-		return this.applyConfigurationInternal();
+	async applyConfiguration(shouldRestart: boolean = false): Promise<void> {
+		return this.applyConfigurationInternal(shouldRestart);
 	}
 
-	private async applyConfigurationInternal(): Promise<void> {
+	private async applyConfigurationInternal(shouldRestart: boolean = false): Promise<void> {
 		if (this.applied) {
 			return;
 		}
@@ -284,8 +272,12 @@ export class FinalizeStep extends BaseWizardStep {
 			}
 
 			this.applied = true;
-			// Create a longer-lasting notice with restart message
-			new Notice('Configuration applied successfully! You may need to restart Obsidian to see all changes.', 8000);
+			// Create a notice based on whether we're restarting
+			if (shouldRestart) {
+				new Notice('Configuration applied. Obsidian will now restart...', 3000);
+			} else {
+				new Notice('Configuration applied successfully! You may need to restart Obsidian to see all changes.', 8000);
+			}
 		} catch (error: unknown) {
 			console.error('Failed to apply configuration:', error);
 			new Notice('Failed to apply configuration. Please check the console for details.', 6000);

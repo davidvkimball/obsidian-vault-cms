@@ -104,7 +104,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 
 			new Setting(contentTypeWrapper)
 				.setName('Title property')
-				.setDesc('The frontmatter property that contains the title (e.g., title, name, heading). Leave blank to use file name instead.')
+				.setDesc('The frontmatter property that contains the title (e.g., title, name, heading). Leave blank to use full file name instead.')
 				.addText(text => {
 					const detected = 'title';
 					text.setPlaceholder(detected)
@@ -621,8 +621,8 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 	}
 
 	validate(): boolean {
-		// Validation: titleProperty is required (but can be empty string, will use file.name)
-		// Actually, titleProperty can be blank - if blank, it will use file.name as fallback
+		// Validation: titleProperty is required (but can be empty string, will use file.fullname)
+		// Actually, titleProperty can be blank - if blank, it will use file.fullname as fallback
 		// So validation should always pass - the step is optional
 		return true;
 	}

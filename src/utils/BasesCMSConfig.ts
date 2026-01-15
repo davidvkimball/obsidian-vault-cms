@@ -188,7 +188,8 @@ export class BasesCMSConfigurator {
 		allProperties.add('note.date');
 		allProperties.add('note.pubDate');
 		allProperties.add('note.draft');
-		allProperties.add('file.name'); // Always include file name
+		allProperties.add('file.fullname'); // Always include full file name
+		allProperties.add('file.name'); // Also include file name for compatibility
 
 		// Preserve formula properties if they exist
 		if (existingBase?.properties) {
@@ -201,14 +202,16 @@ export class BasesCMSConfigurator {
 
 		if (allProperties.size > 0) {
 			lines.push('properties:');
-			// Preserve existing property displayNames, especially for file.name
+			// Preserve existing property displayNames, especially for file.name/fullname
 			const existingProps = (existingBase?.properties as Record<string, { displayName?: string } | undefined>) || {};
 			for (const prop of Array.from(allProperties).sort()) {
 				lines.push(`  ${prop}:`);
-				// Preserve existing displayName if it exists, especially for file.name
+				// Preserve existing displayName if it exists, especially for file.name/fullname
 				const existingProp = existingProps[prop];
 				if (existingProp?.displayName) {
 					lines.push(`    displayName: ${existingProp.displayName}`);
+				} else if (prop === 'file.fullname') {
+					lines.push(`    displayName: Full File Name`);
 				} else {
 					const propName = prop.replace('note.', '').replace('file.', '');
 					lines.push(`    displayName: ${this.capitalizeFirst(propName)}`);
@@ -245,7 +248,7 @@ export class BasesCMSConfigurator {
 				if (defaultViewProps.titleProperty) {
 					lines.push(`    titleProperty: note.${defaultViewProps.titleProperty}`);
 				} else {
-					lines.push(`    titleProperty: file.name`);
+					lines.push(`    titleProperty: file.fullname`);
 				}
 				if (defaultViewProps.dateProperty) {
 					lines.push(`    dateProperty: note.${defaultViewProps.dateProperty}`);
@@ -270,7 +273,7 @@ export class BasesCMSConfigurator {
 				lines.push(`    customizeNewButton: true`);
 				lines.push(`    newNoteLocation: "${folderPath}"`);
 				lines.push(`    fallbackToEmbeds: if-empty`);
-				lines.push(`    propertyDisplay1: file.name`);
+				lines.push(`    propertyDisplay1: file.fullname`);
 				lines.push(`    showTextPreview: true`);
 				lines.push(`    propertyLabels: above`);
 				// Sort by date property (newest to oldest)
@@ -312,7 +315,7 @@ export class BasesCMSConfigurator {
 			if (props.titleProperty) {
 				lines.push(`    titleProperty: note.${props.titleProperty}`);
 			} else {
-				lines.push(`    titleProperty: file.name`);
+				lines.push(`    titleProperty: file.fullname`);
 			}
 			if (props.dateProperty) {
 				lines.push(`    dateProperty: note.${props.dateProperty}`);
@@ -337,7 +340,7 @@ export class BasesCMSConfigurator {
 			lines.push(`    customizeNewButton: true`);
 			lines.push(`    newNoteLocation: "${folderPath}"`);
 			lines.push(`    fallbackToEmbeds: if-empty`);
-			lines.push(`    propertyDisplay1: file.name`);
+			lines.push(`    propertyDisplay1: file.fullname`);
 			lines.push(`    showTextPreview: true`);
 			lines.push(`    propertyLabels: above`);
 			// Sort by date property (newest to oldest)
@@ -369,20 +372,24 @@ export class BasesCMSConfigurator {
 	private serializeView(view: { name?: string; filters?: { and?: Array<string | Record<string, unknown>> }; groupBy?: { property?: string; direction?: string } | string; order?: string[]; sort?: Array<{ property?: string; direction?: string }>; [key: string]: unknown }): string[] {
 		const viewLines: string[] = [];
 		viewLines.push('  - type: bases-cms');
-		viewLines.push(`    name: ${view.name}`);
+		viewLines.push(`    name: "${view.name}"`);
 		
 		if (view.filters) {
 			viewLines.push('    filters:');
 			if (view.filters.and) {
-				viewLines.push('      and:');
-				for (const filter of view.filters.and) {
-					if (typeof filter === 'string') {
-						viewLines.push(`        - ${filter}`);
-					} else if (typeof filter === 'object') {
-						// Handle object filters like { "file.folder.startsWith": "posts" }
-						for (const [key, value] of Object.entries(filter)) {
-							const valueStr = typeof value === 'string' ? `"${value}"` : String(value);
-						viewLines.push(`        - ${key}: ${valueStr}`);
+				if (view.filters.and.length === 0) {
+					viewLines.push('      and: []');
+				} else {
+					viewLines.push('      and:');
+					for (const filter of view.filters.and) {
+						if (typeof filter === 'string') {
+							viewLines.push(`        - ${filter}`);
+						} else if (typeof filter === 'object') {
+							// Handle object filters like { "file.folder.startsWith": "posts" }
+							for (const [key, value] of Object.entries(filter)) {
+								const valueStr = typeof value === 'string' ? `"${value}"` : String(value);
+								viewLines.push(`        - ${key}: ${valueStr}`);
+							}
 						}
 					}
 				}
@@ -394,22 +401,32 @@ export class BasesCMSConfigurator {
 			if (typeof view.groupBy === 'object') {
 				if (view.groupBy.property) viewLines.push(`      property: ${view.groupBy.property}`);
 				if (view.groupBy.direction) viewLines.push(`      direction: ${view.groupBy.direction}`);
+			} else if (typeof view.groupBy === 'string') {
+				viewLines.push(`      ${view.groupBy}`);
 			}
 		}
 		
 		if (view.order) {
-			viewLines.push('    order:');
-			for (const orderItem of view.order) {
-				viewLines.push(`      - ${orderItem}`);
+			if (view.order.length === 0) {
+				viewLines.push('    order: []');
+			} else {
+				viewLines.push('    order:');
+				for (const orderItem of view.order) {
+					viewLines.push(`      - ${orderItem}`);
+				}
 			}
 		}
 		
 		if (view.sort) {
-			viewLines.push('    sort:');
-			for (const sortItem of view.sort) {
-				if (typeof sortItem === 'object' && sortItem.property) {
-					viewLines.push(`      - property: ${sortItem.property}`);
-					viewLines.push(`        direction: ${sortItem.direction || 'ASC'}`);
+			if (view.sort.length === 0) {
+				viewLines.push('    sort: []');
+			} else {
+				viewLines.push('    sort:');
+				for (const sortItem of view.sort) {
+					if (typeof sortItem === 'object' && sortItem.property) {
+						viewLines.push(`      - property: ${sortItem.property}`);
+						viewLines.push(`        direction: ${sortItem.direction || 'ASC'}`);
+					}
 				}
 			}
 		}
@@ -426,17 +443,28 @@ export class BasesCMSConfigurator {
 			}
 			
 			const value = view[prop];
-			if (typeof value === 'boolean') {
+			if (value === null) {
+				viewLines.push(`    ${prop}: null`);
+			} else if (typeof value === 'boolean') {
 				viewLines.push(`    ${prop}: ${value}`);
 			} else if (typeof value === 'number') {
 				viewLines.push(`    ${prop}: ${value}`);
 			} else if (typeof value === 'string') {
+				if (value === '') {
+					viewLines.push(`    ${prop}: ""`);
+					continue;
+				}
 				// For properties that are note/file references, don't quote them
-				if (prop.includes('Property') && (value.startsWith('note.') || value.startsWith('file.'))) {
+				// Check for propertyDisplayN as well as anything ending in Property
+				const isPropertyRef = (prop.includes('Property') || prop.startsWith('propertyDisplay')) && 
+									  (value.startsWith('note.') || value.startsWith('file.'));
+				
+				if (isPropertyRef) {
 					viewLines.push(`    ${prop}: ${value}`);
 				} else if (prop === 'newNoteLocation') {
-					viewLines.push(`    ${prop}: ${value}`);
+					viewLines.push(`    ${prop}: "${value}"`);
 				} else {
+					// Quote other strings
 					viewLines.push(`    ${prop}: "${value}"`);
 				}
 			}
