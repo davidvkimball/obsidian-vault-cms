@@ -43,6 +43,7 @@ export class OptionalPluginsStep extends BaseWizardStep {
 			{ id: 'cmdr', name: 'Commander', category: 'essential' },
 			{ id: 'new-tab-default-page', name: 'Default New Tab Page', category: 'essential' },
 			{ id: 'editing-toolbar', name: 'Editing Toolbar', category: 'essential' },
+			{ id: 'explorer-focus', name: 'Explorer Focus', category: 'nice-to-have' },
 			{ id: 'home-base', name: 'Home Base', category: 'essential' },
 			{ id: 'homepage', name: 'Homepage', category: 'essential' },
 			{ id: 'image-manager', name: 'Image Manager', category: 'essential' },
@@ -60,7 +61,8 @@ export class OptionalPluginsStep extends BaseWizardStep {
 			{ id: 'settings-search', name: 'Settings Search', category: 'nice-to-have' },
 			{ id: 'simple-banner', name: 'Simple Banner', category: 'nice-to-have' },
 			{ id: 'tag-wrangler', name: 'Tag Wrangler', category: 'nice-to-have' },
-			{ id: 'zenmode', name: 'Zen Mode', category: 'nice-to-have' }
+			{ id: 'zenmode', name: 'Zen Mode', category: 'nice-to-have' },
+			{ id: 'explorer-focus', name: 'Explorer Focus', category: 'nice-to-have' }
 		];
 
 		// Get installed plugins

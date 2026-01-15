@@ -32,7 +32,7 @@ export class UITweakerConfigurator {
 				// Apply our opinionated config to live settings
 				for (const [key, value] of Object.entries(config)) {
 					if (key !== 'tabBarCommands') {
-						(settings as any)[key] = value;
+						(settings as Record<string, unknown>)[key] = value;
 					}
 				}
 				

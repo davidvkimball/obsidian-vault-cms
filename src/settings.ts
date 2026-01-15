@@ -1,4 +1,4 @@
-import { ContentTypeConfig, FrontmatterProperties, BasesCMSConfig, AstroComposerConfig, SEOConfig, CommanderConfig, PropertyOverFileNameConfig, UITweakerConfig, ImageInserterConfig, ImageManagerConfig, HomeBaseConfig } from './types';
+import { ContentTypeConfig, FrontmatterProperties, BasesCMSConfig, AstroComposerConfig, SEOConfig, CommanderConfig, PropertyOverFileNameConfig, UITweakerConfig, ImageInserterConfig, ImageManagerConfig, HomeBaseConfig, ExplorerFocusConfig } from './types';
 
 export interface VaultCMSSettings {
 	projectRoot: string;
@@ -21,6 +21,7 @@ export interface VaultCMSSettings {
 	imageInserter: ImageInserterConfig;
 	imageManager: ImageManagerConfig;
 	homeBase: HomeBaseConfig;
+	explorerFocus: ExplorerFocusConfig;
 	runWizardOnStartup: boolean;
 	wizardCompleted: boolean;
 }
@@ -76,6 +77,7 @@ export const DEFAULT_SETTINGS: VaultCMSSettings = {
 	},
 	imageManager: {},
 	homeBase: {},
+	explorerFocus: {},
 	runWizardOnStartup: true,
 	wizardCompleted: false
 };

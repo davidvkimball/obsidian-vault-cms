@@ -50,6 +50,7 @@ export interface WizardState {
 	imageInserter: ImageInserterConfig;
 	imageManager: ImageManagerConfig;
 	homeBase: HomeBaseConfig;
+	explorerFocus: ExplorerFocusConfig;
 }
 
 export interface BasesCMSConfig {
@@ -150,6 +151,9 @@ export type ImageManagerConfig = Record<string, unknown>;
 
 // Complex nested structure - using Record<string, unknown> to handle all properties
 export type HomeBaseConfig = Record<string, unknown>;
+
+// Explorer Focus configuration
+export type ExplorerFocusConfig = Record<string, unknown>;
 
 export interface ExampleFrontmatter {
 	file: string;

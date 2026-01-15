@@ -72,7 +72,8 @@ export class PluginManager {
 			'obsidian-hider',
 			'disable-tabs',
 			'obsidian-style-settings',
-			'mdx-as-md-obsidian'
+			'mdx-as-md-obsidian',
+			'explorer-focus'
 		];
 
 		// Opinionated-specific plugins

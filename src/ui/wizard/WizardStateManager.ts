@@ -4,6 +4,7 @@ import { VaultCMSSettings } from '../../settings';
 import VaultCMSPlugin from '../../main';
 import { ImageManagerConfigurator } from '../../utils/ImageManagerConfig';
 import { HomeBaseConfigurator } from '../../utils/HomeBaseConfig';
+import { ExplorerFocusConfigurator } from '../../utils/ExplorerFocusConfig';
 
 export class WizardStateManager {
 	private state: WizardState;
@@ -55,7 +56,8 @@ export class WizardStateManager {
 			uiTweaker: settings.uiTweaker || { tabBarCommands: [] },
 			imageInserter: settings.imageInserter || { valueFormat: '[[attachments/{image-url}]]', insertFormat: '[[attachments/{image-url}]]' },
 			imageManager: settings.imageManager || {},
-			homeBase: settings.homeBase || {}
+			homeBase: settings.homeBase || {},
+			explorerFocus: settings.explorerFocus || {}
 		};
 	}
 
@@ -139,6 +141,7 @@ export class WizardStateManager {
 		this.state.propertyOverFileName = settings.propertyOverFileName || { propertyKey: 'title' };
 		this.state.uiTweaker = settings.uiTweaker || { tabBarCommands: [] };
 		this.state.imageInserter = settings.imageInserter || { valueFormat: '[[attachments/{image-url}]]', insertFormat: '[[attachments/{image-url}]]' };
+		this.state.explorerFocus = settings.explorerFocus || {};
 		
 		// Load configs from plugin data.json files if they're empty
 		if (!this.state.imageManager || Object.keys(this.state.imageManager).length === 0) {
@@ -174,6 +177,23 @@ export class WizardStateManager {
 		} else {
 			this.state.homeBase = settings.homeBase || {};
 		}
+		
+		if (!this.state.explorerFocus || Object.keys(this.state.explorerFocus).length === 0) {
+			try {
+				const explorerFocusConfigurator = new ExplorerFocusConfigurator(this.plugin.app);
+				const loadedConfig = await explorerFocusConfigurator.loadConfig();
+				if (loadedConfig && Object.keys(loadedConfig).length > 0) {
+					this.state.explorerFocus = loadedConfig;
+				} else {
+					this.state.explorerFocus = settings.explorerFocus || {};
+				}
+			} catch (error: unknown) {
+				console.warn('Failed to load Explorer Focus config during refresh:', error);
+				this.state.explorerFocus = settings.explorerFocus || {};
+			}
+		} else {
+			this.state.explorerFocus = settings.explorerFocus || {};
+		}
 	}
 
 	buildFinalSettings(): void {
@@ -200,5 +220,6 @@ export class WizardStateManager {
 		settings.imageInserter = this.state.imageInserter;
 		settings.imageManager = this.state.imageManager;
 		settings.homeBase = this.state.homeBase;
+		settings.explorerFocus = this.state.explorerFocus;
 	}
 }

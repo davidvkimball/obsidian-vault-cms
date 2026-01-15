@@ -18,11 +18,6 @@ type PluginsAPI = {
 	disablePlugin?: (id: string) => Promise<void>;
 };
 
-type CommandsAPI = {
-	commands?: Record<string, () => void>;
-	executeCommandById?: (id: string) => Promise<void>;
-};
-
 export class CommanderConfigurator {
 	private app: App;
 

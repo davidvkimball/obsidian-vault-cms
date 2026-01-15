@@ -19,6 +19,7 @@ import { ImageInserterConfigurator } from '../../utils/ImageInserterConfig';
 import { SimpleBannerConfigurator } from '../../utils/SimpleBannerConfig';
 import { ImageManagerConfigurator } from '../../utils/ImageManagerConfig';
 import { HomeBaseConfigurator } from '../../utils/HomeBaseConfig';
+import { ExplorerFocusConfigurator } from '../../utils/ExplorerFocusConfig';
 
 export class FinalizeStep extends BaseWizardStep {
 	private pluginManager: PluginManager;
@@ -32,6 +33,7 @@ export class FinalizeStep extends BaseWizardStep {
 	private simpleBannerConfigurator: SimpleBannerConfigurator;
 	private imageManagerConfigurator: ImageManagerConfigurator;
 	private homeBaseConfigurator: HomeBaseConfigurator;
+	private explorerFocusConfigurator: ExplorerFocusConfigurator;
 	private applied: boolean = false;
 
 	isApplied(): boolean {
@@ -51,6 +53,7 @@ export class FinalizeStep extends BaseWizardStep {
 		this.simpleBannerConfigurator = new SimpleBannerConfigurator(app);
 		this.imageManagerConfigurator = new ImageManagerConfigurator(app);
 		this.homeBaseConfigurator = new HomeBaseConfigurator(app);
+		this.explorerFocusConfigurator = new ExplorerFocusConfigurator(app);
 	}
 
 	display(): void {
@@ -216,6 +219,11 @@ export class FinalizeStep extends BaseWizardStep {
 			// Configure Home Base (if enabled)
 			if (this.state.enabledPlugins.includes('home-base')) {
 				await this.homeBaseConfigurator.saveConfig(this.state.homeBase);
+			}
+
+			// Configure Explorer Focus (if enabled)
+			if (this.state.enabledPlugins.includes('explorer-focus')) {
+				await this.explorerFocusConfigurator.saveConfig(this.state.explorerFocus);
 			}
 
 			// Configure default content type and Obsidian settings (following astro-modular-settings pattern)
