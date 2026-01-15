@@ -1,11 +1,6 @@
-import { App, Notice } from 'obsidian';
+import { App, Notice, WorkspaceLeaf } from 'obsidian';
 
 // Helper function for setCssProps (may not be in types yet)
-function setCssProps(element: HTMLElement, props: Record<string, string>): void {
-	for (const [key, value] of Object.entries(props)) {
-		element.style.setProperty(key.replace(/([A-Z])/g, '-$1').toLowerCase(), value);
-	}
-}
 import { BaseWizardStep } from './BaseWizardStep';
 import { WizardState } from '../../types';
 import { PluginManager } from '../../utils/PluginManager';
@@ -63,7 +58,7 @@ export class FinalizeStep extends BaseWizardStep {
 		containerEl.createEl('h2', { text: 'Finalize configuration' });
 		containerEl.createEl('p', { 
 			// eslint-disable-next-line obsidianmd/ui/sentence-case
-			text: 'Review your configuration and click "Apply & Restart" below to save and apply all settings.' 
+			text: 'Review your configuration and click "Apply and restart" below to save and apply all settings.' 
 		});
 
 		const summary = containerEl.createEl('div', { cls: 'finalize-summary' });
@@ -302,7 +297,7 @@ export class FinalizeStep extends BaseWizardStep {
 		let reopened = false;
 		
 		// Collect leaves to close
-		const leavesToClose: any[] = [];
+		const leavesToClose: WorkspaceLeaf[] = [];
 		this.app.workspace.iterateAllLeaves((leaf) => {
 			const viewType = leaf.view.getViewType();
 			if (viewType === 'bases' || viewType === 'bases-cms') {

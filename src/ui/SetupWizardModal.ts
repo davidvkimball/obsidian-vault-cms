@@ -258,7 +258,7 @@ export class SetupWizardModal extends Modal {
 				})();
 			});
 		} else {
-			// Final step - provide Apply and Apply & Restart options
+			// Final step - provide Apply and Apply and restart options
 			if (this.currentStepInstance instanceof FinalizeStep) {
 				const applyBtn = buttons.createEl('button', {
 					text: 'Apply',
@@ -269,7 +269,7 @@ export class SetupWizardModal extends Modal {
 				});
 
 				const applyRestartBtn = buttons.createEl('button', {
-					text: 'Apply & Restart',
+					text: 'Apply and restart',
 					cls: 'mod-button mod-cta'
 				});
 				applyRestartBtn.addEventListener('click', () => {
@@ -317,8 +317,9 @@ export class SetupWizardModal extends Modal {
 					await this.saveCurrentStepToWizardState();
 				}
 				
-				// Mark wizard as completed
+				// Mark wizard as completed and disable startup trigger
 				this.plugin.settings.wizardCompleted = true;
+				this.plugin.settings.runWizardOnStartup = false;
 				await this.plugin.saveSettings();
 				
 				// CRITICAL: Reload settings from disk to ensure everything is synchronized
@@ -330,7 +331,12 @@ export class SetupWizardModal extends Modal {
 				if (shouldRestart) {
 					// Small delay to ensure Notice is visible and settings are saved
 					setTimeout(() => {
-						(this.app as any).commands.executeCommandById('app:reload');
+						interface AppWithCommands {
+							commands: {
+								executeCommandById(id: string): void;
+							};
+						}
+						(this.app as unknown as AppWithCommands).commands.executeCommandById('app:reload');
 					}, 1000);
 				}
 			}
