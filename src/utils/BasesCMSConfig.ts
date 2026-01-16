@@ -297,9 +297,15 @@ export class BasesCMSConfigurator {
 					lines.push(`    tagsProperty: note.${defaultViewProps.tagsProperty}`);
 				}
 				lines.push(`    showDate: true`);
-				lines.push(`    showDraftStatus: ${defaultViewProps.draftProperty ? 'true' : 'false'}`);
-				if (defaultViewProps.draftProperty) {
-					lines.push(`    draftStatusProperty: note.${defaultViewProps.draftProperty}`);
+				lines.push(`    showDraftStatus: ${defaultViewProps.hasDraftStatus ? 'true' : 'false'}`);
+				if (defaultViewProps.hasDraftStatus) {
+					if (defaultViewProps.draftProperty) {
+						lines.push(`    draftStatusProperty: note.${defaultViewProps.draftProperty}`);
+						lines.push(`    draftStatusReverse: ${defaultViewProps.draftLogic === 'false-draft' ? 'true' : 'false'}`);
+					} else {
+						// No draft property means underscore prefix
+						lines.push(`    draftStatusUseFilenamePrefix: true`);
+					}
 				}
 				lines.push(`    customizeNewButton: true`);
 				lines.push(`    newNoteLocation: "${folderPath}"`);
@@ -364,9 +370,15 @@ export class BasesCMSConfigurator {
 				lines.push(`    tagsProperty: note.${props.tagsProperty}`);
 			}
 			lines.push(`    showDate: true`);
-			lines.push(`    showDraftStatus: ${props.draftProperty ? 'true' : 'false'}`);
-			if (props.draftProperty) {
-				lines.push(`    draftStatusProperty: note.${props.draftProperty}`);
+			lines.push(`    showDraftStatus: ${props.hasDraftStatus ? 'true' : 'false'}`);
+			if (props.hasDraftStatus) {
+				if (props.draftProperty) {
+					lines.push(`    draftStatusProperty: note.${props.draftProperty}`);
+					lines.push(`    draftStatusReverse: ${props.draftLogic === 'false-draft' ? 'true' : 'false'}`);
+				} else {
+					// No draft property means underscore prefix
+					lines.push(`    draftStatusUseFilenamePrefix: true`);
+				}
 			}
 			lines.push(`    customizeNewButton: true`);
 			lines.push(`    newNoteLocation: "${folderPath}"`);

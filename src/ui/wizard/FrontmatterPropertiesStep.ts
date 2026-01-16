@@ -88,6 +88,11 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 				const detectedTitle = example ? (example.frontmatter.hasOwnProperty('title') ? 'title' : null) : null;
 				const detectedDate = example ? this.frontmatterAnalyzer.autoDetectDateProperty(example.frontmatter) : null;
 				
+				// Check for underscore-prefixed files
+				const pathResolver = new PathResolver(this.app);
+				const folderPath = pathResolver.getFolderPathFromVaultRoot(contentType.folder, this.state.projectDetection);
+				const hasUnderscoreFiles = await this.frontmatterAnalyzer.hasUnderscoreFiles(folderPath);
+				
 				this.state.frontmatterProperties[contentType.id] = {
 					titleProperty: detectedTitle || undefined, // Only set if detected, otherwise blank
 					dateProperty: detectedDate || undefined, // Only set if detected, otherwise blank
@@ -95,7 +100,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 					tagsProperty: detectedTags || undefined,
 					draftProperty: detectedDraft?.property,
 					draftLogic: detectedDraft?.property === 'published' ? 'false-draft' : (detectedDraft ? 'true-draft' : undefined),
-					hasDraftStatus: !!detectedDraft?.property, // Track if draft status is enabled
+					hasDraftStatus: !!detectedDraft?.property || hasUnderscoreFiles, // Track if draft status is enabled
 					imageProperty: detectedImage || undefined
 				};
 			}

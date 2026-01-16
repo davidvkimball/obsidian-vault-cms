@@ -68,6 +68,9 @@ export interface BasesCMSView {
 	imageFormat?: 'cover' | 'thumbnail' | 'none';
 	showDate: boolean;
 	showDraftStatus: boolean;
+	draftStatusProperty?: string;
+	draftStatusReverse?: boolean;
+	draftStatusUseFilenamePrefix?: boolean;
 	showTags: boolean;
 	tagsProperty?: string;
 	customizeNewButton: boolean;
