@@ -426,7 +426,6 @@ export class SetupWizardModal extends Modal {
 			seoConfig: state.seoConfig,
 			commanderConfig: state.commanderConfig,
 			propertyOverFileName: state.propertyOverFileName,
-			uiTweaker: state.uiTweaker,
 			imageInserter: state.imageInserter,
 			imageManager: state.imageManager,
 			homeBase: state.homeBase
@@ -456,7 +455,6 @@ export class SetupWizardModal extends Modal {
 			JSON.stringify(currentSnapshot.seoConfig) !== JSON.stringify(this.initialSettingsSnapshot.seoConfig) ||
 			JSON.stringify(currentSnapshot.commanderConfig) !== JSON.stringify(this.initialSettingsSnapshot.commanderConfig) ||
 			JSON.stringify(currentSnapshot.propertyOverFileName) !== JSON.stringify(this.initialSettingsSnapshot.propertyOverFileName) ||
-			JSON.stringify(currentSnapshot.uiTweaker) !== JSON.stringify(this.initialSettingsSnapshot.uiTweaker) ||
 			JSON.stringify(currentSnapshot.imageInserter) !== JSON.stringify(this.initialSettingsSnapshot.imageInserter) ||
 			JSON.stringify(currentSnapshot.imageManager) !== JSON.stringify(this.initialSettingsSnapshot.imageManager) ||
 			JSON.stringify(currentSnapshot.homeBase) !== JSON.stringify(this.initialSettingsSnapshot.homeBase)

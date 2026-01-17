@@ -188,6 +188,33 @@ export class CommanderConfigurator {
 		// hidden if it was already visible.
 	}
 
+	/**
+	 * Get the current visibility of the editing toolbar
+	 */
+	async getEditingToolbarVisibility(app: App): Promise<boolean | undefined> {
+		try {
+			const plugins = (app as { plugins?: PluginsAPI }).plugins;
+			const editingToolbarPlugin = plugins?.plugins?.['editing-toolbar'];
+			
+			if (editingToolbarPlugin?.settings) {
+				return editingToolbarPlugin.settings.cMenuVisibility;
+			}
+
+			// Fallback to file method
+			const configDir = app.vault.configDir;
+			const pluginDataPath = `${configDir}/plugins/editing-toolbar/data.json`;
+			const dataFile = app.vault.getAbstractFileByPath(pluginDataPath);
+			
+			if (dataFile instanceof TFile) {
+				const existingData = JSON.parse(await app.vault.read(dataFile)) as { cMenuVisibility?: boolean };
+				return existingData.cMenuVisibility;
+			}
+		} catch (error) {
+			console.warn('CommanderConfig: Failed to get editing toolbar visibility:', error);
+		}
+		return undefined;
+	}
+
 	async saveConfig(config: CommanderConfig): Promise<void> {
 		const pluginId = 'cmdr';
 		const configDir = this.app.vault.configDir;

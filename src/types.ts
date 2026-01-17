@@ -46,7 +46,6 @@ export interface WizardState {
 	seoConfig: SEOConfig;
 	commanderConfig: CommanderConfig;
 	propertyOverFileName: PropertyOverFileNameConfig;
-	uiTweaker: UITweakerConfig;
 	imageInserter: ImageInserterConfig;
 	imageManager: ImageManagerConfig;
 	homeBase: HomeBaseConfig;
@@ -135,19 +134,6 @@ export interface CommanderCommand {
 export interface PropertyOverFileNameConfig {
 	propertyKey: string;
 	enableMdxSupport?: boolean;
-}
-
-export interface UITweakerConfig {
-	tabBarCommands?: Array<{
-		id: string;
-		icon: string;
-		name: string;
-		displayName: string;
-		mode: string;
-		toggleIcon?: string;
-		showOnFileTypes?: string;
-	}>;
-	[key: string]: unknown;
 }
 
 export interface ImageInserterConfig {

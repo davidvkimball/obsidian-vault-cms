@@ -5,13 +5,16 @@ import VaultCMSPlugin from '../../main';
 import { ImageManagerConfigurator } from '../../utils/ImageManagerConfig';
 import { HomeBaseConfigurator } from '../../utils/HomeBaseConfig';
 import { ExplorerFocusConfigurator } from '../../utils/ExplorerFocusConfig';
+import { CommanderConfigurator } from '../../utils/CommanderConfig';
 
 export class WizardStateManager {
 	private state: WizardState;
 	private plugin: Plugin;
+	private commanderConfigurator: CommanderConfigurator;
 
 	constructor(plugin: Plugin) {
 		this.plugin = plugin;
+		this.commanderConfigurator = new CommanderConfigurator(plugin.app);
 		const settings = (plugin as VaultCMSPlugin).settings;
 		this.state = this.initializeState(settings);
 	}
@@ -76,7 +79,6 @@ export class WizardStateManager {
 			},
 			commanderConfig: settings.commanderConfig || { pageHeaderCommands: [] },
 			propertyOverFileName: settings.propertyOverFileName || { propertyKey: 'title' },
-			uiTweaker: settings.uiTweaker || { tabBarCommands: [] },
 			imageInserter: settings.imageInserter || { valueFormat: '[[attachments/{image-url}]]', insertFormat: '[[attachments/{image-url}]]' },
 			imageManager: settings.imageManager || {},
 			homeBase: settings.homeBase || {},
@@ -168,7 +170,15 @@ export class WizardStateManager {
 		}
 		
 		this.state.preset = settings.preset || 'vanilla';
-		this.state.enableWYSIWYG = settings.enableWYSIWYG ?? false;
+		
+		// Sync enableWYSIWYG with actual plugin state
+		const actualVisibility = await this.commanderConfigurator.getEditingToolbarVisibility(this.plugin.app);
+		if (actualVisibility !== undefined) {
+			this.state.enableWYSIWYG = actualVisibility;
+		} else {
+			this.state.enableWYSIWYG = settings.enableWYSIWYG ?? false;
+		}
+
 		this.state.enableMdxSupport = settings.enableMdxSupport;
 		this.state.enabledPlugins = settings.enabledPlugins || [];
 		this.state.disabledPlugins = settings.disabledPlugins || [];
@@ -188,7 +198,6 @@ export class WizardStateManager {
 		};
 		this.state.commanderConfig = settings.commanderConfig || { pageHeaderCommands: [] };
 		this.state.propertyOverFileName = settings.propertyOverFileName || { propertyKey: 'title' };
-		this.state.uiTweaker = settings.uiTweaker || { tabBarCommands: [] };
 		this.state.imageInserter = settings.imageInserter || { valueFormat: '[[attachments/{image-url}]]', insertFormat: '[[attachments/{image-url}]]' };
 		this.state.explorerFocus = settings.explorerFocus || {};
 		
@@ -267,7 +276,14 @@ export class WizardStateManager {
 		settings.seoConfig = this.state.seoConfig;
 		settings.commanderConfig = this.state.commanderConfig;
 		settings.propertyOverFileName = this.state.propertyOverFileName;
-		settings.uiTweaker = this.state.uiTweaker;
+		// Clean up old structure if it exists
+		const settingsRecord = settings as unknown as Record<string, unknown>;
+		if (settingsRecord.uiTweaker) {
+			delete settingsRecord.uiTweaker;
+		}
+		if (settingsRecord.tabBarCommands) {
+			delete settingsRecord.tabBarCommands;
+		}
 		settings.imageInserter = this.state.imageInserter;
 		settings.imageManager = this.state.imageManager;
 		settings.homeBase = this.state.homeBase;

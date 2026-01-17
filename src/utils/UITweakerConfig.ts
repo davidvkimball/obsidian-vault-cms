@@ -1,5 +1,18 @@
 import { App, TFile } from 'obsidian';
-import { UITweakerConfig } from '../types';
+
+export interface UITweakerCommand {
+	id: string;
+	icon: string;
+	name: string;
+	displayName: string;
+	mode: string;
+	toggleIcon?: string;
+	showOnFileTypes?: string;
+}
+
+export interface UITweakerConfig {
+	tabBarCommands?: UITweakerCommand[];
+}
 
 type PluginWithSettings = {
 	settings?: UITweakerConfig;
@@ -17,7 +30,7 @@ export class UITweakerConfigurator {
 		this.app = app;
 	}
 
-	async saveConfig(config: UITweakerConfig, enableMdxSupport: boolean): Promise<void> {
+	async saveConfig(enableMdxSupport: boolean): Promise<void> {
 		const pluginId = 'ui-tweaker';
 		
 		try {
@@ -28,19 +41,6 @@ export class UITweakerConfigurator {
 			if (uiTweakerPlugin && uiTweakerPlugin.settings) {
 				console.debug('UITweakerConfig: Using plugin.settings API');
 				const settings = uiTweakerPlugin.settings;
-				
-				// Apply our opinionated config to live settings
-				for (const [key, value] of Object.entries(config)) {
-					if (key !== 'tabBarCommands') {
-						(settings as Record<string, unknown>)[key] = value;
-					}
-				}
-				
-				// Special handling for tabBarCommands
-				settings.tabBarCommands = this.mergeTabBarCommands(
-					(settings.tabBarCommands as Array<Record<string, unknown>>) || [],
-					(config.tabBarCommands as Array<Record<string, unknown>>) || []
-				) as UITweakerConfig['tabBarCommands'];
 				
 				// Force the MDX update
 				this.forceMdxUpdate(settings, enableMdxSupport);
@@ -55,11 +55,11 @@ export class UITweakerConfigurator {
 
 			// Fallback to file method if plugin not available
 			console.debug('UITweakerConfig: Plugin API not available, using fallback file method');
-			await this.saveConfigFallback(config, enableMdxSupport);
+			await this.saveConfigFallback(enableMdxSupport);
 		} catch (error: unknown) {
 			console.error('Failed to save UI Tweaker config:', error);
 			// Try fallback anyway
-			await this.saveConfigFallback(config, enableMdxSupport);
+			await this.saveConfigFallback(enableMdxSupport);
 		}
 	}
 
@@ -70,36 +70,32 @@ export class UITweakerConfigurator {
 			settings.tabBarCommands = [];
 		}
 
-		const tabBarCommands = settings.tabBarCommands as Array<Record<string, unknown>>;
+		const tabBarCommands = settings.tabBarCommands as unknown as Array<Record<string, unknown>>;
 		const toolbarCommandIndex = tabBarCommands.findIndex(cmd => cmd.id === 'editing-toolbar:hide-show-menu');
 
 		if (toolbarCommandIndex !== -1) {
+			// ONLY update showOnFileTypes, leave everything else alone!
 			tabBarCommands[toolbarCommandIndex] = {
 				...tabBarCommands[toolbarCommandIndex],
-				"id": "editing-toolbar:hide-show-menu",
-				"icon": "lucide-chevron-down",
-				"name": "Toggle editing toolbar",
-				"displayName": "Editing Toolbar: Hide/Show ",
-				"mode": "any",
-				"toggleIcon": "lucide-chevron-up",
 				"showOnFileTypes": mdxFileTypes
 			};
-			console.debug(`UITweakerConfig: Forced update on existing toolbar command showOnFileTypes to ${mdxFileTypes}`);
+			console.debug(`UITweakerConfig: Updated existing toolbar command showOnFileTypes to ${mdxFileTypes}`);
 		} else {
+			// Only add if missing, using the user's preferred defaults
 			tabBarCommands.push({
 				"id": "editing-toolbar:hide-show-menu",
-				"icon": "lucide-chevron-down",
+				"icon": "lucide-panel-top-open",
 				"name": "Toggle editing toolbar",
 				"displayName": "Editing Toolbar: Hide/Show ",
-				"mode": "any",
-				"toggleIcon": "lucide-chevron-up",
+				"mode": "desktop",
+				"toggleIcon": "lucide-panel-top-close",
 				"showOnFileTypes": mdxFileTypes
 			});
 			console.debug(`UITweakerConfig: Added missing toolbar command with showOnFileTypes=${mdxFileTypes}`);
 		}
 	}
 
-	private async saveConfigFallback(config: UITweakerConfig, enableMdxSupport: boolean): Promise<void> {
+	private async saveConfigFallback(enableMdxSupport: boolean): Promise<void> {
 		const pluginId = 'ui-tweaker';
 		const configDir = this.app.vault.configDir;
 		const pluginDataPath = `${configDir}/plugins/${pluginId}/data.json`;
@@ -115,18 +111,8 @@ export class UITweakerConfigurator {
 			}
 		}
 
-		// Merge with our opinionated config
-		const mergedData = {
-			...existingData,
-			...config,
-			tabBarCommands: this.mergeTabBarCommands(
-				(existingData.tabBarCommands as Array<Record<string, unknown>>) || [],
-				(config.tabBarCommands as Array<Record<string, unknown>>) || []
-			)
-		};
-
 		// Force the MDX update on the merged data
-		this.forceMdxUpdate(mergedData as unknown as UITweakerConfig, enableMdxSupport);
+		this.forceMdxUpdate(existingData as unknown as UITweakerConfig, enableMdxSupport);
 
 		// Ensure plugin directory exists
 		const pluginDir = `${configDir}/plugins/${pluginId}`;
@@ -143,27 +129,12 @@ export class UITweakerConfigurator {
 		}
 
 		// Save to file
-		const content = JSON.stringify(mergedData, null, 2);
+		const content = JSON.stringify(existingData, null, 2);
 		if (dataFile instanceof TFile) {
 			await this.app.vault.modify(dataFile, content);
 		} else {
 			await this.app.vault.create(pluginDataPath, content);
 		}
 		console.debug('UITweakerConfig: Successfully saved ui-tweaker config via fallback');
-	}
-
-	private mergeTabBarCommands(existing: Array<Record<string, unknown>>, opinionated: Array<Record<string, unknown>>): Array<Record<string, unknown>> {
-		const merged = [...existing];
-		
-		for (const opCmd of opinionated) {
-			const existingIndex = merged.findIndex(cmd => cmd.id === opCmd.id);
-			if (existingIndex >= 0) {
-				merged[existingIndex] = { ...merged[existingIndex], ...opCmd };
-			} else {
-				merged.push(opCmd);
-			}
-		}
-		
-		return merged;
 	}
 }

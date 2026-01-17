@@ -179,7 +179,7 @@ export class FinalizeStep extends BaseWizardStep {
 
 			// Configure UI Tweaker
 			console.debug('FinalizeStep: Configuring UI Tweaker');
-			await this.uiTweakerConfigurator.saveConfig(this.state.uiTweaker, this.state.enableMdxSupport === true);
+			await this.uiTweakerConfigurator.saveConfig(this.state.enableMdxSupport === true);
 
 			// Configure Simple Banner (if enabled)
 			const imageProperty = firstProps?.imageProperty;

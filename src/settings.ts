@@ -1,4 +1,4 @@
-import { ContentTypeConfig, FrontmatterProperties, BasesCMSConfig, AstroComposerConfig, SEOConfig, CommanderConfig, PropertyOverFileNameConfig, UITweakerConfig, ImageInserterConfig, ImageManagerConfig, HomeBaseConfig, ExplorerFocusConfig, IgnoreConfig } from './types';
+import { ContentTypeConfig, FrontmatterProperties, BasesCMSConfig, AstroComposerConfig, SEOConfig, CommanderConfig, PropertyOverFileNameConfig, ImageInserterConfig, ImageManagerConfig, HomeBaseConfig, ExplorerFocusConfig, IgnoreConfig } from './types';
 
 export interface VaultCMSSettings {
 	projectRoot: string;
@@ -19,7 +19,6 @@ export interface VaultCMSSettings {
 	seoConfig: SEOConfig;
 	commanderConfig: CommanderConfig;
 	propertyOverFileName: PropertyOverFileNameConfig;
-	uiTweaker: UITweakerConfig;
 	imageInserter: ImageInserterConfig;
 	imageManager: ImageManagerConfig;
 	homeBase: HomeBaseConfig;
@@ -63,19 +62,6 @@ export const DEFAULT_SETTINGS: VaultCMSSettings = {
 	},
 	propertyOverFileName: {
 		propertyKey: 'title'
-	},
-	uiTweaker: {
-		"tabBarCommands": [
-			{
-				"id": "editing-toolbar:hide-show-menu",
-				"icon": "lucide-chevron-down",
-				"name": "Toggle editing toolbar",
-				"displayName": "Editing Toolbar: Hide/Show ",
-				"mode": "any",
-				"toggleIcon": "lucide-chevron-up",
-				"showOnFileTypes": "md,mdx"
-			}
-		]
 	},
 	imageInserter: {
 		valueFormat: '[[attachments/{image-url}]]',
