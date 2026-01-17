@@ -83,11 +83,11 @@ export class IgnoreStep extends BaseWizardStep {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		containerEl.createEl('h2', { text: 'Project optimization' });
+		containerEl.createEl('h2', { text: 'Project optimization (optional)' });
 		containerEl.createEl('p', {
 			// False positive: "Obsidian", "Git", and "Vite" are proper nouns
 			// eslint-disable-next-line obsidianmd/ui/sentence-case
-			text: 'Optimize your project by ignoring Obsidian-specific files in Git and Vite. This improves performance and keeps your repository clean.'
+			text: 'Optimize your project by ignoring Obsidian-specific files in Git and Vite. This prevents issues with conflicts and errors in your project.'
 		});
 
 		// Git Ignore Setting
@@ -107,9 +107,9 @@ export class IgnoreStep extends BaseWizardStep {
 		// Vite Ignore Setting
 		const viteSetting = new Setting(containerEl)
 			.setName('Vite ignore')
-			// False positive: "Vite", "Obsidian", and "Bases" are proper nouns
+			// False positive: "Vite", "Obsidian", and "bases" are proper nouns
 			// eslint-disable-next-line obsidianmd/ui/sentence-case
-			.setDesc('Configure Vite to ignore Obsidian and Bases folders. This prevents the dev server from processing numerous internal files.')
+			.setDesc('Configure Vite to ignore Obsidian and bases folders. This prevents the dev server from processing numerous internal files.')
 			.addButton(button => {
 				button.setButtonText(this.viteIgnoreStatus === 'configured' ? 'Re-configure' : 'Configure')
 					.onClick(async () => {
@@ -144,7 +144,7 @@ export class IgnoreStep extends BaseWizardStep {
 		const resolvedProjectRoot = this.resolvePath(projectRoot);
 		const configDir = this.app.vault.configDir;
 		const gitIgnorePath = path.join(resolvedProjectRoot, '.gitignore');
-		const rules = `\n# Obsidian workspace files\n*/${configDir}/workspace.json\n*/${configDir}/workspace-mobile.json\n`;
+		const rules = `\n# Obsidian workspace files\n**/${configDir}/workspace.json\n**/${configDir}/workspace-mobile.json\n`;
 
 		try {
 			if (fs.existsSync(gitIgnorePath)) {
@@ -292,7 +292,7 @@ export class IgnoreStep extends BaseWizardStep {
 	}
 
 	getTitle(): string {
-		return 'Project optimization';
+		return 'Project optimization (optional)';
 	}
 
 	getDescription(): string {
