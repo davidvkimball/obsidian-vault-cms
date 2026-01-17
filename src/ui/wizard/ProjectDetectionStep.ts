@@ -569,7 +569,8 @@ export class ProjectDetectionStep extends BaseWizardStep {
 		if (absoluteNormalized.startsWith(vaultNormalized)) {
 			const relative = absoluteNormalized.slice(vaultNormalized.length);
 			// Remove leading path separator
-			return relative.startsWith('/') ? relative.slice(1) : relative;
+			const trimmedRelative = relative.startsWith('/') ? relative.slice(1) : relative;
+			return trimmedRelative || '.';
 		}
 		
 		// If path is outside vault, calculate relative path manually

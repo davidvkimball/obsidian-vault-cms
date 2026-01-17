@@ -273,7 +273,11 @@ export class BasesCMSConfigurator {
 				lines.push(`    name: "${defaultContentType.name}"`);
 				lines.push('    filters:');
 				lines.push('      and:');
-				lines.push(`        - file.folder.startsWith("${folderPath}")`);
+				if (folderPath === '' || folderPath === '.') {
+					lines.push(`        - file.folder == "/"`);
+				} else {
+					lines.push(`        - file.folder.startsWith("${folderPath}")`);
+				}
 				lines.push(`    imageFormat: cover`);
 				// Handle blank title/date properties
 				if (defaultViewProps.titleProperty) {
@@ -346,7 +350,11 @@ export class BasesCMSConfigurator {
 			lines.push(`    name: "${contentType.name}"`);
 			lines.push('    filters:');
 			lines.push('      and:');
-			lines.push(`        - file.folder.startsWith("${folderPath}")`);
+			if (folderPath === '' || folderPath === '.') {
+				lines.push(`        - file.folder == "/"`);
+			} else {
+				lines.push(`        - file.folder.startsWith("${folderPath}")`);
+			}
 			lines.push(`    imageFormat: cover`);
 			// Handle blank title/date properties
 			if (props.titleProperty) {
