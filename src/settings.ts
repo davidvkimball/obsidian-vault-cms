@@ -6,6 +6,8 @@ export interface VaultCMSSettings {
 	contentTypes: ContentTypeConfig[];
 	frontmatterProperties: { [contentTypeId: string]: FrontmatterProperties };
 	defaultContentTypeId?: string;
+	attachmentHandlingMode: 'specified-folder' | 'same-folder' | 'subfolder';
+	attachmentFolderName?: string;
 	preset: 'vanilla' | 'opinionated' | 'custom';
 	enableWYSIWYG: boolean;
 	enableMdxSupport?: boolean;
@@ -31,6 +33,8 @@ export const DEFAULT_SETTINGS: VaultCMSSettings = {
 	configFilePath: '',
 	contentTypes: [],
 	frontmatterProperties: {},
+	attachmentHandlingMode: 'subfolder',
+	attachmentFolderName: undefined,
 	preset: 'vanilla',
 	enableWYSIWYG: false,
 	enabledPlugins: [],

@@ -24,14 +24,36 @@ export class WizardStateManager {
 			vaultLocation: 'content' as const
 		} : undefined;
 
+		// Try to infer attachment settings from Obsidian if not explicitly saved in our settings
+		let attachmentHandlingMode = settings.attachmentHandlingMode;
+		let attachmentFolderName = settings.attachmentFolderName;
+
+		if (!attachmentHandlingMode) {
+			const vault = this.plugin.app.vault as { config?: { newFileLocation?: string; newFileFolderPath?: string; attachmentFolderPath?: string; newLinkFormat?: string } };
+			const obsidianConfig = vault.config;
+			
+			if (obsidianConfig?.attachmentFolderPath) {
+				const folderPath = obsidianConfig.attachmentFolderPath;
+				if (folderPath === './') {
+					attachmentHandlingMode = 'same-folder';
+				} else if (folderPath.startsWith('./')) {
+					attachmentHandlingMode = 'subfolder';
+					attachmentFolderName = folderPath.substring(2);
+				} else {
+					attachmentHandlingMode = 'specified-folder';
+					attachmentFolderName = folderPath;
+				}
+			}
+		}
+
 		return {
 			currentStep: 0,
 			projectDetection: savedProjectDetection,
 			contentTypes: settings.contentTypes || [],
 			frontmatterProperties: settings.frontmatterProperties || {},
 			defaultContentTypeId: settings.defaultContentTypeId,
-			attachmentHandlingMode: 'subfolder',
-			attachmentFolderName: undefined, // Not saved in settings, only in wizard state
+			attachmentHandlingMode: attachmentHandlingMode || 'subfolder',
+			attachmentFolderName: attachmentFolderName,
 			preset: settings.preset || 'vanilla',
 			enableWYSIWYG: settings.enableWYSIWYG ?? false,
 			enableMdxSupport: settings.enableMdxSupport,
@@ -117,8 +139,33 @@ export class WizardStateManager {
 		this.state.contentTypes = settings.contentTypes || [];
 		this.state.frontmatterProperties = settings.frontmatterProperties || {};
 		this.state.defaultContentTypeId = settings.defaultContentTypeId;
-		this.state.attachmentHandlingMode = 'subfolder'; // Default, could be saved in settings if needed
-		this.state.attachmentFolderName = undefined; // Not saved in settings, only in wizard state
+		
+		// Use saved settings for attachment handling, or infer from Obsidian if not set
+		if (settings.attachmentHandlingMode) {
+			this.state.attachmentHandlingMode = settings.attachmentHandlingMode;
+			this.state.attachmentFolderName = settings.attachmentFolderName;
+		} else {
+			const vault = this.plugin.app.vault as { config?: { newFileLocation?: string; newFileFolderPath?: string; attachmentFolderPath?: string; newLinkFormat?: string } };
+			const obsidianConfig = vault.config;
+			
+			if (obsidianConfig?.attachmentFolderPath) {
+				const folderPath = obsidianConfig.attachmentFolderPath;
+				if (folderPath === './') {
+					this.state.attachmentHandlingMode = 'same-folder';
+					this.state.attachmentFolderName = undefined;
+				} else if (folderPath.startsWith('./')) {
+					this.state.attachmentHandlingMode = 'subfolder';
+					this.state.attachmentFolderName = folderPath.substring(2);
+				} else {
+					this.state.attachmentHandlingMode = 'specified-folder';
+					this.state.attachmentFolderName = folderPath;
+				}
+			} else {
+				this.state.attachmentHandlingMode = 'subfolder';
+				this.state.attachmentFolderName = undefined;
+			}
+		}
+		
 		this.state.preset = settings.preset || 'vanilla';
 		this.state.enableWYSIWYG = settings.enableWYSIWYG ?? false;
 		this.state.enableMdxSupport = settings.enableMdxSupport;
@@ -206,6 +253,8 @@ export class WizardStateManager {
 		settings.contentTypes = this.state.contentTypes;
 		settings.frontmatterProperties = this.state.frontmatterProperties;
 		settings.defaultContentTypeId = this.state.defaultContentTypeId;
+		settings.attachmentHandlingMode = this.state.attachmentHandlingMode;
+		settings.attachmentFolderName = this.state.attachmentFolderName;
 		settings.preset = this.state.preset;
 		settings.enableWYSIWYG = this.state.enableWYSIWYG;
 		settings.enableMdxSupport = this.state.enableMdxSupport ?? false;

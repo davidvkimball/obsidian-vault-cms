@@ -318,7 +318,16 @@ export class FinalizeStep extends BaseWizardStep {
 		// Reopen if not restarting
 		if (!shouldRestart && leavesToClose.length > 0 && !reopened) {
 			console.debug('FinalizeStep: Reopening Bases leaf with fresh state');
-			const leaf = this.app.workspace.getLeaf('tab');
+			
+			// Safer way to get a leaf that works even if no tab groups exist
+			let leaf: WorkspaceLeaf;
+			try {
+				leaf = this.app.workspace.getLeaf('tab');
+			} catch (e) {
+				console.debug('FinalizeStep: Could not get tab leaf, falling back to default leaf');
+				leaf = this.app.workspace.getLeaf(false);
+			}
+			
 			await leaf.setViewState({
 				type: 'bases-cms',
 				active: true,
