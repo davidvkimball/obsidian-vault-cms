@@ -293,7 +293,7 @@ export class FinalizeStep extends BaseWizardStep {
 	 * Find any active Bases views and switch them to the new default view.
 	 * Closes old tabs and reopens them to force a clean reload if not restarting.
 	 */
-	private async updateActiveBasesViews(defaultViewName: string, _shouldRestart: boolean): Promise<void> {
+	private async updateActiveBasesViews(defaultViewName: string, shouldRestart: boolean): Promise<void> {
 		const baseFilePath = await this.basesCMSConfigurator.resolveBaseFilePath();
 		let updated = false;
 		
@@ -306,6 +306,7 @@ export class FinalizeStep extends BaseWizardStep {
 				state: {
 					file: string;
 					view?: string;
+					viewName?: string;
 					[key: string]: unknown;
 				};
 				[key: string]: unknown;
@@ -317,7 +318,7 @@ export class FinalizeStep extends BaseWizardStep {
 			if (viewType === 'bases' || viewType === 'bases-cms') {
 				const state = leaf.getViewState();
 				if (state.state?.file === baseFilePath) {
-					console.debug('FinalizeStep: Found Bases leaf to update');
+					console.debug(`FinalizeStep: Found Bases leaf to update (type: ${viewType})`);
 					leavesToUpdate.push({ leaf, state: state as BasesLeafState['state'] });
 				}
 			}
@@ -327,11 +328,13 @@ export class FinalizeStep extends BaseWizardStep {
 		for (const { leaf, state } of leavesToUpdate) {
 			console.debug('FinalizeStep: Updating existing Bases leaf state');
 			// Update existing leaf state to switch to the new default view
+			// Set both 'view' and 'viewName' for compatibility across Bases versions
 			await leaf.setViewState({
 				...state,
 				state: {
 					...state.state,
-					view: defaultViewName
+					view: defaultViewName,
+					viewName: defaultViewName
 				}
 			});
 			updated = true;
@@ -341,16 +344,97 @@ export class FinalizeStep extends BaseWizardStep {
 		if (!updated) {
 			console.debug('FinalizeStep: Opening new Bases leaf with fresh state');
 			
+			// Use 'bases-cms' as the preferred type for new leaves
 			const leaf = this.app.workspace.getLeaf('tab');
 			await leaf.setViewState({
 				type: 'bases-cms',
 				active: true,
 				state: {
 					file: baseFilePath,
-					view: defaultViewName
+					view: defaultViewName,
+					viewName: defaultViewName
 				}
 			});
 			this.app.workspace.setActiveLeaf(leaf, { focus: true });
+			updated = true;
+		}
+
+		// SPECIAL CASE: If restarting, also try to modify workspace.json directly
+		// This is a "belt and suspenders" approach because Obsidian might overwrite
+		// the in-memory changes when it closes if the view hasn't fully synced yet.
+		if (shouldRestart) {
+			try {
+				const adapter = this.app.vault.adapter;
+				const configDir = this.app.vault.configDir;
+				const workspacePath = `${configDir}/workspace.json`;
+				
+				if (await adapter.exists(workspacePath)) {
+					console.debug('FinalizeStep: Attempting direct workspace.json modification');
+					const content = await adapter.read(workspacePath);
+					
+					interface WorkspaceNode {
+						type?: string;
+						state?: {
+							type?: string;
+							state?: {
+								file?: string;
+								view?: string;
+								viewName?: string;
+								[key: string]: unknown;
+							};
+						};
+						children?: WorkspaceNode[] | WorkspaceNode;
+					}
+
+					interface WorkspaceData {
+						main?: WorkspaceNode;
+						left?: WorkspaceNode;
+						right?: WorkspaceNode;
+						[key: string]: unknown;
+					}
+
+					const workspace = JSON.parse(content) as WorkspaceData;
+					
+					let modified = false;
+					
+					// Recursive function to find and update Bases leaves in workspace.json
+					const updateNode = (node: WorkspaceNode | undefined) => {
+						if (!node) return;
+						
+						if (node.type === 'leaf' && node.state) {
+							if ((node.state.type === 'bases' || node.state.type === 'bases-cms') && 
+								node.state.state?.file === baseFilePath) {
+								console.debug(`FinalizeStep: Found Bases leaf in workspace.json, updating to ${defaultViewName}`);
+								if (node.state.state) {
+									node.state.state.view = defaultViewName;
+									node.state.state.viewName = defaultViewName;
+									modified = true;
+								}
+							}
+						}
+						
+						if (node.children) {
+							if (Array.isArray(node.children)) {
+								node.children.forEach((child) => updateNode(child));
+							} else {
+								updateNode(node.children);
+							}
+						}
+					};
+					
+					updateNode(workspace.main);
+					updateNode(workspace.left);
+					updateNode(workspace.right);
+					
+					if (modified) {
+						await adapter.write(workspacePath, JSON.stringify(workspace, null, 2));
+						console.debug('FinalizeStep: Successfully modified workspace.json');
+					}
+				}
+			} catch (error) {
+				console.warn('FinalizeStep: Failed to modify workspace.json directly:', error);
+				// Don't throw, we still have the in-memory update
+			}
 		}
 	}
 
