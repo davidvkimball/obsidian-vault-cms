@@ -49,7 +49,8 @@ export class WizardStateManager {
 				titleProperty: 'title',
 				scanDirectories: '',
 				useFilenameAsTitle: false,
-				useFilenameAsSlug: true
+				useFilenameAsSlug: true,
+				enableMDXSupport: settings.enableMdxSupport ?? false
 			},
 			commanderConfig: settings.commanderConfig || { pageHeaderCommands: [] },
 			propertyOverFileName: settings.propertyOverFileName || { propertyKey: 'title' },

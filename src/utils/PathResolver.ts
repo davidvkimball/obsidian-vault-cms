@@ -28,42 +28,48 @@ export class PathResolver {
 	 * @returns Path from vault root to content type folder, or null if cannot be determined
 	 */
 	getFolderPathFromVaultRoot(folderName: string, projectDetection?: ProjectDetectionResult): string {
-		if (!projectDetection || !projectDetection.projectRoot) {
-			// No project detection, return folder name as-is (fallback)
-			return folderName;
-		}
-
 		const adapter = this.app.vault.adapter as { basePath?: string; path?: string };
 		const vaultPath = adapter.basePath || adapter.path;
-		
-		if (!vaultPath) {
+
+		// 1. If project detection is available, use it to calculate the exact intended path
+		// This is preferred because it handles the "vault at project root" case correctly
+		// even if there are folders with matching names elsewhere in the vault.
+		if (projectDetection && projectDetection.projectRoot && vaultPath) {
+			// Resolve project root to absolute path
+			const projectRoot = path.isAbsolute(projectDetection.projectRoot) 
+				? projectDetection.projectRoot 
+				: path.resolve(vaultPath, projectDetection.projectRoot);
+
+			// Calculate the absolute path to the intended content type folder
+			// If folderName already looks like a path from project root (e.g. starts with src/content), use it as-is
+			let contentTypeAbsolutePath: string;
+			if (folderName.startsWith('src/content/') || folderName.includes('/src/content/')) {
+				contentTypeAbsolutePath = path.resolve(projectRoot, folderName);
+			} else {
+				contentTypeAbsolutePath = path.resolve(projectRoot, 'src', 'content', folderName);
+			}
+			
+			// Calculate relative path from vault to content type folder
+			const vaultAbsolutePath = path.resolve(vaultPath);
+			const relativePath = path.relative(vaultAbsolutePath, contentTypeAbsolutePath);
+			
+			// If relativePath is within the vault (doesn't start with '..'), use it
+			if (!relativePath.startsWith('..') && !path.isAbsolute(relativePath)) {
+				// Normalize to use forward slashes (works on Windows too)
+				return relativePath.split(path.sep).join('/') || '.';
+			}
+		}
+
+		// 2. Fallback: If folderName is already a valid path in the vault, use it directly
+		// This handles cases where folderName is already a vault-relative path (e.g., "src/content/posts")
+		// and project detection might not be available or correct.
+		const file = this.app.vault.getAbstractFileByPath(folderName);
+		if (file) {
 			return folderName;
 		}
 
-		// Resolve project root to absolute path
-		const projectRoot = path.isAbsolute(projectDetection.projectRoot) 
-			? projectDetection.projectRoot 
-			: path.resolve(vaultPath, projectDetection.projectRoot);
-
-		// Calculate the absolute path to src/content/{folderName}
-		const contentTypeAbsolutePath = path.resolve(projectRoot, 'src', 'content', folderName);
-		
-		// Calculate relative path from vault to content type folder
-		const vaultAbsolutePath = path.resolve(vaultPath);
-		const relativePath = path.relative(vaultAbsolutePath, contentTypeAbsolutePath);
-		
-		// If relativePath starts with '..', it's outside the vault
-		if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
-			// If content type folder is outside vault (e.g., vault is at src/content/post),
-			// we can't access it via Obsidian's API, but we can still return a path
-			// that represents where it should be relative to project root
-			// For Bases CMS, we'll use the folder name directly (it will match files in that folder within the vault)
-			// For Astro Composer, we need the full path from project root
-			return folderName;
-		}
-
-		// Normalize to use forward slashes (works on Windows too)
-		return relativePath.split(path.sep).join('/');
+		// 3. Last resort fallback: return folder name as-is
+		return folderName;
 	}
 
 	/**

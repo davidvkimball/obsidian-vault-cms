@@ -75,7 +75,16 @@ export class MdxDetector {
 		// Scan each content type folder for .mdx files (check both enabled and disabled)
 		// We scan all content types because MDX files might exist even if the type is disabled
 		for (const contentType of contentTypes) {
-			const contentTypePath = path.join(contentBasePath, contentType.folder);
+			let contentTypePath: string;
+			
+			// If contentType.folder already contains src/content (vault at project root),
+			// use it relative to project root. Otherwise, use it relative to contentBasePath.
+			if (contentType.folder.startsWith('src/content/')) {
+				contentTypePath = path.join(projectRootPath, contentType.folder);
+			} else {
+				contentTypePath = path.join(contentBasePath, contentType.folder);
+			}
+			
 			console.debug('MdxDetector: scanning', contentTypePath, '(enabled:', contentType.enabled, ')');
 			
 			try {

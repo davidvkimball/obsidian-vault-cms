@@ -81,13 +81,15 @@ export class ContentTypeDetector {
 		}
 
 		// Calculate relative path from vault to src/content
-		const vaultNormalized = path.normalize(vaultPath);
-		const contentNormalized = path.normalize(expectedContentPath);
+		const vaultNormalized = path.resolve(vaultPath).toLowerCase();
+		const contentNormalized = path.resolve(expectedContentPath).toLowerCase();
 		
 		// If src/content is within the vault, find it by path
 		if (contentNormalized.startsWith(vaultNormalized)) {
-			const relativePath = path.relative(vaultNormalized, contentNormalized);
-			const pathParts = relativePath.split(path.sep).filter(part => part.length > 0);
+			const relativePath = path.relative(path.resolve(vaultPath), path.resolve(expectedContentPath));
+			// Normalize to use forward slashes for Obsidian
+			const normalizedRelativePath = relativePath.split(path.sep).join('/');
+			const pathParts = normalizedRelativePath.split('/').filter(part => part.length > 0);
 			
 			// If relative path is empty, vault root IS src/content
 			if (pathParts.length === 0) {
@@ -182,7 +184,7 @@ export class ContentTypeDetector {
 		return {
 			id: `content-type-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
 			name,
-			folder: folder.name,
+			folder: folder.path, // Use vault-relative path instead of just the folder name
 			fileOrganization: 'file',
 			enabled: true, // Enable all discovered content types by default
 			indexFileName: 'index'

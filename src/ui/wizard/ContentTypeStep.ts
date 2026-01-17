@@ -234,12 +234,40 @@ export class ContentTypeStep extends BaseWizardStep {
 			// Pass project detection info so it can find src/content directory correctly
 			const scannedTypes = this.contentTypeDetector.detectContentTypes(this.state.projectDetection);
 			
-			// Merge: use imported types, then add any scanned types that don't exist yet
-			const existingFolders = new Set(importedTypes.map(ct => ct.folder));
-			const newTypes = scannedTypes.filter(ct => !existingFolders.has(ct.folder));
-			
 			// Combine imported and scanned types
-			const allDetectedTypes = [...importedTypes, ...newTypes];
+			// Reconcile: if we have both a short path and a long path that ends with it, prefer the long path
+			const allDetectedTypes: ContentTypeConfig[] = [];
+			
+			// 1. Start with all imported types
+			const imported = [...importedTypes];
+			
+			// 2. Check each scanned type
+			for (const scanned of scannedTypes) {
+				const matchingImportedIndex = imported.findIndex(it => 
+					scanned.folder === it.folder || 
+					scanned.folder.endsWith(`/${it.folder}`) ||
+					it.folder.endsWith(`/${scanned.folder}`)
+				);
+				
+				if (matchingImportedIndex >= 0) {
+					// Reconcile: update the imported one with the longer folder path if it's a match
+					const importedType = imported[matchingImportedIndex];
+					if (scanned.folder.length > importedType.folder.length) {
+						console.debug(`ContentTypeStep: Updating imported type "${importedType.name}" folder from "${importedType.folder}" to "${scanned.folder}"`);
+						imported[matchingImportedIndex] = {
+							...importedType,
+							folder: scanned.folder
+						};
+					}
+				} else {
+					// Not found in imported, add as new detected type
+					allDetectedTypes.push(scanned);
+				}
+			}
+			
+			// Combine reconciled imported types with new detected types
+			allDetectedTypes.push(...imported);
+			
 			const detectedTypesMap = new Map(allDetectedTypes.map(ct => [ct.folder, ct]));
 			
 			// Merge with saved content types, preserving enabled state from saved settings
@@ -255,8 +283,29 @@ export class ContentTypeStep extends BaseWizardStep {
 			for (const folder of allFolders) {
 				if (processedFolders.has(folder)) continue;
 				
-				const savedType = savedContentTypesMap.get(folder);
+				let savedType = savedContentTypesMap.get(folder);
 				const detectedType = detectedTypesMap.get(folder);
+				
+				// RECONCILIATION: If we have a saved type that wasn't detected, check if it's because
+				// it was saved with a short path (e.g. "posts") but now detected with a full path (e.g. "src/content/posts")
+				if (savedType && !detectedType) {
+					// Try to find if this saved type's folder name matches the end of any detected folder
+					const matchingDetected = allDetectedTypes.find(dt => 
+						dt.folder.endsWith(`/${folder}`) || dt.folder === folder
+					);
+					
+					if (matchingDetected && !processedFolders.has(matchingDetected.folder)) {
+						console.debug(`ContentTypeStep: Reconciling saved folder "${folder}" with detected folder "${matchingDetected.folder}"`);
+						// Migrate saved settings to the correct detected folder path
+						mergedTypes.push({
+							...savedType,
+							folder: matchingDetected.folder
+						});
+						processedFolders.add(folder);
+						processedFolders.add(matchingDetected.folder);
+						continue;
+					}
+				}
 				
 				if (savedType) {
 					// Use saved type to preserve enabled state, custom name, and all other settings
@@ -486,7 +535,10 @@ export class ContentTypeStep extends BaseWizardStep {
 			}
 
 			// Link base path for Astro Composer
-			const defaultLinkBasePath = `/${contentType.folder}/`;
+			// Extract folder name from path (e.g., "src/content/posts" -> "posts")
+			const pathParts = contentType.folder.split('/').filter(p => p.length > 0);
+			const folderName = pathParts[pathParts.length - 1] || contentType.folder;
+			const defaultLinkBasePath = `/${folderName}/`;
 			new Setting(stepContentWrapper)
 				.setName(`${contentType.name} - Link base path`)
 				.setDesc(`URL path for this content type (e.g., "/posts/" or "/" for root). Leave blank to use default: ${defaultLinkBasePath}`)

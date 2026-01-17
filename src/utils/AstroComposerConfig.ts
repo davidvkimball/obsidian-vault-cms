@@ -53,7 +53,10 @@ export class AstroComposerConfigurator {
 			const props = frontmatterProperties[defaultContentType.id];
 			let linkBasePath = defaultContentType.linkBasePath;
 			if (linkBasePath === undefined || linkBasePath === '') {
-				linkBasePath = `/${defaultContentType.folder}/`;
+				// Use only the folder name for the default link base path (e.g. "src/content/posts" -> "/posts/")
+				const pathParts = defaultContentType.folder.split('/').filter(p => p.length > 0);
+				const folderName = pathParts[pathParts.length - 1] || defaultContentType.folder;
+				linkBasePath = `/${folderName}/`;
 			}
 			
 			const folderPath = this.pathResolver.getAstroComposerFolderPath(defaultContentType.folder, projectDetection);
@@ -82,8 +85,10 @@ export class AstroComposerConfigurator {
 			// If blank, default to /folderName/. If "/", use "/" for root.
 			let linkBasePath = contentType.linkBasePath;
 			if (linkBasePath === undefined || linkBasePath === '') {
-				// Default: use folder name
-				linkBasePath = `/${contentType.folder}/`;
+				// Use only the folder name for the default link base path (e.g. "src/content/posts" -> "/posts/")
+				const pathParts = contentType.folder.split('/').filter(p => p.length > 0);
+				const folderName = pathParts[pathParts.length - 1] || contentType.folder;
+				linkBasePath = `/${folderName}/`;
 			}
 			// If user specified "/", keep it as "/" for root
 			

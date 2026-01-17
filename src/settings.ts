@@ -50,7 +50,8 @@ export const DEFAULT_SETTINGS: VaultCMSSettings = {
 		descriptionProperty: undefined,
 		scanDirectories: '',
 		useFilenameAsTitle: false,
-		useFilenameAsSlug: true
+		useFilenameAsSlug: true,
+		enableMDXSupport: false
 	},
 	commanderConfig: {
 		pageHeaderCommands: []
