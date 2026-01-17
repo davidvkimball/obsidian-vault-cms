@@ -31,8 +31,17 @@ export class PathResolver {
 		const adapter = this.app.vault.adapter as { basePath?: string; path?: string };
 		const vaultPath = adapter.basePath || adapter.path;
 
-		// 1. If project detection is available, use it to calculate the exact intended path
-		// This is preferred because it handles the "vault at project root" case correctly
+		// 1. Check if folderName is already a valid path in the vault.
+		// This handles cases where folderName is already a vault-relative path (e.g., "src/content/posts"
+		// or a manually selected folder like "blog-posts") and project detection might not be needed.
+		// We prioritize this for manually added folders that are already correctly resolved.
+		const file = this.app.vault.getAbstractFileByPath(folderName);
+		if (file) {
+			return folderName;
+		}
+
+		// 2. If project detection is available, use it to calculate the exact intended path
+		// This is preferred for auto-detected folders because it handles the "vault at project root" case correctly
 		// even if there are folders with matching names elsewhere in the vault.
 		if (projectDetection && projectDetection.projectRoot && vaultPath) {
 			// Resolve project root to absolute path
@@ -58,14 +67,6 @@ export class PathResolver {
 				// Normalize to use forward slashes (works on Windows too)
 				return relativePath.split(path.sep).join('/') || '.';
 			}
-		}
-
-		// 2. Fallback: If folderName is already a valid path in the vault, use it directly
-		// This handles cases where folderName is already a vault-relative path (e.g., "src/content/posts")
-		// and project detection might not be available or correct.
-		const file = this.app.vault.getAbstractFileByPath(folderName);
-		if (file) {
-			return folderName;
 		}
 
 		// 3. Last resort fallback: return folder name as-is

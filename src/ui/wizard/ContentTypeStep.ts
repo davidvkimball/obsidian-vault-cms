@@ -560,15 +560,25 @@ export class ContentTypeStep extends BaseWizardStep {
 			void (async () => {
 				const selectedFolder = this.selectContentTypeFolder();
 				if (selectedFolder) {
-					// Extract folder name from path (last segment)
-					const pathParts = selectedFolder.split(/[/\\]/);
-					const folderName = pathParts[pathParts.length - 1] || selectedFolder;
+					// Calculate relative path from vault root
+					const vaultPath = this.getVaultPath();
+					let folderPath = selectedFolder;
+					
+					// If selected folder is inside the vault, make it relative
+					if (selectedFolder.startsWith(vaultPath)) {
+						folderPath = selectedFolder.substring(vaultPath.length).replace(/^[/\\]+/, '');
+					}
+
+					// Extract folder name from path (last segment) for the display name
+					const pathParts = folderPath.split(/[/\\]/).filter(p => p.length > 0);
+					const leafFolderName = pathParts[pathParts.length - 1] || folderPath;
+					
 					const newType: ContentTypeConfig = {
 						id: `content-type-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
-						name: this.capitalizeFirst(folderName),
-						folder: folderName,
+						name: this.capitalizeFirst(leafFolderName),
+						folder: folderPath,
 						fileOrganization: 'file',
-						enabled: false,
+						enabled: true, // Enable by default so it shows up in Step 5
 						indexFileName: 'index'
 					};
 					this.state.contentTypes.push(newType);
