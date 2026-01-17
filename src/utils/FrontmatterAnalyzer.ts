@@ -53,15 +53,15 @@ export class FrontmatterAnalyzer {
 		return null;
 	}
 
-	async hasUnderscoreFiles(folderPath: string): Promise<boolean> {
+	hasUnderscoreFiles(folderPath: string): Promise<boolean> {
 		const folder = this.app.vault.getAbstractFileByPath(folderPath);
 		
 		if (!(folder instanceof TFolder)) {
-			return false;
+			return Promise.resolve(false);
 		}
 		
 		const files = this.getMarkdownFiles(folder, true);
-		return files.some(file => file.name.startsWith('_'));
+		return Promise.resolve(files.some(file => file.name.startsWith('_')));
 	}
 
 	private getMarkdownFiles(folder: TFolder, recursive: boolean = true, maxDepth?: number, currentDepth: number = 0): TFile[] {

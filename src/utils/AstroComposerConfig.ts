@@ -235,6 +235,14 @@ export class AstroComposerConfigurator {
 			if (config.terminalProjectRootPath) {
 				pluginSettings.terminalProjectRootPath = config.terminalProjectRootPath;
 			}
+
+			// Ensure commands are enabled only if paths are present
+			if (config.configFilePath && config.terminalProjectRootPath) {
+				pluginSettings.enableOpenTerminalCommand = true;
+				pluginSettings.enableOpenConfigFileCommand = true;
+				pluginSettings.enableTerminalRibbonIcon = true;
+				pluginSettings.enableConfigRibbonIcon = true;
+			}
 			
 			// Update MDX support flag
 			if (config.showMdxFilesInExplorer !== undefined) {
@@ -348,6 +356,14 @@ export class AstroComposerConfigurator {
 		if (config.configFilePath) existingData.configFilePath = config.configFilePath;
 		if (config.terminalProjectRootPath) existingData.terminalProjectRootPath = config.terminalProjectRootPath;
 		if (config.showMdxFilesInExplorer !== undefined) existingData.showMdxFilesInExplorer = config.showMdxFilesInExplorer;
+
+		// Ensure commands are enabled only if paths are present
+		if (config.configFilePath && config.terminalProjectRootPath) {
+			existingData.enableOpenTerminalCommand = true;
+			existingData.enableOpenConfigFileCommand = true;
+			existingData.enableTerminalRibbonIcon = true;
+			existingData.enableConfigRibbonIcon = true;
+		}
 		
 		// Update contentTypes array (new unified structure)
 		if (!Array.isArray(existingData.contentTypes)) {

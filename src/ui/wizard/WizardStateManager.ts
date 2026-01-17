@@ -80,7 +80,8 @@ export class WizardStateManager {
 			imageInserter: settings.imageInserter || { valueFormat: '[[attachments/{image-url}]]', insertFormat: '[[attachments/{image-url}]]' },
 			imageManager: settings.imageManager || {},
 			homeBase: settings.homeBase || {},
-			explorerFocus: settings.explorerFocus || {}
+			explorerFocus: settings.explorerFocus || {},
+			ignoreConfig: settings.ignoreConfig || { gitIgnoreConfigured: false, viteIgnoreConfigured: false }
 		};
 	}
 
@@ -271,5 +272,6 @@ export class WizardStateManager {
 		settings.imageManager = this.state.imageManager;
 		settings.homeBase = this.state.homeBase;
 		settings.explorerFocus = this.state.explorerFocus;
+		settings.ignoreConfig = this.state.ignoreConfig;
 	}
 }

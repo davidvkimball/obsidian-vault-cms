@@ -21,6 +21,7 @@ import { BasesCMSConfigStep } from './wizard/BasesCMSConfigStep';
 import { AstroComposerStep } from './wizard/AstroComposerStep';
 import { SEOConfigStep } from './wizard/SEOConfigStep';
 import { OptionalPluginsStep } from './wizard/OptionalPluginsStep';
+import { IgnoreStep } from './wizard/IgnoreStep';
 import { FinalizeStep } from './wizard/FinalizeStep';
 
 export class SetupWizardModal extends Modal {
@@ -58,6 +59,7 @@ export class SetupWizardModal extends Modal {
 			AstroComposerStep,
 			SEOConfigStep,
 			OptionalPluginsStep,
+			IgnoreStep,
 			FinalizeStep
 		];
 	}

@@ -293,41 +293,55 @@ export class FinalizeStep extends BaseWizardStep {
 	 * Find any active Bases views and switch them to the new default view.
 	 * Closes old tabs and reopens them to force a clean reload if not restarting.
 	 */
-	private async updateActiveBasesViews(defaultViewName: string, shouldRestart: boolean): Promise<void> {
+	private async updateActiveBasesViews(defaultViewName: string, _shouldRestart: boolean): Promise<void> {
 		const baseFilePath = await this.basesCMSConfigurator.resolveBaseFilePath();
-		let reopened = false;
+		let updated = false;
 		
-		// Collect leaves to close
-		const leavesToClose: WorkspaceLeaf[] = [];
+		// Find any active Bases views and update them instead of detaching
+		interface BasesLeafState {
+			leaf: WorkspaceLeaf;
+			state: {
+				type: string;
+				active: boolean;
+				state: {
+					file: string;
+					view?: string;
+					[key: string]: unknown;
+				};
+				[key: string]: unknown;
+			};
+		}
+		const leavesToUpdate: BasesLeafState[] = [];
 		this.app.workspace.iterateAllLeaves((leaf) => {
 			const viewType = leaf.view.getViewType();
 			if (viewType === 'bases' || viewType === 'bases-cms') {
 				const state = leaf.getViewState();
 				if (state.state?.file === baseFilePath) {
-					leavesToClose.push(leaf);
+					console.debug('FinalizeStep: Found Bases leaf to update');
+					leavesToUpdate.push({ leaf, state: state as BasesLeafState['state'] });
 				}
 			}
 		});
 
-		// Close leaves
-		for (const leaf of leavesToClose) {
-			console.debug('FinalizeStep: Closing old Bases leaf');
-			leaf.detach();
+		// Update existing leaves
+		for (const { leaf, state } of leavesToUpdate) {
+			console.debug('FinalizeStep: Updating existing Bases leaf state');
+			// Update existing leaf state to switch to the new default view
+			await leaf.setViewState({
+				...state,
+				state: {
+					...state.state,
+					view: defaultViewName
+				}
+			});
+			updated = true;
 		}
 
-		// Reopen if not restarting
-		if (!shouldRestart && leavesToClose.length > 0 && !reopened) {
-			console.debug('FinalizeStep: Reopening Bases leaf with fresh state');
+		// If no Bases views were found/updated, open a new one
+		if (!updated) {
+			console.debug('FinalizeStep: Opening new Bases leaf with fresh state');
 			
-			// Safer way to get a leaf that works even if no tab groups exist
-			let leaf: WorkspaceLeaf;
-			try {
-				leaf = this.app.workspace.getLeaf('tab');
-			} catch (e) {
-				console.debug('FinalizeStep: Could not get tab leaf, falling back to default leaf');
-				leaf = this.app.workspace.getLeaf(false);
-			}
-			
+			const leaf = this.app.workspace.getLeaf('tab');
 			await leaf.setViewState({
 				type: 'bases-cms',
 				active: true,
@@ -337,7 +351,6 @@ export class FinalizeStep extends BaseWizardStep {
 				}
 			});
 			this.app.workspace.setActiveLeaf(leaf, { focus: true });
-			reopened = true;
 		}
 	}
 

@@ -51,6 +51,12 @@ export interface WizardState {
 	imageManager: ImageManagerConfig;
 	homeBase: HomeBaseConfig;
 	explorerFocus: ExplorerFocusConfig;
+	ignoreConfig: IgnoreConfig;
+}
+
+export interface IgnoreConfig {
+	gitIgnoreConfigured: boolean;
+	viteIgnoreConfigured: boolean;
 }
 
 export interface BasesCMSConfig {

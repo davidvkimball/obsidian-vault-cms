@@ -32,8 +32,12 @@ export class PluginManager {
 	}
 
 	async setPluginStates(enabled: string[], disabled: string[]): Promise<void> {
+		// Filter out core plugins from disabled list just in case
+		const corePlugins = ['bases-cms', 'astro-composer', 'vault-cms'];
+		const safeDisabled = disabled.filter(p => !corePlugins.includes(p));
+
 		// Disable plugins first
-		for (const pluginId of disabled) {
+		for (const pluginId of safeDisabled) {
 			await this.disablePlugin(pluginId);
 		}
 
