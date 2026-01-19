@@ -1,5 +1,23 @@
 import { BaseWizardStep } from './BaseWizardStep';
 
+/**
+ * Helper function for setCssProps
+ */
+function setCssProps(element: HTMLElement, props: Record<string, string>): void {
+	for (const [key, value] of Object.entries(props)) {
+		element.style.setProperty(key.replace(/([A-Z])/g, '-$1').toLowerCase(), value);
+	}
+}
+
+interface ObsidianSetting {
+	open(): void;
+	openTabById(id: string): void;
+}
+
+interface ObsidianAppWithSetting {
+	setting: ObsidianSetting;
+}
+
 export class WelcomeStep extends BaseWizardStep {
 	display(): void {
 		const { containerEl } = this;
@@ -28,9 +46,11 @@ export class WelcomeStep extends BaseWizardStep {
 		});
 
 		const buttonContainer = containerEl.createDiv('wizard-welcome-buttons');
-		buttonContainer.style.display = 'flex';
-		buttonContainer.style.gap = '10px';
-		buttonContainer.style.marginTop = '20px';
+		setCssProps(buttonContainer, {
+			display: 'flex',
+			gap: '10px',
+			marginTop: '20px'
+		});
 
 		const getStartedBtn = buttonContainer.createEl('button', {
 			text: 'Get started',
@@ -47,10 +67,14 @@ export class WelcomeStep extends BaseWizardStep {
 		selectPresetBtn.addEventListener('click', () => {
 			// Close modal and open settings tab
 			this.onCancel();
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			(this.app as any).setting.open();
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			(this.app as any).setting.openTabById('vault-cms');
+			
+			const appWithSetting = this.app as unknown as ObsidianAppWithSetting;
+			if (appWithSetting.setting && typeof appWithSetting.setting.open === 'function') {
+				appWithSetting.setting.open();
+				if (typeof appWithSetting.setting.openTabById === 'function') {
+					appWithSetting.setting.openTabById('vault-cms');
+				}
+			}
 		});
 	}
 

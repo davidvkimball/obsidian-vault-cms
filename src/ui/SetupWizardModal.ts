@@ -1,6 +1,8 @@
 import { App, Modal, Notice } from 'obsidian';
 
-// Helper function for setCssProps (may not be in types yet)
+/**
+ * Helper function for setCssProps
+ */
 function setCssProps(element: HTMLElement, props: Record<string, string>): void {
 	for (const [key, value] of Object.entries(props)) {
 		const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase();
@@ -211,7 +213,10 @@ export class SetupWizardModal extends Modal {
 		if (this.stateManager.getState().currentStep === 0) {
 			const startupSetting = footer.createDiv('wizard-startup-setting-footer');
 			const label = startupSetting.createEl('label', { cls: 'wizard-checkbox-label' });
+			// Ensure cursor is default when hovering over the label/checkbox
+			setCssProps(label, { cursor: 'default' });
 			const checkbox = label.createEl('input', { type: 'checkbox' });
+			setCssProps(checkbox, { cursor: 'default' });
 			checkbox.checked = !this.plugin.settings.runWizardOnStartup;
 			label.createSpan({ text: " I've already set up my vault, don't show on startup" });
 			
@@ -339,7 +344,7 @@ export class SetupWizardModal extends Modal {
 				if (shouldRestart) {
 					// Small delay to ensure Notice is visible and settings are saved
 					setTimeout(() => {
-						interface AppWithCommands {
+						interface AppWithCommands extends App {
 							commands: {
 								executeCommandById(id: string): void;
 							};
