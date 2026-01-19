@@ -9,6 +9,8 @@ export interface VaultCMSSettings {
 	attachmentHandlingMode: 'specified-folder' | 'same-folder' | 'subfolder';
 	attachmentFolderName?: string;
 	preset: 'vanilla' | 'opinionated' | 'custom';
+	presetName: string;
+	presetsRepo: string;
 	enableWYSIWYG: boolean;
 	enableMdxSupport?: boolean;
 	enabledPlugins: string[];
@@ -36,6 +38,8 @@ export const DEFAULT_SETTINGS: VaultCMSSettings = {
 	attachmentHandlingMode: 'subfolder',
 	attachmentFolderName: undefined,
 	preset: 'vanilla',
+	presetName: '',
+	presetsRepo: 'davidvkimball/vault-cms-presets',
 	enableWYSIWYG: false,
 	enabledPlugins: [],
 	disabledPlugins: [],

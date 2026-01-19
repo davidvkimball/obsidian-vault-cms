@@ -220,33 +220,41 @@ export class IgnoreStep extends BaseWizardStep {
 
 			// Find the config object start - look for export default and then the first brace
 			const exportIdx = content.lastIndexOf('export default');
-			if (exportIdx === -1) {
-				new Notice('Could not find "export default" in astro.config. Please configure manually.');
-				return Promise.resolve();
-			}
-
-			const startIndex = content.indexOf('{', exportIdx);
-			if (startIndex === -1) {
-				new Notice('Could not find configuration start brace in astro.config. Please configure manually.');
-				return Promise.resolve();
-			}
-
-			// Find matching closing brace
-			let braceCount = 0;
+			let startIndex = -1;
 			let endIndex = -1;
-			for (let i = startIndex; i < content.length; i++) {
-				if (content[i] === '{') braceCount++;
-				else if (content[i] === '}') braceCount--;
-				
-				if (braceCount === 0) {
-					endIndex = i;
-					break;
+			let configBody = '';
+			let isWholeFile = false;
+
+			if (exportIdx !== -1) {
+				startIndex = content.indexOf('{', exportIdx);
+				if (startIndex !== -1) {
+					// Find matching closing brace
+					let braceCount = 0;
+					for (let i = startIndex; i < content.length; i++) {
+						if (content[i] === '{') braceCount++;
+						else if (content[i] === '}') braceCount--;
+						
+						if (braceCount === 0) {
+							endIndex = i;
+							break;
+						}
+					}
+					
+					if (endIndex !== -1) {
+						configBody = content.substring(startIndex + 1, endIndex);
+					}
 				}
 			}
 
-			if (endIndex !== -1) {
-				let configBody = content.substring(startIndex + 1, endIndex);
-				
+			// Fallback: if we couldn't find a clear config object after export default,
+			// check if the file seems to contain a vite config anywhere
+			if (!configBody && (content.includes('vite:') || content.includes('server:'))) {
+				configBody = content;
+				isWholeFile = true;
+				console.debug(`IgnoreStep: Falling back to whole-file parsing for ${configFileName}`);
+			}
+
+			if (configBody) {
 				// Check if vite block exists
 				if (configBody.includes('vite:')) {
 					if (configBody.includes('server:')) {
@@ -269,16 +277,36 @@ export class IgnoreStep extends BaseWizardStep {
 						configBody = configBody.replace(/vite:\s*\{/, `vite: {\n    server: {\n      watch: {\n        ignored: ['**/${configDir}/**', '**/_bases/**', '**/bases/**']\n      }\n    },`);
 					}
 				} else {
-					configBody = `\n  vite: {\n    server: {\n      watch: {\n        ignored: ['**/${configDir}/**', '**/_bases/**', '**/bases/**']\n      }\n    }\n  },` + configBody;
+					// For whole file fallback, we need to be careful where we insert.
+					// If it's the whole file, we'll try to insert before the last brace if it's a simple export,
+					// or just at the end if it's a function.
+					// But for the config object approach, we insert at the beginning.
+					if (isWholeFile) {
+						// Best effort for whole file: find where defineConfig or export default is
+						if (content.includes('defineConfig')) {
+							configBody = configBody.replace(/defineConfig\s*\(\s*\{/, `defineConfig({\n  vite: {\n    server: {\n      watch: {\n        ignored: ['**/${configDir}/**', '**/_bases/**', '**/bases/**']\n      }\n    }\n  },`);
+						} else {
+							// Last resort: prepend
+							configBody = `// Vite optimization\n// vite: { server: { watch: { ignored: ['**/${configDir}/**', '**/_bases/**', '**/bases/**'] } } }\n` + configBody;
+							new Notice(`Could not find a clear place to insert Vite config in ${configFileName}. Please configure manually.`);
+							return Promise.resolve();
+						}
+					} else {
+						configBody = `\n  vite: {\n    server: {\n      watch: {\n        ignored: ['**/${configDir}/**', '**/_bases/**', '**/bases/**']\n      }\n    }\n  },` + configBody;
+					}
 				}
 
-				const updatedContent = content.substring(0, startIndex + 1) + configBody + content.substring(endIndex);
+				const updatedContent = isWholeFile ? configBody : (content.substring(0, startIndex + 1) + configBody + content.substring(endIndex));
 				fs.writeFileSync(resolvedConfigPath, updatedContent, 'utf8');
 				this.viteIgnoreStatus = 'configured';
 				this.state.ignoreConfig.viteIgnoreConfigured = true;
 				new Notice(`Vite optimization applied to ${configFileName}`);
 			} else {
-				new Notice(`Could not find configuration end brace in ${configFileName}. Please configure manually.`);
+				if (exportIdx === -1) {
+					new Notice(`Could not find "export default" in ${configFileName}. Please configure manually.`);
+				} else {
+					new Notice(`Could not find configuration start brace in ${configFileName}. Please configure manually.`);
+				}
 			}
 		} catch (error) {
 			console.error(`IgnoreStep: Error updating ${configFileName}:`, error);

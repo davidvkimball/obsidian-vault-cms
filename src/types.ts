@@ -36,6 +36,8 @@ export interface WizardState {
 	attachmentHandlingMode: 'specified-folder' | 'same-folder' | 'subfolder'; // Global attachment handling
 	attachmentFolderName?: string; // Folder name for specified-folder or subfolder modes (defaults to "attachments")
 	preset: 'vanilla' | 'opinionated' | 'custom';
+	presetName: string;
+	presetsRepo: string;
 	enableWYSIWYG: boolean;
 	enableMdxSupport?: boolean; // MDX file support flag (optional to allow auto-detection)
 	enabledPlugins: string[];

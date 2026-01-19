@@ -58,6 +58,8 @@ export class WizardStateManager {
 			attachmentHandlingMode: attachmentHandlingMode || 'subfolder',
 			attachmentFolderName: attachmentFolderName,
 			preset: settings.preset || 'vanilla',
+			presetName: settings.presetName || '',
+			presetsRepo: settings.presetsRepo || 'davidvkimball/vault-cms-presets',
 			enableWYSIWYG: settings.enableWYSIWYG ?? false,
 			enableMdxSupport: settings.enableMdxSupport,
 			enabledPlugins: settings.enabledPlugins || [],
@@ -170,6 +172,8 @@ export class WizardStateManager {
 		}
 		
 		this.state.preset = settings.preset || 'vanilla';
+		this.state.presetName = settings.presetName || '';
+		this.state.presetsRepo = settings.presetsRepo || 'vaultcms/vault-cms-presets';
 		
 		// Sync enableWYSIWYG with actual plugin state
 		const actualVisibility = await this.commanderConfigurator.getEditingToolbarVisibility(this.plugin.app);
@@ -266,6 +270,8 @@ export class WizardStateManager {
 		settings.attachmentHandlingMode = this.state.attachmentHandlingMode;
 		settings.attachmentFolderName = this.state.attachmentFolderName;
 		settings.preset = this.state.preset;
+		settings.presetName = this.state.presetName || '';
+		settings.presetsRepo = this.state.presetsRepo || 'davidvkimball/vault-cms-presets';
 		settings.enableWYSIWYG = this.state.enableWYSIWYG;
 		settings.enableMdxSupport = this.state.enableMdxSupport ?? false;
 		settings.enabledPlugins = this.state.enabledPlugins;

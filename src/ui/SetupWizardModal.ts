@@ -243,22 +243,25 @@ export class SetupWizardModal extends Modal {
 
 		// Next/Complete button
 		if (this.stateManager.canGoNext(this.steps.length)) {
-			const nextBtn = buttons.createEl('button', {
-				text: 'Next',
-				cls: 'mod-button mod-cta'
-			});
-			nextBtn.addEventListener('click', () => {
-				// Save current step changes to wizard state and data.json
-				void (async () => {
-					if (this.currentStepInstance && this.currentStepInstance.validate()) {
-						await this.saveCurrentStepToWizardState();
-						// Track that this step was saved
-						this.lastSavedStepIndex = this.stateManager.getState().currentStep;
-						this.stateManager.nextStep();
-						await this.renderCurrentStep();
-					}
-				})();
-			});
+			// Don't show "Next" button on the first step (WelcomeStep)
+			if (this.stateManager.getState().currentStep !== 0) {
+				const nextBtn = buttons.createEl('button', {
+					text: 'Next',
+					cls: 'mod-button mod-cta'
+				});
+				nextBtn.addEventListener('click', () => {
+					// Save current step changes to wizard state and data.json
+					void (async () => {
+						if (this.currentStepInstance && this.currentStepInstance.validate()) {
+							await this.saveCurrentStepToWizardState();
+							// Track that this step was saved
+							this.lastSavedStepIndex = this.stateManager.getState().currentStep;
+							this.stateManager.nextStep();
+							await this.renderCurrentStep();
+						}
+					})();
+				});
+			}
 		} else {
 			// Final step - provide Apply and Apply and restart options
 			if (this.currentStepInstance instanceof FinalizeStep) {
@@ -291,17 +294,20 @@ export class SetupWizardModal extends Modal {
 
 		// Skip button (for all steps except the last)
 		if (this.stateManager.canGoNext(this.steps.length)) {
-			const skipBtn = buttons.createEl('button', {
-				text: 'Skip',
-				cls: 'mod-button'
-			});
-			skipBtn.addClass('wizard-skip-button');
-			setCssProps(skipBtn, { opacity: '0.6' });
-			skipBtn.addEventListener('click', () => {
-				// Skip without saving current step changes to wizard state
-				this.stateManager.nextStep();
-				void this.renderCurrentStep();
-			});
+			// Don't show "Skip" button on the first step (WelcomeStep)
+			if (this.stateManager.getState().currentStep !== 0) {
+				const skipBtn = buttons.createEl('button', {
+					text: 'Skip',
+					cls: 'mod-button'
+				});
+				skipBtn.addClass('wizard-skip-button');
+				setCssProps(skipBtn, { opacity: '0.6' });
+				skipBtn.addEventListener('click', () => {
+					// Skip without saving current step changes to wizard state
+					this.stateManager.nextStep();
+					void this.renderCurrentStep();
+				});
+			}
 		}
 	}
 
