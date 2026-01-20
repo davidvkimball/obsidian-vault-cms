@@ -3,7 +3,7 @@ import VaultCMSPlugin from '../main';
 import { SetupWizardModal } from './SetupWizardModal';
 import { createSettingsGroup } from '../utils/settings-compat';
 import { PresetManager } from '../utils/PresetManager';
-import { ProjectOptimizer, OptimizationStatus } from '../utils/ProjectOptimizer';
+import { ProjectOptimizer } from '../utils/ProjectOptimizer';
 import { WizardState } from '../types';
 
 export class SettingsTab extends PluginSettingTab {
@@ -159,7 +159,9 @@ export class SettingsTab extends PluginSettingTab {
 	}
 
 	private updateViteSetting(status: 'configured' | 'not-configured') {
+		// eslint-disable-next-line obsidianmd/ui/sentence-case
 		this.viteSetting.setName('Ignore in Vite')
+			// eslint-disable-next-line obsidianmd/ui/sentence-case
 			.setDesc('Configure Vite to ignore internal folders')
 			.clear(); // Clear existing buttons and status
 			
