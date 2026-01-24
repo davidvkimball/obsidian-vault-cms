@@ -1,34 +1,33 @@
 ---
 name: project
-description: Project-specific architecture, maintenance tasks, and unique conventions for this repository. Load when performing project-wide maintenance or working with the core architecture.
+description: Project-specific architecture, maintenance tasks, and unique conventions for Vault CMS.
 ---
 
-# Project Context
+# Vault CMS Project Skill
 
-This skill provides the unique context and architectural details for the **Obsidian Sample Plugin Plus** repository.
+Companion plugin for Vault CMS with setup wizard. This plugin facilitates the connection between a local Obsidian vault and the external Vault CMS platform, managing API keys and workspace initialization.
 
-## Purpose
+## Core Architecture
 
-To provide guidance on project-specific structures and tasks that differ from general Obsidian development patterns.
-
-## When to Use
-
-Load this skill when:
-- Understanding the repository's unique architecture.
-- Performing recurring maintenance tasks.
-- Following project-specific coding conventions.
-
-## Project Overview
-
-- **Architecture**: Organized structure with main code in `src/main.ts` and settings in `src/settings.ts`.
-- **Reference Management**: Uses a `.ref` folder with symlinks to centralized Obsidian repositories for API and documentation.
-
-## Maintenance Tasks
-
-- **Sync References**: Run the setup scripts (`scripts/setup-ref-links.*`) to update symlinks to the 6 core Obsidian projects.
-- **Update Skills**: Use `node scripts/update-agents.mjs "Description"` after syncing or updating reference materials.
+- **Onboarding System**: Primarily focused on a "Setup Wizard" for environment configuration.
+- **API Integration**: Manages communication markers and keys for the external Vault CMS application.
+- **Minimalist Sidebar**: Uses a 2.1KB `styles.css` for a lightweight initialization interface.
 
 ## Project-Specific Conventions
 
-- **Organized Source**: Prefer keeping logic separated into files within `src/` rather than bloating `main.ts`.
-- **Ref Symlinks**: Always use the `.ref/` path when looking up API documentation to ensure parity with the central reference store.
+- **Wizard-Driven**: Logic is heavily focused on the initial onboarding flow.
+- **Security First**: Prioritizes secure handling of API credentials.
+- **Companion Logic**: Functions as an bridge, deferring heavy content management to the external CMS application.
+
+## Key Files
+
+- `src/main.ts`: Setup wizard orchestration and API connection logic.
+- `manifest.json`: Configuration and plugin id (`vault-cms`).
+- `styles.css`: Styles for the setup wizard and status indicators.
+- `version-bump.mjs`: Customized version management script.
+
+## Maintenance Tasks
+
+- **API Versioning**: Monitor changes in the Vault CMS backend API for compatibility.
+- **Wizard Testing**: Ensure the onboarding flow correctly detects existing vault configurations.
+- **Dependency Audit**: Check for security updates in the communication libraries.
