@@ -1,5 +1,5 @@
 import { App, setIcon } from 'obsidian';
-// eslint-disable-next-line import/no-nodejs-modules
+// eslint-disable-next-line import/no-nodejs-modules -- Node.js module needed for path operations
 import * as path from 'path';
 import { WizardState } from '../types';
 
@@ -75,9 +75,9 @@ export class ProjectOptimizer {
 		return status;
 	}
 
-	public async configureGitIgnore(): Promise<void> {
+	public async configureGitIgnore(): Promise<boolean> {
 		const projectRoot = this.state.projectDetection?.projectRoot;
-		if (!projectRoot) return;
+		if (!projectRoot) return false;
 
 		const configDir = this.app.vault.configDir;
 		const gitIgnorePath = path.join(projectRoot, '.gitignore').replace(/\\/g, '/');
@@ -94,15 +94,16 @@ export class ProjectOptimizer {
 			} else {
 				await adapter.write(gitIgnorePath, rules);
 			}
+			return true;
 		} catch (error) {
 			console.error('Failed to update .gitignore:', error);
 			throw error;
 		}
 	}
 
-	public async configureViteIgnore(): Promise<void> {
+	public async configureViteIgnore(): Promise<boolean> {
 		const projectRoot = this.state.projectDetection?.projectRoot;
-		if (!projectRoot) return;
+		if (!projectRoot) return false;
 
 		const configDir = this.app.vault.configDir;
 		const adapter = this.app.vault.adapter;
@@ -133,7 +134,7 @@ export class ProjectOptimizer {
 			const content = await adapter.read(resolvedConfigPath);
 			
 			if (content.includes('server.watch.ignored') && content.includes(configDir)) {
-				return;
+				return true;
 			}
 
 			const exportIdx = content.lastIndexOf('export default');
@@ -202,6 +203,7 @@ export class ProjectOptimizer {
 
 				const updatedContent = isWholeFile ? configBody : (content.substring(0, startIndex + 1) + configBody + content.substring(endIndex));
 				await adapter.write(resolvedConfigPath, updatedContent);
+				return true;
 			} else {
 				throw new Error(`Could not parse configuration in ${configFileName}.`);
 			}

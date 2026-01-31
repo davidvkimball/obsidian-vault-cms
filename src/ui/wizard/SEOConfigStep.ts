@@ -14,12 +14,8 @@ export class SEOConfigStep extends BaseWizardStep {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		// False positive: "SEO" is an acronym and should be capitalized
-		// eslint-disable-next-line obsidianmd/ui/sentence-case
 		containerEl.createEl('h2', { text: 'SEO plugin configuration' });
-		containerEl.createEl('p', { 
-			// False positive: "SEO" is an acronym and should be capitalized
-			// eslint-disable-next-line obsidianmd/ui/sentence-case
+		containerEl.createEl('p', {
 			text: 'SEO plugin will be configured using your mapped frontmatter properties.' 
 		});
 
@@ -53,14 +49,11 @@ export class SEOConfigStep extends BaseWizardStep {
 				marginBottom: '15px'
 			});
 			
-			warningDiv.createEl('p', { 
-				// eslint-disable-next-line obsidianmd/ui/sentence-case
+			warningDiv.createEl('p', {
 				text: '⚠️ Warning: Different content types use different properties for title or description.',
 				attr: { style: 'margin: 0 0 5px 0; font-weight: bold;' }
 			});
-			warningDiv.createEl('p', { 
-				// False positive: "SEO" is an acronym and should be capitalized
-				// eslint-disable-next-line obsidianmd/ui/sentence-case
+			warningDiv.createEl('p', {
 				text: 'The SEO plugin will use the first content type\'s properties. You may need to manually configure SEO settings for other content types.',
 				attr: { style: 'margin: 0;' }
 			});

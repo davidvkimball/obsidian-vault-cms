@@ -48,7 +48,7 @@ export function createSettingsGroup(
 	if (requireApiVersion('1.11.0')) {
 		// Use dynamic require() to access SettingGroup at runtime
 		// This avoids TypeScript errors when SettingGroup isn't in type definitions
-		// eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef
+		// eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef -- dynamic require for Obsidian API
 		const obsidian = require('obsidian') as { SettingGroup?: SettingGroupConstructor };
 		const SettingGroup = obsidian.SettingGroup as SettingGroupConstructor;
 		

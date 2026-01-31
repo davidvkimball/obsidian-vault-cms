@@ -23,22 +23,17 @@ export class WelcomeStep extends BaseWizardStep {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		// eslint-disable-next-line obsidianmd/ui/sentence-case
 		containerEl.createEl('h2', { text: 'Welcome to Vault CMS' });
-		containerEl.createEl('p', { 
-			// eslint-disable-next-line obsidianmd/ui/sentence-case
-			text: 'This wizard will help you configure Vault CMS for your project. We\'ll guide you through:' 
+		containerEl.createEl('p', {
+			text: 'This wizard will help you configure Vault CMS for your project. We\'ll guide you through:'
 		});
 
 		const list = containerEl.createEl('ul');
-		// eslint-disable-next-line obsidianmd/ui/sentence-case
 		list.createEl('li', { text: 'Detecting your Astro project structure' });
 		list.createEl('li', { text: 'Identifying your content types' });
 		list.createEl('li', { text: 'Mapping frontmatter properties' });
 		list.createEl('li', { text: 'Configuring plugins and themes' });
-		// eslint-disable-next-line obsidianmd/ui/sentence-case
 		list.createEl('li', { text: 'Setting up Home Base content views' });
-		// eslint-disable-next-line obsidianmd/ui/sentence-case
 		list.createEl('li', { text: 'Configuring Astro Composer and SEO plugins' });
 
 		containerEl.createEl('p', { 

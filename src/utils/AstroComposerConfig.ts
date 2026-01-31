@@ -1,6 +1,7 @@
-import { App, TFile } from 'obsidian';
+import { App } from 'obsidian';
 import { AstroComposerConfig, ContentTypeConfig, FrontmatterProperties, ProjectDetectionResult } from '../types';
 import { PathResolver } from './PathResolver';
+import { SafeConfigWriter } from './SafeConfigWriter';
 
 type PluginWithSettings = {
 	settings?: Record<string, unknown>;
@@ -16,10 +17,12 @@ export class AstroComposerConfigurator {
 	private frontmatterProperties?: { [contentTypeId: string]: FrontmatterProperties };
 	private contentTypes?: ContentTypeConfig[];
 	private pathResolver: PathResolver;
+	private safeWriter: SafeConfigWriter;
 
 	constructor(app: App) {
 		this.app = app;
 		this.pathResolver = new PathResolver(app);
+		this.safeWriter = new SafeConfigWriter(app);
 	}
 
 	configureAstroComposer(
@@ -258,26 +261,43 @@ export class AstroComposerConfigurator {
 				pluginSettings.contentTypes = [];
 			}
 			
-			// Merge/update contentTypes array - match by name AND folder to find existing entries
+			// Merge/update contentTypes array - match by ID first, then fallback to name+folder
 			for (const newType of config.customContentTypes) {
 				// Find the corresponding frontmatter properties to check draft status
 				const contentType = this.contentTypes?.find(ct => ct.id === newType.id);
 				const props = contentType && this.frontmatterProperties ? this.frontmatterProperties[contentType.id] : undefined;
-				
+
 				// Determine if underscore prefix should be enabled
 				// Enable if hasDraftStatus is true but draftProperty is blank/undefined
 				const shouldEnableUnderscorePrefix = props?.hasDraftStatus === true && !props?.draftProperty;
-				
-				// Find existing entry by name AND folder (not just id, since ids might differ)
+
+				// Find existing entry - prefer ID matching, fallback to name+folder for duplicate detection
 				const contentTypes = (pluginSettings.contentTypes as Array<Record<string, unknown>>) || [];
-				const existingIndex = contentTypes.findIndex((ct: { name?: string; folder?: string }) => 
-					ct.name === newType.name && ct.folder === newType.folder
-				);
+				let existingIndex = -1;
+				let matchedById = false;
+
+				// First, try to match by ID (preferred - unique identifier)
+				if (newType.id) {
+					existingIndex = contentTypes.findIndex((ct: { id?: string }) => ct.id === newType.id);
+					if (existingIndex >= 0) {
+						matchedById = true;
+					}
+				}
+
+				// Fallback to name+folder for duplicate detection (prevents creating duplicates)
+				if (existingIndex < 0) {
+					existingIndex = contentTypes.findIndex((ct: { name?: string; folder?: string }) =>
+						ct.name === newType.name && ct.folder === newType.folder
+					);
+				}
 				if (existingIndex >= 0) {
-					// Update existing entry - preserve other properties like ignoreSubfolders, enableUnderscorePrefix, and existing id
-					const existingEntry = contentTypes[existingIndex];
+					// Update existing entry - preserve other properties like ignoreSubfolders, enableUnderscorePrefix
+					// IMPORTANT: Preserve the existing ID when matched by name+folder (don't overwrite with new ID)
+					const existingEntry = contentTypes[existingIndex] as { id?: string };
 					contentTypes[existingIndex] = {
 						...existingEntry,
+						// Only update ID if we matched by ID, otherwise keep existing ID for consistency
+						id: matchedById ? newType.id : (existingEntry.id || newType.id),
 						name: newType.name,
 						folder: newType.folder,
 						linkBasePath: newType.linkBasePath,
@@ -327,20 +347,11 @@ export class AstroComposerConfigurator {
 
 	private async saveConfigFallback(config: AstroComposerConfig): Promise<void> {
 		const pluginId = 'astro-composer';
-		const configDir = this.app.vault.configDir;
-		const pluginDataPath = `${configDir}/plugins/${pluginId}/data.json`;
-		
-		let existingData: Record<string, unknown> = {};
-		const dataFile = this.app.vault.getAbstractFileByPath(pluginDataPath);
-		
-		// Read existing data if file exists
-		if (dataFile && dataFile instanceof TFile) {
-			try {
-				existingData = JSON.parse(await this.app.vault.read(dataFile)) as Record<string, unknown>;
-			} catch (error: unknown) {
-				console.warn('Failed to parse existing Astro Composer data.json, starting fresh:', error);
-				existingData = {};
-			}
+
+		// Read existing data safely
+		let existingData = await this.safeWriter.readConfig(pluginId);
+		if (!existingData) {
+			existingData = {};
 		}
 		
 		// Merge config into existing data
@@ -370,26 +381,43 @@ export class AstroComposerConfigurator {
 			existingData.contentTypes = [];
 		}
 		
-		// Merge/update contentTypes array - match by name AND folder to find existing entries
+		// Merge/update contentTypes array - match by ID first, then fallback to name+folder
 		for (const newType of config.customContentTypes) {
 			// Find the corresponding frontmatter properties to check draft status
 			const contentType = this.contentTypes?.find(ct => ct.id === newType.id);
 			const props = contentType && this.frontmatterProperties ? this.frontmatterProperties[contentType.id] : undefined;
-			
+
 			// Determine if underscore prefix should be enabled
 			// Enable if hasDraftStatus is true but draftProperty is blank/undefined
 			const shouldEnableUnderscorePrefix = props?.hasDraftStatus === true && !props?.draftProperty;
-			
-			// Find existing entry by name AND folder (not just id, since ids might differ)
+
+			// Find existing entry - prefer ID matching, fallback to name+folder for duplicate detection
 			const contentTypes = (existingData.contentTypes as Array<Record<string, unknown>>) || [];
-			const existingIndex = contentTypes.findIndex((ct: { name?: string; folder?: string }) => 
-				ct.name === newType.name && ct.folder === newType.folder
-			);
+			let existingIndex = -1;
+			let matchedById = false;
+
+			// First, try to match by ID (preferred - unique identifier)
+			if (newType.id) {
+				existingIndex = contentTypes.findIndex((ct: { id?: string }) => ct.id === newType.id);
+				if (existingIndex >= 0) {
+					matchedById = true;
+				}
+			}
+
+			// Fallback to name+folder for duplicate detection (prevents creating duplicates)
+			if (existingIndex < 0) {
+				existingIndex = contentTypes.findIndex((ct: { name?: string; folder?: string }) =>
+					ct.name === newType.name && ct.folder === newType.folder
+				);
+			}
 			if (existingIndex >= 0) {
-				// Update existing entry - preserve other properties and existing id
-				const existingEntry = contentTypes[existingIndex];
+				// Update existing entry - preserve other properties
+				// IMPORTANT: Preserve the existing ID when matched by name+folder (don't overwrite with new ID)
+				const existingEntry = contentTypes[existingIndex] as { id?: string };
 				contentTypes[existingIndex] = {
 					...existingEntry,
+					// Only update ID if we matched by ID, otherwise keep existing ID for consistency
+					id: matchedById ? newType.id : (existingEntry.id || newType.id),
 					name: newType.name,
 					folder: newType.folder,
 					linkBasePath: newType.linkBasePath,
@@ -421,19 +449,15 @@ export class AstroComposerConfigurator {
 			(existingData.customContentTypes as Array<Record<string, unknown>>) || [],
 			(config.customContentTypes as unknown as Array<Record<string, unknown>>) || []
 		);
-		
-		// Try to modify first, if file doesn't exist it will throw, then create
-		if (dataFile && dataFile instanceof TFile) {
-			await this.app.vault.modify(dataFile, JSON.stringify(existingData, null, 2));
-		} else {
-			// Ensure plugin directory exists
-			const pluginDir = `${configDir}/plugins/${pluginId}`;
-			const pluginDirFile = this.app.vault.getAbstractFileByPath(pluginDir);
-			if (!pluginDirFile) {
-				await this.app.vault.createFolder(pluginDir);
-			}
-			// Create the file
-			await this.app.vault.create(pluginDataPath, JSON.stringify(existingData, null, 2));
+
+		// Write config safely with backup and validation
+		const success = await this.safeWriter.writeConfig(pluginId, existingData, {
+			showNotice: true,
+			createBackup: true
+		});
+
+		if (!success) {
+			throw new Error('Failed to save Astro Composer configuration');
 		}
 	}
 

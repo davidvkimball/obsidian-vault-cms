@@ -15,14 +15,14 @@ export class BasesCMSConfigurator {
 	async resolveBaseFilePath(): Promise<string> {
 		const preferredPath = '_bases/Home.base';
 		const legacyPath = 'bases/Home.base';
-		
+
 		if (await this.app.vault.adapter.exists(preferredPath)) {
 			return preferredPath;
 		}
 		if (await this.app.vault.adapter.exists(legacyPath)) {
 			return legacyPath;
 		}
-		
+
 		// Check if folders exist even if file doesn't
 		if (await this.app.vault.adapter.exists('_bases')) {
 			return preferredPath;
@@ -30,7 +30,7 @@ export class BasesCMSConfigurator {
 		if (await this.app.vault.adapter.exists('bases')) {
 			return legacyPath;
 		}
-		
+
 		return preferredPath;
 	}
 
@@ -43,7 +43,7 @@ export class BasesCMSConfigurator {
 	): Promise<void> {
 		const baseFilePath = await this.resolveBaseFilePath();
 		const folderPath = baseFilePath.split('/')[0];
-		
+
 		// Ensure bases directory exists
 		const basesFolder = this.app.vault.getAbstractFileByPath(folderPath);
 		if (!basesFolder) {
@@ -76,19 +76,19 @@ export class BasesCMSConfigurator {
 		const enabledTypes = contentTypes.filter(ct => ct.enabled);
 		console.debug('BasesCMSConfig: Generating base content for', contentTypes.length, 'content types');
 		console.debug('BasesCMSConfig: Enabled content types:', enabledTypes.map(ct => ct.name));
-		
+
 		const baseContent = this.generateBaseContent(contentTypes, frontmatterProperties, defaultContentTypeId, existingBase, projectDetection, enableMdxSupport);
-		
+
 		// Count views in generated content to verify they're being created
 		const viewMatches = baseContent.match(/^\s*-\s+type:\s+bases-cms/gm);
 		const viewCount = viewMatches ? viewMatches.length : 0;
 		console.debug('BasesCMSConfig: Generated', viewCount, 'views in base content');
-		
+
 		// Always try to modify first - if file doesn't exist, modify will throw, then we create
 		// This avoids race conditions with getAbstractFileByPath
 		const baseFileAbstract2 = this.app.vault.getAbstractFileByPath(baseFilePath);
 		baseFile = baseFileAbstract2 instanceof TFile ? baseFileAbstract2 : null;
-		
+
 		if (baseFile) {
 			console.debug(`BasesCMSConfig: Modifying existing ${baseFilePath} file`);
 			try {
@@ -100,7 +100,7 @@ export class BasesCMSConfigurator {
 				throw error;
 			}
 		}
-		
+
 		// File doesn't exist (or can't be found), try to create it
 		console.debug(`BasesCMSConfig: Creating new ${baseFilePath} file`);
 		try {
@@ -155,9 +155,9 @@ export class BasesCMSConfigurator {
 	): string {
 		// Bases uses a specific syntax - we need to generate it manually to match the format
 		const lines: string[] = [];
-		
+
 		// Find default content type
-		const defaultContentType = defaultContentTypeId ? 
+		const defaultContentType = defaultContentTypeId ?
 			contentTypes.find(ct => ct.id === defaultContentTypeId && ct.enabled) : null;
 
 		// Add defaultView property at the top level if a default content type is selected
@@ -179,7 +179,7 @@ export class BasesCMSConfigurator {
 			}
 			lines.push('');
 		}
-		
+
 		// Filters section
 		lines.push('filters:');
 		if (enableMdxSupport) {
@@ -197,20 +197,12 @@ export class BasesCMSConfigurator {
 		for (const contentType of contentTypes) {
 			const props = frontmatterProperties[contentType.id];
 			if (props) {
-				allProperties.add(`note.${props.titleProperty}`);
-				allProperties.add(`note.${props.dateProperty}`);
-				if (props.descriptionProperty) {
-					allProperties.add(`note.${props.descriptionProperty}`);
-				}
-				if (props.tagsProperty) {
-					allProperties.add(`note.${props.tagsProperty}`);
-				}
-				if (props.draftProperty) {
-					allProperties.add(`note.${props.draftProperty}`);
-				}
-				if (props.imageProperty) {
-					allProperties.add(`note.${props.imageProperty}`);
-				}
+				if (props.titleProperty) allProperties.add(`note.${props.titleProperty}`);
+				if (props.dateProperty) allProperties.add(`note.${props.dateProperty}`);
+				if (props.descriptionProperty) allProperties.add(`note.${props.descriptionProperty}`);
+				if (props.tagsProperty) allProperties.add(`note.${props.tagsProperty}`);
+				if (props.draftProperty) allProperties.add(`note.${props.draftProperty}`);
+				if (props.imageProperty) allProperties.add(`note.${props.imageProperty}`);
 			}
 		}
 
@@ -251,167 +243,144 @@ export class BasesCMSConfigurator {
 			lines.push('');
 		}
 
-		// Views section - preserve existing views (except "All Content") and add new content type views
+		// Views section - preserve existing views and add/update content type views
 		lines.push('views:');
-		
-		// Separate existing views: content type views, "All Content", "Guide", and others
-		const existingViews = (existingBase?.views as Array<{ name?: string }>) || [];
-		const existingContentTypeNames = new Set(contentTypes.filter(ct => ct.enabled).map(ct => ct.name));
-		const guideView = existingViews.find((v) => v.name === 'Guide');
-		const otherViews = existingViews.filter((v) => 
-			v.name !== 'All Content' && 
-			v.name !== 'Guide' && 
-			!existingContentTypeNames.has(v.name || '')
-		);
-		
-		// FIRST: Add the default content type's view (if it exists and is enabled)
-		if (defaultContentType) {
-			const defaultViewProps = frontmatterProperties[defaultContentType.id];
-			if (defaultViewProps) {
-				const folderPath = this.pathResolver.getBasesCMSFolderPath(defaultContentType.folder, projectDetection);
-				lines.push('  - type: bases-cms');
-				lines.push(`    name: "${defaultContentType.name}"`);
-				lines.push('    filters:');
-				lines.push('      and:');
-				if (folderPath === '' || folderPath === '.') {
-					lines.push(`        - file.folder == "/"`);
-				} else {
-					lines.push(`        - file.folder.startsWith("${folderPath}")`);
-				}
-				lines.push(`    imageFormat: cover`);
-				// Handle blank title/date properties
-				if (defaultViewProps.titleProperty) {
-					lines.push(`    titleProperty: note.${defaultViewProps.titleProperty}`);
-				} else {
-					lines.push(`    titleProperty: file.fullname`);
-				}
-				if (defaultViewProps.dateProperty) {
-					lines.push(`    dateProperty: note.${defaultViewProps.dateProperty}`);
-				} else {
-					lines.push(`    dateProperty: file.ctime`);
-				}
-				if (defaultViewProps.descriptionProperty) {
-					lines.push(`    descriptionProperty: note.${defaultViewProps.descriptionProperty}`);
-				}
-				if (defaultViewProps.imageProperty) {
-					lines.push(`    imageProperty: note.${defaultViewProps.imageProperty}`);
-				}
-				lines.push(`    showTags: ${defaultViewProps.tagsProperty ? 'true' : 'false'}`);
-				if (defaultViewProps.tagsProperty) {
-					lines.push(`    tagsProperty: note.${defaultViewProps.tagsProperty}`);
-				}
-				lines.push(`    showDate: true`);
-				lines.push(`    showDraftStatus: ${defaultViewProps.hasDraftStatus ? 'true' : 'false'}`);
-				if (defaultViewProps.hasDraftStatus) {
-					if (defaultViewProps.draftProperty) {
-						lines.push(`    draftStatusProperty: note.${defaultViewProps.draftProperty}`);
-						lines.push(`    draftStatusReverse: ${defaultViewProps.draftLogic === 'false-draft' ? 'true' : 'false'}`);
-					} else {
-						// No draft property means underscore prefix
-						lines.push(`    draftStatusUseFilenamePrefix: true`);
-					}
-				}
-				lines.push(`    customizeNewButton: true`);
-				lines.push(`    newNoteLocation: "${folderPath}"`);
-				lines.push(`    fallbackToEmbeds: if-empty`);
-				lines.push(`    propertyDisplay1: file.fullname`);
-				lines.push(`    showTextPreview: true`);
-				lines.push(`    propertyLabels: above`);
-				// Sort by date property (newest to oldest)
-				lines.push(`    sort:`);
-				lines.push(`      - property: ${defaultViewProps.dateProperty ? `note.${defaultViewProps.dateProperty}` : 'file.ctime'}`);
-				lines.push(`        direction: DESC`);
-			}
-		}
-		
-		// SECOND: Add views for each enabled content type (excluding default, which is already first)
-		for (const contentType of contentTypes) {
-			if (!contentType.enabled) {
-				continue;
-			}
 
-			// Skip "All Content" view - don't process it
-			if (contentType.name === 'All Content') {
-				continue;
-			}
-
-			// Skip default content type - it's already created first
-			if (defaultContentType && contentType.id === defaultContentType.id) {
-				continue;
-			}
-
-			const props = frontmatterProperties[contentType.id];
-			if (!props) {
-				continue;
-			}
-
-			const folderPath = this.pathResolver.getBasesCMSFolderPath(contentType.folder, projectDetection);
-			lines.push('  - type: bases-cms');
-			lines.push(`    name: "${contentType.name}"`);
-			lines.push('    filters:');
-			lines.push('      and:');
-			if (folderPath === '' || folderPath === '.') {
-				lines.push(`        - file.folder == "/"`);
-			} else {
-				lines.push(`        - file.folder.startsWith("${folderPath}")`);
-			}
-			lines.push(`    imageFormat: cover`);
-			// Handle blank title/date properties
-			if (props.titleProperty) {
-				lines.push(`    titleProperty: note.${props.titleProperty}`);
-			} else {
-				lines.push(`    titleProperty: file.fullname`);
-			}
-			if (props.dateProperty) {
-				lines.push(`    dateProperty: note.${props.dateProperty}`);
-			} else {
-				lines.push(`    dateProperty: file.ctime`);
-			}
-			if (props.descriptionProperty) {
-				lines.push(`    descriptionProperty: note.${props.descriptionProperty}`);
-			}
-			if (props.imageProperty) {
-				lines.push(`    imageProperty: note.${props.imageProperty}`);
-			}
-			lines.push(`    showTags: ${props.tagsProperty ? 'true' : 'false'}`);
-			if (props.tagsProperty) {
-				lines.push(`    tagsProperty: note.${props.tagsProperty}`);
-			}
-			lines.push(`    showDate: true`);
-			lines.push(`    showDraftStatus: ${props.hasDraftStatus ? 'true' : 'false'}`);
-			if (props.hasDraftStatus) {
-				if (props.draftProperty) {
-					lines.push(`    draftStatusProperty: note.${props.draftProperty}`);
-					lines.push(`    draftStatusReverse: ${props.draftLogic === 'false-draft' ? 'true' : 'false'}`);
-				} else {
-					// No draft property means underscore prefix
-					lines.push(`    draftStatusUseFilenamePrefix: true`);
-				}
-			}
-			lines.push(`    customizeNewButton: true`);
-			lines.push(`    newNoteLocation: "${folderPath}"`);
-			lines.push(`    fallbackToEmbeds: if-empty`);
-			lines.push(`    propertyDisplay1: file.fullname`);
-			lines.push(`    showTextPreview: true`);
-			lines.push(`    propertyLabels: above`);
-			// Sort by date property (newest to oldest)
-			lines.push(`    sort:`);
-			lines.push(`      - property: ${props.dateProperty ? `note.${props.dateProperty}` : 'file.ctime'}`);
-			lines.push(`        direction: DESC`);
+		const existingViews = (existingBase?.views as Array<any>) || [];
+		const viewsByName = new Map<string, any>();
+		for (const view of existingViews) {
+			if (view.name) viewsByName.set(view.name, view);
 		}
 
-		// THIRD: Preserve other existing views (excluding "All Content", "Guide", and content type views)
-		for (const view of otherViews) {
+		const finalViews: any[] = [];
+		const processedViewNames = new Set<string>();
+
+		// 1. Process Content Types (Default First)
+		const enabledTypes = contentTypes.filter(ct => ct.enabled);
+		const defaultType = defaultContentTypeId ? enabledTypes.find(ct => ct.id === defaultContentTypeId) : null;
+		const otherTypes = enabledTypes.filter(ct => ct !== defaultType);
+
+		const processType = (ct: ContentTypeConfig) => {
+			const props = frontmatterProperties[ct.id];
+			if (!props) return;
+
+			const existingView = viewsByName.get(ct.name);
+			const generatedView = this.generateViewForContentType(ct, props, projectDetection);
+
+			if (existingView) {
+				// ONLY update core "plumbing" properties from the wizard
+				// Preserve all other user customizations (sort, layout, formulas, etc.)
+				const coreUpdates = {
+					filters: generatedView.filters,
+					newNoteLocation: generatedView.newNoteLocation,
+					titleProperty: generatedView.titleProperty,
+					dateProperty: generatedView.dateProperty,
+					draftStatusProperty: generatedView.draftStatusProperty,
+					tagsProperty: generatedView.tagsProperty,
+					showTags: generatedView.showTags,
+					showDraftStatus: generatedView.showDraftStatus,
+					draftStatusReverse: generatedView.draftStatusReverse,
+					draftStatusUseFilenamePrefix: generatedView.draftStatusUseFilenamePrefix
+				};
+				finalViews.push({ ...existingView, ...coreUpdates });
+				processedViewNames.add(ct.name);
+			} else {
+				finalViews.push(generatedView);
+				processedViewNames.add(ct.name);
+			}
+		};
+
+		if (defaultType) processType(defaultType);
+		for (const ct of otherTypes) processType(ct);
+
+		// 2. Add other unique views (preserving original order as much as possible)
+		for (const view of existingViews) {
+			if (view.name === 'Guide' || processedViewNames.has(view.name)) continue;
+			finalViews.push(view);
+		}
+
+		// 3. Add Guide last
+		const guideView = viewsByName.get('Guide');
+		if (guideView) finalViews.push(guideView);
+
+		// Serialize all final views
+		for (const view of finalViews) {
 			lines.push(...this.serializeView(view));
 		}
 
-		// FOURTH: Add "Guide" view last (if it exists)
-		if (guideView) {
-			lines.push(...this.serializeView(guideView));
-		}
-		
 		return lines.join('\n');
 	}
+
+	private generateViewForContentType(
+		contentType: ContentTypeConfig,
+		props: FrontmatterProperties,
+		projectDetection?: ProjectDetectionResult
+	): any {
+		const folderPath = this.pathResolver.getBasesCMSFolderPath(contentType.folder, projectDetection);
+
+		const view: any = {
+			type: 'bases-cms',
+			name: contentType.name,
+			filters: {
+				and: [
+					folderPath === '' || folderPath === '.' ? 'file.folder == "/"' : `file.folder.startsWith("${folderPath}")`
+				]
+			},
+			imageFormat: 'cover',
+			showDate: true,
+			customizeNewButton: true,
+			newNoteLocation: folderPath,
+			fallbackToEmbeds: 'if-empty',
+			propertyDisplay1: 'file.fullname',
+			showTextPreview: true,
+			propertyLabels: 'above',
+			sort: [
+				{
+					property: props.dateProperty ? `note.${props.dateProperty}` : 'file.ctime',
+					direction: 'DESC'
+				}
+			]
+		};
+
+		// Handle blank title/date properties
+		if (props.titleProperty) {
+			view.titleProperty = `note.${props.titleProperty}`;
+		} else {
+			view.titleProperty = `file.fullname`;
+		}
+
+		if (props.dateProperty) {
+			view.dateProperty = `note.${props.dateProperty}`;
+		} else {
+			view.dateProperty = `file.ctime`;
+		}
+
+		if (props.descriptionProperty) {
+			view.descriptionProperty = `note.${props.descriptionProperty}`;
+		}
+
+		if (props.imageProperty) {
+			view.imageProperty = `note.${props.imageProperty}`;
+		}
+
+		view.showTags = !!props.tagsProperty;
+		if (props.tagsProperty) {
+			view.tagsProperty = `note.${props.tagsProperty}`;
+		}
+
+		view.showDraftStatus = !!props.hasDraftStatus;
+		if (props.hasDraftStatus) {
+			if (props.draftProperty) {
+				view.draftStatusProperty = `note.${props.draftProperty}`;
+				view.draftStatusReverse = props.draftLogic === 'false-draft';
+			} else {
+				view.draftStatusUseFilenamePrefix = true;
+			}
+		}
+
+		return view;
+	}
+
 
 	private capitalizeFirst(str: string): string {
 		return str.charAt(0).toUpperCase() + str.slice(1);
@@ -420,11 +389,11 @@ export class BasesCMSConfigurator {
 	/**
 	 * Serialize a view object to YAML lines (with proper indentation)
 	 */
-	private serializeView(view: { name?: string; filters?: { and?: Array<string | Record<string, unknown>> }; groupBy?: { property?: string; direction?: string } | string; order?: string[]; sort?: Array<{ property?: string; direction?: string }>; [key: string]: unknown }): string[] {
+	private serializeView(view: { name?: string; filters?: { and?: Array<string | Record<string, unknown>> }; groupBy?: { property?: string; direction?: string } | string; order?: string[]; sort?: Array<{ property?: string; direction?: string }>;[key: string]: unknown }): string[] {
 		const viewLines: string[] = [];
 		viewLines.push('  - type: bases-cms');
 		viewLines.push(`    name: "${view.name}"`);
-		
+
 		if (view.filters) {
 			viewLines.push('    filters:');
 			if (view.filters.and) {
@@ -446,7 +415,7 @@ export class BasesCMSConfigurator {
 				}
 			}
 		}
-		
+
 		if (view.groupBy) {
 			viewLines.push('    groupBy:');
 			if (typeof view.groupBy === 'object') {
@@ -456,7 +425,7 @@ export class BasesCMSConfigurator {
 				viewLines.push(`      ${view.groupBy}`);
 			}
 		}
-		
+
 		if (view.order) {
 			if (view.order.length === 0) {
 				viewLines.push('    order: []');
@@ -467,7 +436,7 @@ export class BasesCMSConfigurator {
 				}
 			}
 		}
-		
+
 		if (view.sort) {
 			if (view.sort.length === 0) {
 				viewLines.push('    sort: []');
@@ -481,18 +450,18 @@ export class BasesCMSConfigurator {
 				}
 			}
 		}
-		
+
 		// Add all other properties - preserve ALL properties from the original view
 		// This ensures we don't lose any settings like hideQuickEditIcon
 		// Skip properties that are already handled above (type, name, filters, groupBy, order, sort)
 		const skipProps = ['type', 'name', 'filters', 'groupBy', 'order', 'sort'];
-		
+
 		// Serialize all remaining properties from the view
 		for (const prop of Object.keys(view)) {
 			if (skipProps.includes(prop) || view[prop] === undefined) {
 				continue;
 			}
-			
+
 			const value = view[prop];
 			if (value === null) {
 				viewLines.push(`    ${prop}: null`);
@@ -507,9 +476,9 @@ export class BasesCMSConfigurator {
 				}
 				// For properties that are note/file references, don't quote them
 				// Check for propertyDisplayN as well as anything ending in Property
-				const isPropertyRef = (prop.includes('Property') || prop.startsWith('propertyDisplay')) && 
-									  (value.startsWith('note.') || value.startsWith('file.'));
-				
+				const isPropertyRef = (prop.includes('Property') || prop.startsWith('propertyDisplay')) &&
+					(value.startsWith('note.') || value.startsWith('file.'));
+
 				if (isPropertyRef) {
 					viewLines.push(`    ${prop}: ${value}`);
 				} else if (prop === 'newNoteLocation') {
@@ -520,7 +489,7 @@ export class BasesCMSConfigurator {
 				}
 			}
 		}
-		
+
 		return viewLines;
 	}
 }

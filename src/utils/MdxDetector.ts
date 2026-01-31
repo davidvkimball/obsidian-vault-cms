@@ -1,7 +1,7 @@
 import { App } from 'obsidian';
-// eslint-disable-next-line import/no-nodejs-modules
+// eslint-disable-next-line import/no-nodejs-modules -- Node.js module needed for path operations
 import * as path from 'path';
-// eslint-disable-next-line import/no-nodejs-modules
+// eslint-disable-next-line import/no-nodejs-modules -- Node.js module needed for file operations
 import * as fs from 'fs';
 import { ProjectDetectionResult, ContentTypeConfig } from '../types';
 

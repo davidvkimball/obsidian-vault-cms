@@ -1,5 +1,5 @@
 import { App } from 'obsidian';
-// eslint-disable-next-line import/no-nodejs-modules
+// eslint-disable-next-line import/no-nodejs-modules -- Node.js module needed for path operations
 import * as path from 'path';
 import { ProjectDetectionResult } from '../types';
 

@@ -11,11 +11,7 @@ export class DefaultContentTypeStep extends BaseWizardStep {
 			text: 'Select which content type should be used as the default. This will:' 
 		});
 		const ul = containerEl.createEl('ul');
-		// False positive: "Bases CMS" is a proper noun (product name) and should be capitalized
-		// eslint-disable-next-line obsidianmd/ui/sentence-case
 		ul.createEl('li', { text: 'Set as the default Bases CMS view' });
-		// False positive: "Obsidian" is a proper noun (product name) and should be capitalized
-		// eslint-disable-next-line obsidianmd/ui/sentence-case
 		ul.createEl('li', { text: 'Configure Obsidian\'s "Default location for new notes" to that folder.' });
 
 		const enabledTypes = this.state.contentTypes.filter(ct => ct.enabled);

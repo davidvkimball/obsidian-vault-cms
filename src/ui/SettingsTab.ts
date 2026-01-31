@@ -1,6 +1,7 @@
 import { App, PluginSettingTab, Notice, Setting } from 'obsidian';
 import VaultCMSPlugin from '../main';
 import { SetupWizardModal } from './SetupWizardModal';
+import { HealthCheckModal } from './HealthCheckModal';
 import { createSettingsGroup } from '../utils/settings-compat';
 import { PresetManager } from '../utils/PresetManager';
 import { ProjectOptimizer } from '../utils/ProjectOptimizer';
@@ -8,6 +9,7 @@ import { WizardState } from '../types';
 
 export class SettingsTab extends PluginSettingTab {
 	plugin: VaultCMSPlugin;
+	public icon = 'lucide-vault';
 	private contentEl: HTMLElement;
 	private gitSetting: Setting;
 	private viteSetting: Setting;
@@ -27,7 +29,7 @@ export class SettingsTab extends PluginSettingTab {
 
 	private async render(): Promise<void> {
 		if (!this.contentEl) return;
-		
+
 		this.contentEl.empty();
 
 		// First group (no heading) - following UI Tweaker pattern
@@ -55,6 +57,18 @@ export class SettingsTab extends PluginSettingTab {
 						.onChange(async (value) => {
 							this.plugin.settings.runWizardOnStartup = value;
 							await this.plugin.saveSettings();
+						});
+				});
+		});
+
+		generalGroup.addSetting((setting) => {
+			setting.setName('Health check')
+				.setDesc('Check plugin installation and configuration status')
+				.addButton(button => {
+					button
+						.setButtonText('Run health check')
+						.onClick(() => {
+							new HealthCheckModal(this.app, this.plugin).open();
 						});
 				});
 		});
@@ -105,10 +119,15 @@ export class SettingsTab extends PluginSettingTab {
 
 		// Project optimization group
 		const optimizationGroup = createSettingsGroup(this.contentEl, 'Project optimization (optional)', 'vault-cms-optimization');
-		
-		this.contentEl.createEl('p', {
-			text: 'Optimize your project by ignoring Obsidian-specific files.'
-		});
+
+		// Check if project root is configured
+		if (!this.plugin.settings.projectRoot) {
+			optimizationGroup.addSetting((setting) => {
+				setting.setName('Project not detected')
+					.setDesc('Complete the setup wizard first to detect your Astro project before configuring optimizations.');
+			});
+			return;
+		}
 
 		// Create optimizer instance
 		const wizardState: WizardState = {
@@ -139,15 +158,19 @@ export class SettingsTab extends PluginSettingTab {
 		this.gitSetting.setName('Ignore in Git')
 			.setDesc('Add workspace files to Git ignore')
 			.clear(); // Clear existing buttons and status
-		
+
 		this.gitSetting.addButton(button => {
 			button.setButtonText(status === 'configured' ? 'Re-configure' : 'Configure')
 				.onClick(async () => {
 					try {
-						await this.optimizer.configureGitIgnore();
-						this.plugin.settings.ignoreConfig.gitIgnoreConfigured = true;
-						await this.plugin.saveSettings();
-						new Notice('Git ignore updated');
+						const success = await this.optimizer.configureGitIgnore();
+						if (success) {
+							this.plugin.settings.ignoreConfig.gitIgnoreConfigured = true;
+							await this.plugin.saveSettings();
+							new Notice('Git ignore updated');
+						} else {
+							new Notice('Could not configure Git ignore: project root not detected');
+						}
 						const newStatus = await this.optimizer.getStatus();
 						this.updateGitSetting(newStatus.gitIgnoreStatus);
 					} catch (error) {
@@ -159,20 +182,22 @@ export class SettingsTab extends PluginSettingTab {
 	}
 
 	private updateViteSetting(status: 'configured' | 'not-configured') {
-		// eslint-disable-next-line obsidianmd/ui/sentence-case
 		this.viteSetting.setName('Ignore in Vite')
-			// eslint-disable-next-line obsidianmd/ui/sentence-case
 			.setDesc('Configure Vite to ignore internal folders')
 			.clear(); // Clear existing buttons and status
-			
+
 		this.viteSetting.addButton(button => {
 			button.setButtonText(status === 'configured' ? 'Re-configure' : 'Configure')
 				.onClick(async () => {
 					try {
-						await this.optimizer.configureViteIgnore();
-						this.plugin.settings.ignoreConfig.viteIgnoreConfigured = true;
-						await this.plugin.saveSettings();
-						new Notice('Vite optimization applied');
+						const success = await this.optimizer.configureViteIgnore();
+						if (success) {
+							this.plugin.settings.ignoreConfig.viteIgnoreConfigured = true;
+							await this.plugin.saveSettings();
+							new Notice('Vite optimization applied');
+						} else {
+							new Notice('Could not configure Vite: project root not detected');
+						}
 						const newStatus = await this.optimizer.getStatus();
 						this.updateViteSetting(newStatus.viteIgnoreStatus);
 					} catch (error) {

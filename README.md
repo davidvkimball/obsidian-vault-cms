@@ -13,7 +13,7 @@ Part of the [Vault CMS](https://github.com/davidvkimball/vault-cms) project.
 
 - **Setup Wizard**: Multi-step onboarding with project detection, content type identification, frontmatter mapping, and automatic plugin configuration
 - **Auto-detection**: Automatically detects Astro project structure, content types, and frontmatter properties
-- **Plugin Integration**: Configures Astro Composer, Bases CMS, SEO, Property Over File Name, Image Inserter, Commander, and more
+- **Plugin Integration**: Configures Astro Composer, Bases CMS, SEO, Property Over File Name, Image Manager, and more
 - **Content Type Management**: Identifies and configures content types (posts, pages, docs, etc.) from your project structure
 - **MDX Support**: Optional MDX file support with auto-detection
 - **Plugin Presets**: Choose from vanilla, opinionated, or custom plugin configurations
@@ -26,7 +26,7 @@ The Vault CMS plugin will not be available in the Community plugins section. Ins
 
 1. Download the [Beta Reviewers Auto-update Tester (BRAT)](https://github.com/TfTHacker/obsidian42-brat) plugin from the [Obsidian community plugins directory](https://obsidian.md/plugins?id=obsidian42-brat) and enable it.
 2. In the BRAT plugin settings, select `Add beta plugin`.
-3. Paste the following: `https://github.com/davidvkimball/obsidian-home-base` and select `Add plugin`.
+3. Paste the following: `https://github.com/davidvkimball/obsidian-vault-cms` and select `Add plugin`.
 
 ### Manual Installation
 1. Download latest release from [GitHub](https://github.com/davidvkimball/obsidian-vault-cms/releases)
@@ -82,11 +82,9 @@ Automatically configures:
 - **Bases CMS**: Creates CMS views for each content type with property mappings
 - **SEO**: Sets up scan directories and property mappings for SEO audits
 - **Property Over File Name**: Configures title property display instead of filenames
-- **Commander**: Sets up editing toolbar toggle and other commands
-- **Image Inserter**: Configures image insertion formats based on attachment handling
-- **Image Manager**: Optional image management configuration
+- **Image Manager**: Image management configuration
 - **Home Base**: Optional homepage configuration
-- **Simple Banner**: Configures banner images from frontmatter properties
+- **Editing Toolbar**: Toggles toolbar visibility based on WYSIWYG preference
 
 ### Plugin Presets
 

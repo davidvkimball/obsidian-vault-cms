@@ -12,6 +12,7 @@ function setCssProps(element: HTMLElement, props: Record<string, string>): void 
 import { WizardState } from '../types';
 import { BaseWizardStep } from './wizard/BaseWizardStep';
 import { WizardStateManager } from './wizard/WizardStateManager';
+import { WizardStateMachine } from './wizard/WizardStateMachine';
 import VaultCMSPlugin from '../main';
 import { WelcomeStep } from './wizard/WelcomeStep';
 import { ProjectDetectionStep } from './wizard/ProjectDetectionStep';
@@ -28,6 +29,7 @@ import { FinalizeStep } from './wizard/FinalizeStep';
 
 export class SetupWizardModal extends Modal {
 	private stateManager: WizardStateManager;
+	private stateMachine: WizardStateMachine;
 	private plugin: VaultCMSPlugin;
 	private steps: (new (app: App, containerEl: HTMLElement, state: WizardState, onNext: () => void, onBack: () => void, onCancel: () => void) => BaseWizardStep)[];
 	private currentStepInstance: BaseWizardStep | null = null;
@@ -38,13 +40,14 @@ export class SetupWizardModal extends Modal {
 	constructor(app: App, initialState?: Partial<WizardState>, pluginInstance?: VaultCMSPlugin) {
 		super(app);
 		this.plugin = pluginInstance || (app as { plugins?: { plugins?: Record<string, VaultCMSPlugin> } }).plugins?.plugins?.['vault-cms'] as VaultCMSPlugin;
-		
+
 		if (!this.plugin) {
 			throw new Error('VaultCMSPlugin instance is required');
 		}
-		
+
 		this.stateManager = new WizardStateManager(this.plugin);
-		
+		this.stateMachine = new WizardStateMachine();
+
 		// Apply any initial state overrides
 		if (initialState) {
 			this.stateManager.updateState(initialState);
@@ -64,6 +67,8 @@ export class SetupWizardModal extends Modal {
 			IgnoreStep,
 			FinalizeStep
 		];
+
+		console.debug('SetupWizardModal: State machine initialized -', this.stateMachine.getDebugInfo());
 	}
 
 	async onOpen() {
@@ -157,26 +162,29 @@ export class SetupWizardModal extends Modal {
 		const state = this.stateManager.getState();
 		const totalSteps = this.steps.length;
 		const progress = container.createDiv('wizard-progress');
-		
+
 		const progressBar = progress.createDiv('progress-bar');
 		const progressFill = progressBar.createDiv('progress-fill');
 		// Set dynamic width using setCssProps
-		setCssProps(progressFill, { width: `${this.stateManager.getProgress(totalSteps)}%` });
-		
-		// Add step text below the progress bar
+		setCssProps(progressFill, { width: `${this.stateMachine.getProgress()}%` });
+
+		// Add step text below the progress bar with state information
 		const progressText = progress.createDiv('progress-text');
-		progressText.textContent = `Step ${state.currentStep + 1} of ${totalSteps}`;
+		progressText.textContent = `Step ${state.currentStep + 1} of ${totalSteps} - ${this.stateMachine.getStateDescription()}`;
 	}
 
 	private async renderStepContent(container: HTMLElement) {
 		const state = this.stateManager.getState();
 		const stepIndex = state.currentStep;
-		
+
 		if (stepIndex >= 0 && stepIndex < this.steps.length) {
 			const StepClass = this.steps[stepIndex];
 			const stepName = StepClass.name || 'Unknown';
-			console.debug(`SetupWizardModal: Displaying step ${stepIndex + 1}/${this.steps.length}: ${stepName}`);
-			
+			console.debug(
+				`SetupWizardModal: Displaying step ${stepIndex + 1}/${this.steps.length}: ${stepName}`,
+				`[${this.stateMachine.getDebugInfo()}]`
+			);
+
 			this.currentStepInstance = new StepClass(
 				this.app,
 				container,
@@ -187,6 +195,8 @@ export class SetupWizardModal extends Modal {
 						if (this.currentStepInstance && this.currentStepInstance.validate()) {
 							await this.saveCurrentStepToWizardState();
 							this.stateManager.nextStep();
+							this.stateMachine.next();
+							console.debug('SetupWizardModal: Advanced to next step -', this.stateMachine.getDebugInfo());
 							await this.renderCurrentStep();
 						}
 					})();
@@ -195,6 +205,8 @@ export class SetupWizardModal extends Modal {
 					// Back handler - discard and go back
 					this.discardCurrentStepChanges();
 					this.stateManager.previousStep();
+					this.stateMachine.previous();
+					console.debug('SetupWizardModal: Went back to previous step -', this.stateMachine.getDebugInfo());
 					void this.renderCurrentStep();
 				},
 				() => this.close()
@@ -421,7 +433,7 @@ export class SetupWizardModal extends Modal {
 	private createSettingsSnapshot(): Partial<WizardState> {
 		// Create a deep copy of current state for comparison
 		const state = this.stateManager.getState();
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-return
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-return -- JSON.parse returns any type
 		return JSON.parse(JSON.stringify({
 			projectDetection: state.projectDetection,
 			contentTypes: state.contentTypes,
@@ -435,9 +447,7 @@ export class SetupWizardModal extends Modal {
 			basesCMSConfig: state.basesCMSConfig,
 			astroComposerConfig: state.astroComposerConfig,
 			seoConfig: state.seoConfig,
-			commanderConfig: state.commanderConfig,
 			propertyOverFileName: state.propertyOverFileName,
-			imageInserter: state.imageInserter,
 			imageManager: state.imageManager,
 			homeBase: state.homeBase
 		}));
@@ -464,9 +474,7 @@ export class SetupWizardModal extends Modal {
 			JSON.stringify(currentSnapshot.basesCMSConfig) !== JSON.stringify(this.initialSettingsSnapshot.basesCMSConfig) ||
 			JSON.stringify(currentSnapshot.astroComposerConfig) !== JSON.stringify(this.initialSettingsSnapshot.astroComposerConfig) ||
 			JSON.stringify(currentSnapshot.seoConfig) !== JSON.stringify(this.initialSettingsSnapshot.seoConfig) ||
-			JSON.stringify(currentSnapshot.commanderConfig) !== JSON.stringify(this.initialSettingsSnapshot.commanderConfig) ||
 			JSON.stringify(currentSnapshot.propertyOverFileName) !== JSON.stringify(this.initialSettingsSnapshot.propertyOverFileName) ||
-			JSON.stringify(currentSnapshot.imageInserter) !== JSON.stringify(this.initialSettingsSnapshot.imageInserter) ||
 			JSON.stringify(currentSnapshot.imageManager) !== JSON.stringify(this.initialSettingsSnapshot.imageManager) ||
 			JSON.stringify(currentSnapshot.homeBase) !== JSON.stringify(this.initialSettingsSnapshot.homeBase)
 		);

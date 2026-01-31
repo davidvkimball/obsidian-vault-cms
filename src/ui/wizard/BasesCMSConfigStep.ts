@@ -5,12 +5,8 @@ export class BasesCMSConfigStep extends BaseWizardStep {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		// False positive: "Bases CMS" is a proper noun (product name) and should be capitalized
-		// eslint-disable-next-line obsidianmd/ui/sentence-case
 		containerEl.createEl('h2', { text: 'Bases CMS configuration' });
-		containerEl.createEl('p', { 
-			// False positive: "Bases CMS" is a proper noun (product name) and should be capitalized
-			// eslint-disable-next-line obsidianmd/ui/sentence-case
+		containerEl.createEl('p', {
 			text: 'Bases CMS views will be automatically created for each enabled content type using your mapped frontmatter properties.' 
 		});
 
@@ -44,9 +40,7 @@ export class BasesCMSConfigStep extends BaseWizardStep {
 			}
 		}
 
-		containerEl.createEl('p', { 
-			// False positive: "Bases CMS" is a proper noun (product name) and should be capitalized
-			// eslint-disable-next-line obsidianmd/ui/sentence-case
+		containerEl.createEl('p', {
 			text: 'You can customize these views later in the Bases CMS settings.' 
 		});
 	}

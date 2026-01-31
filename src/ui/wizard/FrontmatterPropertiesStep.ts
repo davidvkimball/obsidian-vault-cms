@@ -121,7 +121,6 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 
 			new Setting(contentTypeWrapper)
 				.setName('Date property')
-				// eslint-disable-next-line obsidianmd/ui/sentence-case
 				.setDesc('The frontmatter property that contains the date (e.g., date, pubDate, publishedDate, publishDate). Leave blank to use file created date instead.')
 				.addText(text => {
 					const detected = example ? this.frontmatterAnalyzer.autoDetectDateProperty(example.frontmatter) : null;
@@ -289,11 +288,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 													.setName('Draft logic')
 													.setDesc('How draft status is represented')
 													.addDropdown(dropdown => dropdown
-														// False positive: "true = draft" and "false = draft" are technical notation, not UI text
-														// eslint-disable-next-line obsidianmd/ui/sentence-case
 														.addOption('true-draft', 'true = draft')
-														// False positive: "false = draft" is technical notation, not UI text
-														// eslint-disable-next-line obsidianmd/ui/sentence-case
 														.addOption('false-draft', 'false = draft')
 														.setValue(props.draftLogic || 'true-draft')
 														.onChange(dropdownValue => {
@@ -319,11 +314,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 								.setName('Draft logic')
 								.setDesc('How draft status is represented')
 								.addDropdown(dropdown => dropdown
-									// False positive: "true = draft" and "false = draft" are technical notation, not UI text
-									// eslint-disable-next-line obsidianmd/ui/sentence-case
 									.addOption('true-draft', 'true = draft')
-									// False positive: "false = draft" is technical notation, not UI text
-									// eslint-disable-next-line obsidianmd/ui/sentence-case
 									.addOption('false-draft', 'false = draft')
 									.setValue(props.draftLogic || 'true-draft')
 									.onChange(value => {
@@ -373,11 +364,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 										.setName('Draft logic')
 										.setDesc('How draft status is represented')
 										.addDropdown(dropdown => dropdown
-											// False positive: "true = draft" and "false = draft" are technical notation, not UI text
-											// eslint-disable-next-line obsidianmd/ui/sentence-case
 											.addOption('true-draft', 'true = draft')
-											// False positive: "false = draft" is technical notation, not UI text
-											// eslint-disable-next-line obsidianmd/ui/sentence-case
 											.addOption('false-draft', 'false = draft')
 											.setValue(props.draftLogic || 'true-draft')
 											.onChange(dropdownValue => {
@@ -402,11 +389,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 						.setName('Draft logic')
 						.setDesc('How draft status is represented')
 						.addDropdown(dropdown => dropdown
-							// False positive: "true = draft" and "false = draft" are technical notation, not UI text
-							// eslint-disable-next-line obsidianmd/ui/sentence-case
 							.addOption('true-draft', 'true = draft')
-							// False positive: "false = draft" is technical notation, not UI text
-							// eslint-disable-next-line obsidianmd/ui/sentence-case
 							.addOption('false-draft', 'false = draft')
 							.setValue(props.draftLogic || 'true-draft')
 							.onChange(value => {
@@ -423,9 +406,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 			// Has Image Property?
 			const imageSetting = new Setting(contentTypeWrapper)
 				.setName('Has image/cover property?')
-				// False positive: "Bases CMS", "Simple Banner", and "Image Inserter" are proper nouns (product names) and should be capitalized
-				// eslint-disable-next-line obsidianmd/ui/sentence-case
-				.setDesc('Does this content type have an image or cover property? Used for Bases CMS cover images, Simple Banner, and Image Inserter.');
+				.setDesc('Does this content type have an image or cover property? Used for Bases CMS cover images and Image Manager.');
 			
 			let imageTextSetting: Setting | null = null;
 			

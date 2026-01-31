@@ -23,7 +23,6 @@ export class IgnoreStep extends BaseWizardStep {
 
 		containerEl.createEl('h2', { text: 'Project optimization (optional)' });
 		containerEl.createEl('p', {
-			// eslint-disable-next-line obsidianmd/ui/sentence-case
 			text: 'Optimize your project by ignoring Obsidian-specific files in Git and Vite.'
 		});
 
@@ -62,9 +61,7 @@ export class IgnoreStep extends BaseWizardStep {
 	}
 
 	private updateViteSetting(status: 'configured' | 'not-configured') {
-		// eslint-disable-next-line obsidianmd/ui/sentence-case
 		this.viteSetting.setName('Ignore in Vite')
-			// eslint-disable-next-line obsidianmd/ui/sentence-case
 			.setDesc('Configure Vite to ignore Obsidian and bases folders.')
 			.clear(); // Clear existing buttons and status
 			

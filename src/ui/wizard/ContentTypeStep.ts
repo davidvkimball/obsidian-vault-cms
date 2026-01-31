@@ -379,8 +379,6 @@ export class ContentTypeStep extends BaseWizardStep {
 				.setDesc(descText);
 
 			folderNameSetting.addText(text => {
-				// False positive: "attachments" is a placeholder value, not UI text
-				// eslint-disable-next-line obsidianmd/ui/sentence-case
 				text.setPlaceholder('attachments')
 					.setValue(this.state.attachmentFolderName || '')
 					.onChange(value => {
@@ -451,8 +449,7 @@ export class ContentTypeStep extends BaseWizardStep {
 							newName = currentName; // Revert to original if empty
 						}
 						// Validate: remove any problematic characters that might break Astro Composer
-						// Remove characters that could cause issues in config files or UI
-						// eslint-disable-next-line no-control-regex
+						// eslint-disable-next-line no-control-regex -- intentionally matching control chars
 						newName = newName.replace(/[<>:"/\\|?*\x00-\x1F]/g, '');
 						// Ensure it's still not empty after cleaning
 						if (!newName.trim()) {
@@ -598,7 +595,7 @@ export class ContentTypeStep extends BaseWizardStep {
 
 			// Method 1: Try @electron/remote (newer Electron versions)
 			try {
-				// eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef
+				// eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef -- dynamic require for Electron
 				const electronRemote = require('@electron/remote') as { dialog?: { showOpenDialogSync?: (options: { title: string; defaultPath: string; properties: string[] }) => string[] | undefined } };
 				dialog = electronRemote?.dialog || null;
 			} catch {
@@ -608,7 +605,7 @@ export class ContentTypeStep extends BaseWizardStep {
 			// Method 2: Try electron.remote.dialog (older Electron versions)
 			if (!dialog) {
 				try {
-					// eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef
+					// eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef -- dynamic require for Electron
 					const electron = ((window as { require?: (module: string) => unknown }).require?.('electron') || require('electron')) as { remote?: { dialog?: { showOpenDialogSync?: (options: { title: string; defaultPath: string; properties: string[] }) => string[] | undefined } } };
 					dialog = electron?.remote?.dialog || null;
 				} catch {
@@ -619,7 +616,7 @@ export class ContentTypeStep extends BaseWizardStep {
 			// Method 3: Try electron.dialog directly (main process, may not work)
 			if (!dialog) {
 				try {
-					// eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef
+					// eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef -- dynamic require for Electron
 					const electron = require('electron') as { dialog?: { showOpenDialogSync?: (options: { title: string; defaultPath: string; properties: string[] }) => string[] | undefined } };
 					dialog = electron?.dialog || null;
 				} catch {

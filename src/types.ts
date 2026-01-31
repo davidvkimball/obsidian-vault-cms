@@ -46,9 +46,7 @@ export interface WizardState {
 	basesCMSConfig: BasesCMSConfig;
 	astroComposerConfig: AstroComposerConfig;
 	seoConfig: SEOConfig;
-	commanderConfig: CommanderConfig;
 	propertyOverFileName: PropertyOverFileNameConfig;
-	imageInserter: ImageInserterConfig;
 	imageManager: ImageManagerConfig;
 	homeBase: HomeBaseConfig;
 	explorerFocus: ExplorerFocusConfig;
@@ -122,25 +120,9 @@ export interface SEOConfig {
 	enableMDXSupport?: boolean; // Note: SEO plugin uses capital MDX
 }
 
-export interface CommanderConfig {
-	pageHeaderCommands: CommanderCommand[];
-}
-
-export interface CommanderCommand {
-	id: string;
-	icon: string;
-	name: string;
-	mode: string;
-}
-
 export interface PropertyOverFileNameConfig {
 	propertyKey: string;
 	enableMdxSupport?: boolean;
-}
-
-export interface ImageInserterConfig {
-	valueFormat: string;
-	insertFormat: string;
 }
 
 // Complex nested structure - using Record<string, unknown> to handle all properties

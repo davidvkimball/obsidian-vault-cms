@@ -6,9 +6,9 @@ function setCssProps(element: HTMLElement, props: Record<string, string>): void 
 		element.style.setProperty(key.replace(/([A-Z])/g, '-$1').toLowerCase(), value);
 	}
 }
-// eslint-disable-next-line import/no-nodejs-modules
+// eslint-disable-next-line import/no-nodejs-modules -- Node.js module needed for path operations
 import * as path from 'path';
-// eslint-disable-next-line import/no-nodejs-modules
+// eslint-disable-next-line import/no-nodejs-modules -- Node.js module needed for file operations
 import * as fs from 'fs';
 import { BaseWizardStep } from './BaseWizardStep';
 import { WizardState } from '../../types';
@@ -44,8 +44,6 @@ export class ProjectDetectionStep extends BaseWizardStep {
 		if (!hasSavedValues) {
 			containerEl.createEl('h2', { text: 'Project detection' });
 			containerEl.createEl('p', { 
-				// False positive: "Astro" is a proper noun (framework name) and should be capitalized
-				// eslint-disable-next-line obsidianmd/ui/sentence-case
 				text: 'Detecting your Astro project structure...' 
 			});
 
@@ -82,16 +80,13 @@ export class ProjectDetectionStep extends BaseWizardStep {
 
 			containerEl.empty();
 			containerEl.createEl('h2', { text: 'Project detected' });
-			containerEl.createEl('p', { 
-				// eslint-disable-next-line obsidianmd/ui/sentence-case
+			containerEl.createEl('p', {
 				text: 'Project structure detected successfully. You can modify the paths below if needed, then click "Next" to continue.' 
 			});
 			
 			// Project Root picker (with browse button even when detected)
 			const projectRootSetting = new Setting(containerEl)
 				.setName('Project root')
-				// False positive: "Astro" is a proper noun (framework name) and should be capitalized
-				// eslint-disable-next-line obsidianmd/ui/sentence-case
 				.setDesc('Select the folder containing your Astro project root');
 
 			// Display current selection
@@ -199,11 +194,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 			}
 
 			const mdxSetting = new Setting(containerEl)
-				// False positive: "MDX" is an acronym (file format name) and should be capitalized
-				// eslint-disable-next-line obsidianmd/ui/sentence-case
 				.setName('MDX file support')
-				// False positive: "MDX" is an acronym (file format name) and should be capitalized
-				// eslint-disable-next-line obsidianmd/ui/sentence-case
 				.setDesc('Enable MDX file support for Astro Composer, Property Over File Name, SEO, and UI Tweaker plugins.');
 			
 			mdxSetting.addToggle(toggle => {
@@ -230,8 +221,6 @@ export class ProjectDetectionStep extends BaseWizardStep {
 			containerEl.empty();
 			containerEl.createEl('h2', { text: 'Project detection failed' });
 			containerEl.createEl('p', { 
-				// False positive: "Astro" is a proper noun (framework name) and should be capitalized
-				// eslint-disable-next-line obsidianmd/ui/sentence-case
 				text: 'Could not detect Astro project structure. Please select your Astro project root and config file manually.' 
 			});
 
@@ -247,8 +236,6 @@ export class ProjectDetectionStep extends BaseWizardStep {
 			// Project Root picker
 			const projectRootSetting = new Setting(containerEl)
 				.setName('Project root')
-				// False positive: "Astro" is a proper noun (framework name) and should be capitalized
-				// eslint-disable-next-line obsidianmd/ui/sentence-case
 				.setDesc('Select the folder containing your Astro project root');
 
 			// Display current selection
@@ -340,11 +327,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 			}
 
 			const mdxSetting = new Setting(containerEl)
-				// False positive: "MDX" is an acronym (file format name) and should be capitalized
-				// eslint-disable-next-line obsidianmd/ui/sentence-case
 				.setName('MDX file support')
-				// False positive: "MDX" is an acronym (file format name) and should be capitalized
-				// eslint-disable-next-line obsidianmd/ui/sentence-case
 				.setDesc('Enable MDX file support for Astro Composer, Property Over File Name, SEO, and UI Tweaker plugins.');
 			
 			mdxSetting.addToggle(toggle => {
@@ -380,7 +363,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 
 			// Method 1: Try @electron/remote (newer Electron versions)
 			try {
-				// eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef
+				// eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef -- dynamic require for Electron
 				const electronRemote = require('@electron/remote') as { dialog?: { showOpenDialogSync?: (options: { title: string; defaultPath: string; properties: string[] }) => string[] | undefined } };
 				dialog = electronRemote?.dialog || null;
 			} catch {
@@ -390,7 +373,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 			// Method 2: Try electron.remote.dialog (older Electron versions)
 			if (!dialog) {
 				try {
-					// eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef
+					// eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef -- dynamic require for Electron
 					const electron = ((window as { require?: (module: string) => unknown }).require?.('electron') || require('electron')) as { remote?: { dialog?: { showOpenDialogSync?: (options: { title: string; defaultPath: string; properties: string[] }) => string[] | undefined } } };
 					dialog = electron?.remote?.dialog || null;
 				} catch {
@@ -401,7 +384,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 			// Method 3: Try electron.dialog directly (main process, may not work)
 			if (!dialog) {
 				try {
-					// eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef
+					// eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef -- dynamic require for Electron
 					const electron = require('electron') as { dialog?: { showOpenDialogSync?: (options: { title: string; defaultPath: string; properties: string[] }) => string[] | undefined } };
 					dialog = electron?.dialog || null;
 				} catch {
@@ -450,7 +433,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 
 		// Method 1: Try @electron/remote (newer Electron versions)
 		try {
-			// eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef
+			// eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef -- dynamic require for Electron
 			const electronRemote = require('@electron/remote') as { dialog?: { showOpenDialogSync?: (options: { title: string; defaultPath: string; filters?: Array<{ name: string; extensions: string[] }>; properties: string[] }) => string[] | undefined } };
 			dialog = electronRemote?.dialog || null;
 		} catch {
@@ -460,7 +443,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 		// Method 2: Try electron.remote.dialog (older Electron versions)
 		if (!dialog) {
 			try {
-				// eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef
+				// eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef -- dynamic require for Electron
 				const electron = ((window as { require?: (module: string) => unknown }).require?.('electron') || require('electron')) as { remote?: { dialog?: { showOpenDialogSync?: (options: { title: string; defaultPath: string; filters?: Array<{ name: string; extensions: string[] }>; properties: string[] }) => string[] | undefined } } };
 				dialog = electron?.remote?.dialog || null;
 			} catch {
@@ -471,7 +454,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 		// Method 3: Try electron.dialog directly (main process, may not work)
 		if (!dialog) {
 			try {
-				// eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef
+				// eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef -- dynamic require for Electron
 				const electron = require('electron') as { dialog?: { showOpenDialogSync?: (options: { title: string; defaultPath: string; filters?: Array<{ name: string; extensions: string[] }>; properties: string[] }) => string[] | undefined } };
 				dialog = electron?.dialog || null;
 			} catch {

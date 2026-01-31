@@ -30,8 +30,6 @@ export class OptionalPluginsStep extends BaseWizardStep {
 
 		containerEl.createEl('h2', { text: 'Plugin configuration' });
 		containerEl.createEl('p', { 
-			// False positive: "Vault CMS" is a proper noun (product name) and should be capitalized
-			// eslint-disable-next-line obsidianmd/ui/sentence-case
 			text: 'Review and configure your installed plugins. Essential plugins are recommended for the core Vault CMS experience.' 
 		});
 
@@ -40,7 +38,6 @@ export class OptionalPluginsStep extends BaseWizardStep {
 			// Essential plugins (alphabetically ordered)
 			{ id: 'astro-composer', name: 'Astro Composer', category: 'essential' },
 			{ id: 'bases-cms', name: 'Bases CMS', category: 'essential' },
-			{ id: 'cmdr', name: 'Commander', category: 'essential' },
 			{ id: 'new-tab-default-page', name: 'Default New Tab Page', category: 'essential' },
 			{ id: 'editing-toolbar', name: 'Editing Toolbar', category: 'essential' },
 			{ id: 'home-base', name: 'Home Base', category: 'essential' },
@@ -55,10 +52,8 @@ export class OptionalPluginsStep extends BaseWizardStep {
 			// Nice to have plugins (alphabetically ordered)
 			{ id: 'alias-file-name-history', name: 'Alias File Name History', category: 'nice-to-have' },
 			{ id: 'iconic', name: 'Iconic', category: 'nice-to-have' },
-			{ id: 'insert-unsplash-image', name: 'Image Inserter', category: 'nice-to-have' },
 			{ id: 'paste-image-into-property', name: 'Paste Image Into Property', category: 'nice-to-have' },
 			{ id: 'settings-search', name: 'Settings Search', category: 'nice-to-have' },
-			{ id: 'simple-banner', name: 'Simple Banner', category: 'nice-to-have' },
 			{ id: 'tag-wrangler', name: 'Tag Wrangler', category: 'nice-to-have' },
 			{ id: 'zenmode', name: 'Zen Mode', category: 'nice-to-have' },
 			{ id: 'explorer-focus', name: 'Explorer Focus', category: 'nice-to-have' }
@@ -95,8 +90,6 @@ export class OptionalPluginsStep extends BaseWizardStep {
 		if (essentialPlugins.length > 0) {
 			containerEl.createEl('h3', { text: 'Essential plugins', cls: 'vault-cms-section-header' });
 			containerEl.createEl('p', { 
-				// False positive: "Vault CMS" is a proper noun (product name) and should be capitalized
-				// eslint-disable-next-line obsidianmd/ui/sentence-case
 				text: 'These plugins are recommended for the core Vault CMS experience.',
 				cls: 'vault-cms-section-desc'
 			});
@@ -192,8 +185,6 @@ export class OptionalPluginsStep extends BaseWizardStep {
 		// If no plugins found
 		if (essentialPlugins.length === 0 && niceToHavePlugins.length === 0) {
 			containerEl.createEl('p', { 
-				// False positive: "Vault CMS" is a proper noun (product name) and should be capitalized
-				// eslint-disable-next-line obsidianmd/ui/sentence-case
 				text: 'No Vault CMS plugins detected. Make sure you have installed the recommended plugins.' 
 			});
 		}

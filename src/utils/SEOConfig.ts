@@ -1,6 +1,7 @@
-import { App, TFile } from 'obsidian';
+import { App } from 'obsidian';
 import { SEOConfig, ContentTypeConfig, FrontmatterProperties, ProjectDetectionResult } from '../types';
 import { PathResolver } from './PathResolver';
+import { SafeConfigWriter } from './SafeConfigWriter';
 
 type SEOPlugin = {
 	settings?: {
@@ -19,10 +20,12 @@ type PluginsAPI = {
 export class SEOConfigurator {
 	private app: App;
 	private pathResolver: PathResolver;
+	private safeWriter: SafeConfigWriter;
 
 	constructor(app: App) {
 		this.app = app;
 		this.pathResolver = new PathResolver(app);
+		this.safeWriter = new SafeConfigWriter(app);
 	}
 
 	generateSEOConfig(
@@ -109,23 +112,14 @@ export class SEOConfigurator {
 
 	private async saveConfigFallback(config: SEOConfig): Promise<void> {
 		const pluginId = 'seo';
-		const configDir = this.app.vault.configDir;
-		const pluginDataPath = `${configDir}/plugins/${pluginId}/data.json`;
-		
+
 		try {
-			let existingData: Record<string, unknown> = {};
-			const dataFile = this.app.vault.getAbstractFileByPath(pluginDataPath);
-			
-			// Read existing data if file exists
-			if (dataFile && dataFile instanceof TFile) {
-				try {
-					existingData = JSON.parse(await this.app.vault.read(dataFile)) as Record<string, unknown>;
-				} catch (error: unknown) {
-					console.warn('Failed to parse existing SEO data.json, starting fresh:', error);
-					existingData = {};
-				}
+			// Read existing data safely
+			let existingData = await this.safeWriter.readConfig(pluginId);
+			if (!existingData) {
+				existingData = {};
 			}
-			
+
 			// Merge config into existing data (preserve all existing settings)
 			// Only update the properties we collect in the wizard:
 			// 1. scanDirectories (generated from content types)
@@ -145,22 +139,18 @@ export class SEOConfigurator {
 				// All other properties (keywordProperty, useFilenameAsTitle, useFilenameAsSlug, etc.)
 				// are preserved from existingData - we don't collect them in the wizard
 			};
-			
-			// Try to modify first, if file doesn't exist it will throw, then create
-			if (dataFile instanceof TFile) {
-				await this.app.vault.modify(dataFile, JSON.stringify(mergedData, null, 2));
-				console.debug('SEOConfig: Successfully updated SEO plugin data.json (via file)');
-			} else {
-				// Ensure plugin directory exists
-				const pluginDir = `${configDir}/plugins/${pluginId}`;
-				const pluginDirFile = this.app.vault.getAbstractFileByPath(pluginDir);
-				if (!pluginDirFile) {
-					await this.app.vault.createFolder(pluginDir);
-				}
-				// Create the file
-				await this.app.vault.create(pluginDataPath, JSON.stringify(mergedData, null, 2));
-				console.debug('SEOConfig: Successfully created SEO plugin data.json (via file)');
+
+			// Write config safely with backup and validation
+			const success = await this.safeWriter.writeConfig(pluginId, mergedData, {
+				showNotice: true,
+				createBackup: true
+			});
+
+			if (!success) {
+				throw new Error('Failed to save SEO configuration');
 			}
+
+			console.debug('SEOConfig: Successfully saved SEO plugin configuration');
 		} catch (error: unknown) {
 			console.error('Failed to save SEO config (fallback):', error);
 			throw error;

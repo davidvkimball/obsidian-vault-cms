@@ -5,12 +5,8 @@ export class AstroComposerStep extends BaseWizardStep {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		// False positive: "Astro Composer" is a proper noun (product name) and should be capitalized
-		// eslint-disable-next-line obsidianmd/ui/sentence-case
 		containerEl.createEl('h2', { text: 'Astro Composer configuration' });
-		containerEl.createEl('p', { 
-			// False positive: "Astro Composer" is a proper noun (product name) and should be capitalized
-			// eslint-disable-next-line obsidianmd/ui/sentence-case
+		containerEl.createEl('p', {
 			text: 'Astro Composer will be configured with your content types and frontmatter properties.' 
 		});
 

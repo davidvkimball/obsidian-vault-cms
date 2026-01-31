@@ -5,16 +5,16 @@ import VaultCMSPlugin from '../../main';
 import { ImageManagerConfigurator } from '../../utils/ImageManagerConfig';
 import { HomeBaseConfigurator } from '../../utils/HomeBaseConfig';
 import { ExplorerFocusConfigurator } from '../../utils/ExplorerFocusConfig';
-import { CommanderConfigurator } from '../../utils/CommanderConfig';
+import { EditingToolbarConfigurator } from '../../utils/EditingToolbarConfig';
 
 export class WizardStateManager {
 	private state: WizardState;
 	private plugin: Plugin;
-	private commanderConfigurator: CommanderConfigurator;
+	private editingToolbarConfigurator: EditingToolbarConfigurator;
 
 	constructor(plugin: Plugin) {
 		this.plugin = plugin;
-		this.commanderConfigurator = new CommanderConfigurator(plugin.app);
+		this.editingToolbarConfigurator = new EditingToolbarConfigurator(plugin.app);
 		const settings = (plugin as VaultCMSPlugin).settings;
 		this.state = this.initializeState(settings);
 	}
@@ -79,9 +79,7 @@ export class WizardStateManager {
 				useFilenameAsSlug: true,
 				enableMDXSupport: settings.enableMdxSupport ?? false
 			},
-			commanderConfig: settings.commanderConfig || { pageHeaderCommands: [] },
 			propertyOverFileName: settings.propertyOverFileName || { propertyKey: 'title' },
-			imageInserter: settings.imageInserter || { valueFormat: '[[attachments/{image-url}]]', insertFormat: '[[attachments/{image-url}]]' },
 			imageManager: settings.imageManager || {},
 			homeBase: settings.homeBase || {},
 			explorerFocus: settings.explorerFocus || {},
@@ -176,7 +174,7 @@ export class WizardStateManager {
 		this.state.presetsRepo = settings.presetsRepo || 'vaultcms/vault-cms-presets';
 		
 		// Sync enableWYSIWYG with actual plugin state
-		const actualVisibility = await this.commanderConfigurator.getEditingToolbarVisibility(this.plugin.app);
+		const actualVisibility = await this.editingToolbarConfigurator.getVisibility(this.plugin.app);
 		if (actualVisibility !== undefined) {
 			this.state.enableWYSIWYG = actualVisibility;
 		} else {
@@ -200,9 +198,7 @@ export class WizardStateManager {
 			useFilenameAsTitle: false,
 			useFilenameAsSlug: true
 		};
-		this.state.commanderConfig = settings.commanderConfig || { pageHeaderCommands: [] };
 		this.state.propertyOverFileName = settings.propertyOverFileName || { propertyKey: 'title' };
-		this.state.imageInserter = settings.imageInserter || { valueFormat: '[[attachments/{image-url}]]', insertFormat: '[[attachments/{image-url}]]' };
 		this.state.explorerFocus = settings.explorerFocus || {};
 		
 		// Load configs from plugin data.json files if they're empty
@@ -280,7 +276,6 @@ export class WizardStateManager {
 		settings.basesCMSConfig = this.state.basesCMSConfig;
 		settings.astroComposerConfig = this.state.astroComposerConfig;
 		settings.seoConfig = this.state.seoConfig;
-		settings.commanderConfig = this.state.commanderConfig;
 		settings.propertyOverFileName = this.state.propertyOverFileName;
 		// Clean up old structure if it exists
 		const settingsRecord = settings as unknown as Record<string, unknown>;
@@ -290,7 +285,12 @@ export class WizardStateManager {
 		if (settingsRecord.tabBarCommands) {
 			delete settingsRecord.tabBarCommands;
 		}
-		settings.imageInserter = this.state.imageInserter;
+		if (settingsRecord.commanderConfig) {
+			delete settingsRecord.commanderConfig;
+		}
+		if (settingsRecord.imageInserter) {
+			delete settingsRecord.imageInserter;
+		}
 		settings.imageManager = this.state.imageManager;
 		settings.homeBase = this.state.homeBase;
 		settings.explorerFocus = this.state.explorerFocus;

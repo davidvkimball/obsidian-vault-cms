@@ -7,11 +7,9 @@ import { PluginManager } from '../../utils/PluginManager';
 import { BasesCMSConfigurator } from '../../utils/BasesCMSConfig';
 import { AstroComposerConfigurator } from '../../utils/AstroComposerConfig';
 import { SEOConfigurator } from '../../utils/SEOConfig';
-import { CommanderConfigurator } from '../../utils/CommanderConfig';
+import { EditingToolbarConfigurator } from '../../utils/EditingToolbarConfig';
 import { PropertyOverFileNameConfigurator } from '../../utils/PropertyOverFileNameConfig';
 import { UITweakerConfigurator } from '../../utils/UITweakerConfig';
-import { ImageInserterConfigurator } from '../../utils/ImageInserterConfig';
-import { SimpleBannerConfigurator } from '../../utils/SimpleBannerConfig';
 import { ImageManagerConfigurator } from '../../utils/ImageManagerConfig';
 import { HomeBaseConfigurator } from '../../utils/HomeBaseConfig';
 import { ExplorerFocusConfigurator } from '../../utils/ExplorerFocusConfig';
@@ -21,11 +19,9 @@ export class FinalizeStep extends BaseWizardStep {
 	private basesCMSConfigurator: BasesCMSConfigurator;
 	private astroComposerConfigurator: AstroComposerConfigurator;
 	private seoConfigurator: SEOConfigurator;
-	private commanderConfigurator: CommanderConfigurator;
+	private editingToolbarConfigurator: EditingToolbarConfigurator;
 	private propertyOverFileNameConfigurator: PropertyOverFileNameConfigurator;
 	private uiTweakerConfigurator: UITweakerConfigurator;
-	private imageInserterConfigurator: ImageInserterConfigurator;
-	private simpleBannerConfigurator: SimpleBannerConfigurator;
 	private imageManagerConfigurator: ImageManagerConfigurator;
 	private homeBaseConfigurator: HomeBaseConfigurator;
 	private explorerFocusConfigurator: ExplorerFocusConfigurator;
@@ -41,11 +37,9 @@ export class FinalizeStep extends BaseWizardStep {
 		this.basesCMSConfigurator = new BasesCMSConfigurator(app);
 		this.astroComposerConfigurator = new AstroComposerConfigurator(app);
 		this.seoConfigurator = new SEOConfigurator(app);
-		this.commanderConfigurator = new CommanderConfigurator(app);
+		this.editingToolbarConfigurator = new EditingToolbarConfigurator(app);
 		this.propertyOverFileNameConfigurator = new PropertyOverFileNameConfigurator(app);
 		this.uiTweakerConfigurator = new UITweakerConfigurator(app);
-		this.imageInserterConfigurator = new ImageInserterConfigurator(app);
-		this.simpleBannerConfigurator = new SimpleBannerConfigurator(app);
 		this.imageManagerConfigurator = new ImageManagerConfigurator(app);
 		this.homeBaseConfigurator = new HomeBaseConfigurator(app);
 		this.explorerFocusConfigurator = new ExplorerFocusConfigurator(app);
@@ -56,8 +50,7 @@ export class FinalizeStep extends BaseWizardStep {
 		containerEl.empty();
 
 		containerEl.createEl('h2', { text: 'Finalize configuration' });
-		containerEl.createEl('p', { 
-			// eslint-disable-next-line obsidianmd/ui/sentence-case
+		containerEl.createEl('p', {
 			text: 'Review your configuration and click "Apply and restart" below to save and apply all settings.' 
 		});
 
@@ -146,15 +139,10 @@ export class FinalizeStep extends BaseWizardStep {
 			this.state.seoConfig = seoConfig;
 			await this.seoConfigurator.saveConfig(seoConfig);
 
-			// Configure WYSIWYG Toolbar (toggle command directly, not via commander)
+			// Configure WYSIWYG Toolbar (toggle visibility directly)
 			// Always call this to ensure cMenuVisibility is set correctly, even if disabled
 			console.debug(`FinalizeStep: Configuring editing toolbar, enableWYSIWYG=${this.state.enableWYSIWYG}`);
-			await this.commanderConfigurator.toggleEditingToolbarCommand(this.app, this.state.enableWYSIWYG);
-
-			// Configure Commander (no toolbar button)
-			const commanderConfig = this.commanderConfigurator.generateCommanderConfig(this.state.enableWYSIWYG);
-			this.state.commanderConfig = commanderConfig;
-			await this.commanderConfigurator.saveConfig(commanderConfig);
+			await this.editingToolbarConfigurator.toggleVisibility(this.app, this.state.enableWYSIWYG);
 
 			// Configure Property Over File Name
 			const firstType = this.state.contentTypes.find(ct => ct.enabled);
@@ -180,29 +168,6 @@ export class FinalizeStep extends BaseWizardStep {
 			// Configure UI Tweaker
 			console.debug('FinalizeStep: Configuring UI Tweaker');
 			await this.uiTweakerConfigurator.saveConfig(this.state.enableMdxSupport === true);
-
-			// Configure Simple Banner (if enabled)
-			const imageProperty = firstProps?.imageProperty;
-			if (imageProperty && this.state.enabledPlugins.includes('simple-banner')) {
-				await this.simpleBannerConfigurator.saveConfig(imageProperty);
-			}
-
-			// Configure Image Inserter (if enabled) - use global attachment handling mode
-			if (imageProperty && this.state.enabledPlugins.includes('insert-unsplash-image')) {
-				// Determine format based on global attachment handling mode
-				let imageInserterConfig = { ...this.state.imageInserter };
-				// If same-folder, use simple format; otherwise use attachments folder format
-				if (this.state.attachmentHandlingMode === 'same-folder') {
-					imageInserterConfig.valueFormat = '[[{image-url}]]';
-					imageInserterConfig.insertFormat = '[[{image-url}]]';
-				} else {
-					// For subfolder or specified-folder, use attachments folder
-					const folderName = this.state.attachmentFolderName || 'attachments';
-					imageInserterConfig.valueFormat = `[[${folderName}/{image-url}]]`;
-					imageInserterConfig.insertFormat = `[[${folderName}/{image-url}]]`;
-				}
-				await this.imageInserterConfigurator.saveConfig(imageInserterConfig, imageProperty);
-			}
 
 			// Configure Image Manager (if enabled)
 			if (this.state.enabledPlugins.includes('image-manager')) {
