@@ -1,4 +1,4 @@
-import { Plugin } from 'obsidian';
+import { Plugin, Notice } from 'obsidian';
 import { VaultCMSSettings, DEFAULT_SETTINGS } from './settings';
 import { SettingsTab } from './ui/SettingsTab';
 import { SetupWizardModal } from './ui/SetupWizardModal';
@@ -13,6 +13,11 @@ export default class VaultCMSPlugin extends Plugin {
 
 		// Register commands
 		registerCommands(this);
+
+		// Git health check
+		if (this.settings.gitConfig?.enabled) {
+			this.checkGitStatus();
+		}
 
 		// Add settings tab
 		this.addSettingTab(new SettingsTab(this.app, this));
@@ -47,6 +52,14 @@ export default class VaultCMSPlugin extends Plugin {
 
 	async saveSettings() {
 		await this.saveData(this.settings);
+	}
+
+	async checkGitStatus() {
+		const { GitManager } = await import('./utils/GitManager');
+		const isRepo = await GitManager.isRepo(this.settings.projectRoot);
+		if (!isRepo && this.settings.gitConfig.enabled) {
+			new Notice('Vault CMS: Git integration is enabled but no repository was found at project root.');
+		}
 	}
 }
 

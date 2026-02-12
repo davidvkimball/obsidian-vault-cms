@@ -51,24 +51,24 @@ export class FinalizeStep extends BaseWizardStep {
 
 		containerEl.createEl('h2', { text: 'Finalize configuration' });
 		containerEl.createEl('p', {
-			text: 'Review your configuration and click "Apply and restart" below to save and apply all settings.' 
+			text: 'Review your configuration and click "Apply and restart" below to save and apply all settings.'
 		});
 
 		const summary = containerEl.createEl('div', { cls: 'finalize-summary' });
-		
+
 		summary.createEl('h3', { text: 'Summary' });
-		
+
 		// Content Types
 		const enabledContentTypes = this.state.contentTypes.filter(ct => ct.enabled);
 		summary.createEl('p', { text: `Content Types: ${enabledContentTypes.length}` });
-		
+
 		// WYSIWYG Toolbar
 		summary.createEl('p', { text: `WYSIWYG Toolbar: ${this.state.enableWYSIWYG ? 'Enabled' : 'Disabled'}` });
-		
+
 		// Bases CMS Views (count enabled content types as views to be created)
 		const basesViewsCount = enabledContentTypes.length;
 		summary.createEl('p', { text: `Bases CMS Views: ${basesViewsCount} new view${basesViewsCount !== 1 ? 's' : ''} to be created` });
-		
+
 		// SEO Scan Directories
 		const seoDirectories = enabledContentTypes.map(ct => ct.folder);
 		const seoDirectoriesCount = seoDirectories.length;
@@ -87,7 +87,7 @@ export class FinalizeStep extends BaseWizardStep {
 		try {
 			console.debug('FinalizeStep: Starting configuration application');
 			console.debug('FinalizeStep: Enabled content types:', this.state.contentTypes.filter(ct => ct.enabled).map(ct => ct.name));
-			
+
 			// Configure plugins
 			console.debug('FinalizeStep: Configuring plugin states');
 			await this.pluginManager.setPluginStates(this.state.enabledPlugins, this.state.disabledPlugins);
@@ -154,15 +154,15 @@ export class FinalizeStep extends BaseWizardStep {
 			console.debug('FinalizeStep: Configuring Property Over File Name');
 			console.debug('FinalizeStep: this.state.enableMdxSupport =', this.state.enableMdxSupport);
 			console.debug('FinalizeStep: this.state.propertyOverFileName before =', JSON.stringify(this.state.propertyOverFileName));
-			
+
 			// Ensure enableMdxSupport is ALWAYS set (never undefined)
 			const mdxSupportValue = this.state.enableMdxSupport === true;
 			this.state.propertyOverFileName.enableMdxSupport = mdxSupportValue;
-			
+
 			console.debug('FinalizeStep: Set enableMdxSupport to', mdxSupportValue);
 			console.debug('FinalizeStep: this.state.propertyOverFileName after =', JSON.stringify(this.state.propertyOverFileName));
 			console.debug('FinalizeStep: About to call saveConfig with:', JSON.stringify(this.state.propertyOverFileName));
-			
+
 			await this.propertyOverFileNameConfigurator.saveConfig(this.state.propertyOverFileName);
 
 			// Configure UI Tweaker
@@ -171,6 +171,7 @@ export class FinalizeStep extends BaseWizardStep {
 
 			// Configure Image Manager (if enabled)
 			if (this.state.enabledPlugins.includes('image-manager')) {
+				await this.imageManagerConfigurator.resolveAndSyncImageProperty(this.state);
 				await this.imageManagerConfigurator.saveConfig(this.state.imageManager);
 			}
 
@@ -190,7 +191,7 @@ export class FinalizeStep extends BaseWizardStep {
 				if (defaultType) {
 					console.debug('FinalizeStep: Configuring Obsidian settings for default content type:', defaultType.name);
 					const app = this.app as { setting?: { set?: (key: string, value: unknown) => Promise<void>; save?: () => Promise<void> } };
-					
+
 					// Set attachments folder based on global attachment handling mode
 					let targetPath = './';
 					if (this.state.attachmentHandlingMode === 'same-folder') {
@@ -202,7 +203,7 @@ export class FinalizeStep extends BaseWizardStep {
 						const folderName = this.state.attachmentFolderName || 'attachments';
 						targetPath = folderName;
 					}
-					
+
 					// Method 1: Try to use the app's settings manager if available (following astro-modular-settings pattern)
 					if (app.setting && typeof app.setting.set === 'function') {
 						console.debug('FinalizeStep: Using app.setting API');
@@ -210,7 +211,7 @@ export class FinalizeStep extends BaseWizardStep {
 						await app.setting.set('newFileFolderPath', defaultType.folder);
 						await app.setting.set('attachmentFolderPath', targetPath);
 						await app.setting.set('newLinkFormat', 'relative');
-						
+
 						// Save the settings
 						if (typeof app.setting.save === 'function') {
 							await app.setting.save();
@@ -221,7 +222,7 @@ export class FinalizeStep extends BaseWizardStep {
 						console.debug('FinalizeStep: Using vault.config API');
 						const vault = this.app.vault as { config?: { newFileLocation?: string; newFileFolderPath?: string; attachmentFolderPath?: string; newLinkFormat?: string }; saveConfig?: () => Promise<void> };
 						const obsidianSettings = vault.config;
-						
+
 						if (!obsidianSettings) {
 							console.error('FinalizeStep: vault.config is not available');
 						} else {
@@ -229,7 +230,7 @@ export class FinalizeStep extends BaseWizardStep {
 							obsidianSettings.newFileFolderPath = defaultType.folder;
 							obsidianSettings.attachmentFolderPath = targetPath;
 							obsidianSettings.newLinkFormat = 'relative';
-							
+
 							if (typeof vault.saveConfig === 'function') {
 								await vault.saveConfig();
 								console.debug('FinalizeStep: Obsidian settings saved via vault.saveConfig()');
@@ -261,7 +262,7 @@ export class FinalizeStep extends BaseWizardStep {
 	private async updateActiveBasesViews(defaultViewName: string, shouldRestart: boolean): Promise<void> {
 		const baseFilePath = await this.basesCMSConfigurator.resolveBaseFilePath();
 		let updated = false;
-		
+
 		// Find any active Bases views and update them instead of detaching
 		interface BasesLeafState {
 			leaf: WorkspaceLeaf;
@@ -308,7 +309,7 @@ export class FinalizeStep extends BaseWizardStep {
 		// If no Bases views were found/updated, open a new one
 		if (!updated) {
 			console.debug('FinalizeStep: Opening new Bases leaf with fresh state');
-			
+
 			// Use 'bases-cms' as the preferred type for new leaves
 			const leaf = this.app.workspace.getLeaf('tab');
 			await leaf.setViewState({
@@ -332,11 +333,11 @@ export class FinalizeStep extends BaseWizardStep {
 				const adapter = this.app.vault.adapter;
 				const configDir = this.app.vault.configDir;
 				const workspacePath = `${configDir}/workspace.json`;
-				
+
 				if (await adapter.exists(workspacePath)) {
 					console.debug('FinalizeStep: Attempting direct workspace.json modification');
 					const content = await adapter.read(workspacePath);
-					
+
 					interface WorkspaceNode {
 						type?: string;
 						state?: {
@@ -359,15 +360,15 @@ export class FinalizeStep extends BaseWizardStep {
 					}
 
 					const workspace = JSON.parse(content) as WorkspaceData;
-					
+
 					let modified = false;
-					
+
 					// Recursive function to find and update Bases leaves in workspace.json
 					const updateNode = (node: WorkspaceNode | undefined) => {
 						if (!node) return;
-						
+
 						if (node.type === 'leaf' && node.state) {
-							if ((node.state.type === 'bases' || node.state.type === 'bases-cms') && 
+							if ((node.state.type === 'bases' || node.state.type === 'bases-cms') &&
 								node.state.state?.file === baseFilePath) {
 								console.debug(`FinalizeStep: Found Bases leaf in workspace.json, updating to ${defaultViewName}`);
 								if (node.state.state) {
@@ -377,7 +378,7 @@ export class FinalizeStep extends BaseWizardStep {
 								}
 							}
 						}
-						
+
 						if (node.children) {
 							if (Array.isArray(node.children)) {
 								node.children.forEach((child) => updateNode(child));
@@ -386,11 +387,11 @@ export class FinalizeStep extends BaseWizardStep {
 							}
 						}
 					};
-					
+
 					updateNode(workspace.main);
 					updateNode(workspace.left);
 					updateNode(workspace.right);
-					
+
 					if (modified) {
 						await adapter.write(workspacePath, JSON.stringify(workspace, null, 2));
 						console.debug('FinalizeStep: Successfully modified workspace.json');

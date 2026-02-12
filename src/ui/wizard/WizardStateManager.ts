@@ -34,7 +34,7 @@ export class WizardStateManager {
 		if (!attachmentHandlingMode) {
 			const vault = this.plugin.app.vault as { config?: { newFileLocation?: string; newFileFolderPath?: string; attachmentFolderPath?: string; newLinkFormat?: string } };
 			const obsidianConfig = vault.config;
-			
+
 			if (obsidianConfig?.attachmentFolderPath) {
 				const folderPath = obsidianConfig.attachmentFolderPath;
 				if (folderPath === './') {
@@ -83,7 +83,8 @@ export class WizardStateManager {
 			imageManager: settings.imageManager || {},
 			homeBase: settings.homeBase || {},
 			explorerFocus: settings.explorerFocus || {},
-			ignoreConfig: settings.ignoreConfig || { gitIgnoreConfigured: false, viteIgnoreConfigured: false }
+			ignoreConfig: settings.ignoreConfig || { gitIgnoreConfigured: false, viteIgnoreConfigured: false },
+			gitConfig: settings.gitConfig || { enabled: false, autoConfigureObsidianGit: true }
 		};
 	}
 
@@ -126,7 +127,7 @@ export class WizardStateManager {
 	async refreshState(): Promise<void> {
 		// Refresh the wizard state with current plugin settings
 		const settings = (this.plugin as VaultCMSPlugin).settings;
-		
+
 		// Update project detection
 		if (settings.projectRoot && settings.configFilePath) {
 			this.state.projectDetection = {
@@ -137,12 +138,12 @@ export class WizardStateManager {
 		} else {
 			this.state.projectDetection = undefined;
 		}
-		
+
 		// Update all other settings
 		this.state.contentTypes = settings.contentTypes || [];
 		this.state.frontmatterProperties = settings.frontmatterProperties || {};
 		this.state.defaultContentTypeId = settings.defaultContentTypeId;
-		
+
 		// Use saved settings for attachment handling, or infer from Obsidian if not set
 		if (settings.attachmentHandlingMode) {
 			this.state.attachmentHandlingMode = settings.attachmentHandlingMode;
@@ -150,7 +151,7 @@ export class WizardStateManager {
 		} else {
 			const vault = this.plugin.app.vault as { config?: { newFileLocation?: string; newFileFolderPath?: string; attachmentFolderPath?: string; newLinkFormat?: string } };
 			const obsidianConfig = vault.config;
-			
+
 			if (obsidianConfig?.attachmentFolderPath) {
 				const folderPath = obsidianConfig.attachmentFolderPath;
 				if (folderPath === './') {
@@ -168,11 +169,11 @@ export class WizardStateManager {
 				this.state.attachmentFolderName = undefined;
 			}
 		}
-		
+
 		this.state.preset = settings.preset || 'vanilla';
 		this.state.presetName = settings.presetName || '';
 		this.state.presetsRepo = settings.presetsRepo || 'vaultcms/vault-cms-presets';
-		
+
 		// Sync enableWYSIWYG with actual plugin state
 		const actualVisibility = await this.editingToolbarConfigurator.getVisibility(this.plugin.app);
 		if (actualVisibility !== undefined) {
@@ -200,7 +201,7 @@ export class WizardStateManager {
 		};
 		this.state.propertyOverFileName = settings.propertyOverFileName || { propertyKey: 'title' };
 		this.state.explorerFocus = settings.explorerFocus || {};
-		
+
 		// Load configs from plugin data.json files if they're empty
 		if (!this.state.imageManager || Object.keys(this.state.imageManager).length === 0) {
 			try {
@@ -218,7 +219,7 @@ export class WizardStateManager {
 		} else {
 			this.state.imageManager = settings.imageManager || {};
 		}
-		
+
 		if (!this.state.homeBase || Object.keys(this.state.homeBase).length === 0) {
 			try {
 				const homeBaseConfigurator = new HomeBaseConfigurator(this.plugin.app);
@@ -235,7 +236,7 @@ export class WizardStateManager {
 		} else {
 			this.state.homeBase = settings.homeBase || {};
 		}
-		
+
 		if (!this.state.explorerFocus || Object.keys(this.state.explorerFocus).length === 0) {
 			try {
 				const explorerFocusConfigurator = new ExplorerFocusConfigurator(this.plugin.app);
@@ -252,12 +253,14 @@ export class WizardStateManager {
 		} else {
 			this.state.explorerFocus = settings.explorerFocus || {};
 		}
+
+		this.state.gitConfig = settings.gitConfig || { enabled: false, autoConfigureObsidianGit: true };
 	}
 
-	buildFinalSettings(): void {
+	async buildFinalSettings(): Promise<void> {
 		// Update plugin.settings directly from wizard state
 		const settings = (this.plugin as VaultCMSPlugin).settings;
-		
+
 		settings.projectRoot = this.state.projectDetection?.projectRoot || '';
 		settings.configFilePath = this.state.projectDetection?.configFilePath || '';
 		settings.contentTypes = this.state.contentTypes;
@@ -295,5 +298,14 @@ export class WizardStateManager {
 		settings.homeBase = this.state.homeBase;
 		settings.explorerFocus = this.state.explorerFocus;
 		settings.ignoreConfig = this.state.ignoreConfig;
+		settings.gitConfig = this.state.gitConfig;
+
+		// Sync image property with Image Manager
+		try {
+			const imageManagerConfigurator = new ImageManagerConfigurator(this.plugin.app);
+			await imageManagerConfigurator.resolveAndSyncImageProperty(this.state);
+		} catch (error: unknown) {
+			console.warn('WizardStateManager: Failed to sync image property with Image Manager:', error);
+		}
 	}
 }

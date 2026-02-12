@@ -51,6 +51,17 @@ export interface WizardState {
 	homeBase: HomeBaseConfig;
 	explorerFocus: ExplorerFocusConfig;
 	ignoreConfig: IgnoreConfig;
+	gitConfig: GitConfig;
+}
+
+export interface GitConfig {
+	enabled: boolean;
+	pat?: string;
+	repoName?: string;
+	repoDescription?: string;
+	isPrivate: boolean;
+	branchName?: string;
+	autoConfigureObsidianGit: boolean;
 }
 
 export interface IgnoreConfig {

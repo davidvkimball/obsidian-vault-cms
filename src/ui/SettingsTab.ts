@@ -152,6 +152,35 @@ export class SettingsTab extends PluginSettingTab {
 			this.viteSetting = setting;
 			this.updateViteSetting(status.viteIgnoreStatus);
 		});
+
+		// Git Configuration group
+		const gitGroup = createSettingsGroup(this.contentEl, 'Git configuration', 'vault-cms-git');
+
+		gitGroup.addSetting((setting) => {
+			setting.setName('GitHub Personal Access Token')
+				.setDesc('Token used for Git operations (stored locally)')
+				.addText(text => {
+					text.setPlaceholder('ghp_xxxxxxxxxxxx')
+						.setValue(this.plugin.settings.gitConfig.pat || '')
+						.onChange(async (value) => {
+							this.plugin.settings.gitConfig.pat = value.trim();
+							await this.plugin.saveSettings();
+						});
+					text.inputEl.type = 'password';
+				});
+		});
+
+		gitGroup.addSetting((setting) => {
+			setting.setName('Enable Git integration')
+				.setDesc('Enable Git features in Vault CMS')
+				.addToggle(toggle => {
+					toggle.setValue(this.plugin.settings.gitConfig.enabled)
+						.onChange(async (value) => {
+							this.plugin.settings.gitConfig.enabled = value;
+							await this.plugin.saveSettings();
+						});
+				});
+		});
 	}
 
 	private updateGitSetting(status: 'configured' | 'not-configured') {

@@ -1,4 +1,4 @@
-import { ContentTypeConfig, FrontmatterProperties, BasesCMSConfig, AstroComposerConfig, SEOConfig, PropertyOverFileNameConfig, ImageManagerConfig, HomeBaseConfig, ExplorerFocusConfig, IgnoreConfig } from './types';
+import { ContentTypeConfig, FrontmatterProperties, BasesCMSConfig, AstroComposerConfig, SEOConfig, PropertyOverFileNameConfig, ImageManagerConfig, HomeBaseConfig, ExplorerFocusConfig, IgnoreConfig, GitConfig } from './types';
 
 export interface VaultCMSSettings {
 	projectRoot: string;
@@ -24,6 +24,7 @@ export interface VaultCMSSettings {
 	homeBase: HomeBaseConfig;
 	explorerFocus: ExplorerFocusConfig;
 	ignoreConfig: IgnoreConfig;
+	gitConfig: GitConfig;
 	runWizardOnStartup: boolean;
 	wizardCompleted: boolean;
 }
@@ -68,6 +69,12 @@ export const DEFAULT_SETTINGS: VaultCMSSettings = {
 	ignoreConfig: {
 		gitIgnoreConfigured: false,
 		viteIgnoreConfigured: false
+	},
+	gitConfig: {
+		enabled: false,
+		isPrivate: true,
+		branchName: 'main',
+		autoConfigureObsidianGit: true
 	},
 	runWizardOnStartup: true,
 	wizardCompleted: false

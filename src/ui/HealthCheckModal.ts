@@ -57,6 +57,9 @@ export class HealthCheckModal extends Modal {
 
 		// Check 4: Plugin Configuration
 		await this.checkPluginConfiguration();
+
+		// Check 5: Git Integration
+		await this.checkGitIntegration();
 	}
 
 	private async checkCompanionPluginsInstalled() {
@@ -296,6 +299,51 @@ export class HealthCheckModal extends Modal {
 
 		this.results.push({
 			category: 'Plugin Configuration',
+			checks
+		});
+	}
+
+	private async checkGitIntegration() {
+		const checks: HealthCheckResult['checks'] = [];
+		const { gitConfig, projectRoot } = this.plugin.settings;
+
+		// 1. Check if Git is a repo
+		if (projectRoot) {
+			const { GitManager } = await import('../utils/GitManager');
+			const isRepo = await GitManager.isRepo(projectRoot);
+			checks.push({
+				name: 'Git repository initialized',
+				status: isRepo ? 'pass' : 'fail',
+				message: isRepo ? 'Repository detected at project root' : 'No repository found at project root'
+			});
+
+			if (isRepo) {
+				// 2. Check Remote
+				// We'd need to run 'git remote -v' but for now let's just check if it's enabled in settings
+				checks.push({
+					name: 'Git enabled in settings',
+					status: gitConfig.enabled ? 'pass' : 'warning',
+					message: gitConfig.enabled ? 'Integration active' : 'Git setup skipped or not finished'
+				});
+			}
+		} else {
+			checks.push({
+				name: 'Git repository check',
+				status: 'fail',
+				message: 'Project root not configured'
+			});
+		}
+
+		// 3. Check GitHub PAT
+		const hasPat = !!gitConfig.pat;
+		checks.push({
+			name: 'GitHub PAT configured',
+			status: hasPat ? 'pass' : 'warning',
+			message: hasPat ? 'Token present' : 'No token found in settings'
+		});
+
+		this.results.push({
+			category: 'Git Integration',
 			checks
 		});
 	}

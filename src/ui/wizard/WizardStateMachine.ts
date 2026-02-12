@@ -12,6 +12,7 @@ import { AstroComposerStep } from './AstroComposerStep';
 import { SEOConfigStep } from './SEOConfigStep';
 import { OptionalPluginsStep } from './OptionalPluginsStep';
 import { IgnoreStep } from './IgnoreStep';
+import { GitSetupStep } from './GitSetupStep';
 import { FinalizeStep } from './FinalizeStep';
 
 /**
@@ -54,7 +55,7 @@ export class WizardStateMachine {
 		['content-types', 2],
 		['frontmatter', 4],
 		['plugins', 9],
-		['complete', 11]
+		['complete', 12]
 	]);
 
 	// Reverse mapping: step index to state
@@ -70,7 +71,8 @@ export class WizardStateMachine {
 		[8, 'plugins'], // SEOConfigStep
 		[9, 'plugins'], // OptionalPluginsStep
 		[10, 'plugins'], // IgnoreStep
-		[11, 'complete'] // FinalizeStep
+		[11, 'plugins'], // GitSetupStep
+		[12, 'complete'] // FinalizeStep
 	]);
 
 	// State transition rules
@@ -83,10 +85,10 @@ export class WizardStateMachine {
 		['complete', []] // Terminal state
 	]);
 
-	constructor() {
+	constructor(steps?: StepConstructor[]) {
 		this.currentState = 'welcome';
 		this.stepIndex = 0;
-		this.steps = [
+		this.steps = steps || [
 			WelcomeStep,
 			ProjectDetectionStep,
 			ContentTypeStep,
@@ -98,6 +100,7 @@ export class WizardStateMachine {
 			SEOConfigStep,
 			OptionalPluginsStep,
 			IgnoreStep,
+			GitSetupStep,
 			FinalizeStep
 		];
 	}
@@ -205,6 +208,30 @@ export class WizardStateMachine {
 	}
 
 	/**
+	 * Jump to a specific step index
+	 * Updates both step index and state
+	 */
+	jumpToStep(index: number): void {
+		if (index < 0 || index >= this.steps.length) {
+			console.error(`WizardStateMachine: Invalid step index ${index}`);
+			return;
+		}
+
+		const state = this.stepStateMap.get(index);
+		if (!state) {
+			console.error(`WizardStateMachine: No state mapping for step index ${index}`);
+			return;
+		}
+
+		this.stepIndex = index;
+		this.currentState = state;
+
+		console.debug(
+			`WizardStateMachine: Jumped to step ${this.stepIndex} (state: ${this.currentState})`
+		);
+	}
+
+	/**
 	 * Jump to a specific state
 	 * This will move to the first step of that state
 	 */
@@ -216,12 +243,7 @@ export class WizardStateMachine {
 			return;
 		}
 
-		this.stepIndex = stepIndex;
-		this.currentState = state;
-
-		console.debug(
-			`WizardStateMachine: Jumped to step ${this.stepIndex} (state: ${this.currentState})`
-		);
+		this.jumpToStep(stepIndex);
 	}
 
 	/**

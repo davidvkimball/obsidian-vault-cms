@@ -1,14 +1,4 @@
 import { App, Modal, Notice } from 'obsidian';
-
-/**
- * Helper function for setCssProps
- */
-function setCssProps(element: HTMLElement, props: Record<string, string>): void {
-	for (const [key, value] of Object.entries(props)) {
-		const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase();
-		element.style.setProperty(cssKey, value);
-	}
-}
 import { WizardState } from '../types';
 import { BaseWizardStep } from './wizard/BaseWizardStep';
 import { WizardStateManager } from './wizard/WizardStateManager';
@@ -25,7 +15,18 @@ import { AstroComposerStep } from './wizard/AstroComposerStep';
 import { SEOConfigStep } from './wizard/SEOConfigStep';
 import { OptionalPluginsStep } from './wizard/OptionalPluginsStep';
 import { IgnoreStep } from './wizard/IgnoreStep';
+import { GitSetupStep } from './wizard/GitSetupStep';
 import { FinalizeStep } from './wizard/FinalizeStep';
+
+/**
+ * Helper function for setCssProps
+ */
+function setCssProps(element: HTMLElement, props: Record<string, string>): void {
+	for (const [key, value] of Object.entries(props)) {
+		const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase();
+		element.style.setProperty(cssKey, value);
+	}
+}
 
 export class SetupWizardModal extends Modal {
 	private stateManager: WizardStateManager;
@@ -46,13 +47,11 @@ export class SetupWizardModal extends Modal {
 		}
 
 		this.stateManager = new WizardStateManager(this.plugin);
-		this.stateMachine = new WizardStateMachine();
 
 		// Apply any initial state overrides
 		if (initialState) {
 			this.stateManager.updateState(initialState);
 		}
-
 		this.steps = [
 			WelcomeStep,
 			ProjectDetectionStep,
@@ -65,8 +64,11 @@ export class SetupWizardModal extends Modal {
 			SEOConfigStep,
 			OptionalPluginsStep,
 			IgnoreStep,
+			GitSetupStep,
 			FinalizeStep
 		];
+
+		this.stateMachine = new WizardStateMachine(this.steps);
 
 		console.debug('SetupWizardModal: State machine initialized -', this.stateMachine.getDebugInfo());
 	}
@@ -75,13 +77,13 @@ export class SetupWizardModal extends Modal {
 		const { contentEl } = this;
 		contentEl.empty();
 		contentEl.addClass('vault-cms-wizard');
-		
+
 		// Refresh the wizard state with current settings
 		await this.stateManager.refreshState();
-		
+
 		// Store a snapshot of initial settings to detect changes later
 		this.initialSettingsSnapshot = this.createSettingsSnapshot();
-		
+
 		// Render current step (may be async, but we don't await it)
 		void this.renderCurrentStep();
 	}
@@ -89,52 +91,52 @@ export class SetupWizardModal extends Modal {
 	onClose() {
 		const { contentEl } = this;
 		contentEl.empty();
-		
+
 		// When closing, only preserve changes from steps where "Next" was clicked
 		// Discard unsaved changes from the current step (equivalent to "Skip")
 		// The "Next" button already saved those steps, so we don't need to save again
 		// Just close without saving - this discards current step changes but preserves previous "Next" saves
-		
+
 		// Reset the flag
 		this.isCompleting = false;
 	}
 
 	private scrollToTop() {
 		const { contentEl } = this;
-		
+
 		// Method 1: Find and scroll the actual scrollable parent
 		let scrollableParent: HTMLElement | null = contentEl;
 		while (scrollableParent && scrollableParent !== document.body) {
 			const style = window.getComputedStyle(scrollableParent);
-			if (scrollableParent.scrollHeight > scrollableParent.clientHeight && 
+			if (scrollableParent.scrollHeight > scrollableParent.clientHeight &&
 				(style.overflowY === 'auto' || style.overflowY === 'scroll' || style.overflow === 'auto' || style.overflow === 'scroll')) {
 				scrollableParent.scrollTop = 0;
 				break;
 			}
 			scrollableParent = scrollableParent.parentElement;
 		}
-		
+
 		// Method 2: Try common Obsidian modal containers
 		const modalContent = contentEl.closest('.modal-content');
 		if (modalContent) {
 			(modalContent as HTMLElement).scrollTop = 0;
 		}
-		
+
 		const modalContainer = contentEl.closest('.modal-container');
 		if (modalContainer) {
 			(modalContainer as HTMLElement).scrollTop = 0;
 		}
-		
+
 		// Also try contentEl itself
 		contentEl.scrollTop = 0;
 	}
 
 	private async renderCurrentStep() {
 		const { contentEl } = this;
-		
+
 		// Scroll to top IMMEDIATELY before clearing content to prevent visual jump
 		this.scrollToTop();
-		
+
 		// Clear content
 		contentEl.empty();
 		contentEl.addClass('vault-cms-wizard');
@@ -151,7 +153,7 @@ export class SetupWizardModal extends Modal {
 
 		// Render footer
 		this.renderFooter(contentEl);
-		
+
 		// Final scroll to top after all rendering is complete
 		requestAnimationFrame(() => {
 			this.scrollToTop();
@@ -159,18 +161,36 @@ export class SetupWizardModal extends Modal {
 	}
 
 	private renderProgress(container: HTMLElement) {
-		const state = this.stateManager.getState();
-		const totalSteps = this.steps.length;
-		const progress = container.createDiv('wizard-progress');
+		try {
+			const state = this.stateManager.getState();
+			const totalSteps = this.steps.length;
 
-		const progressBar = progress.createDiv('progress-bar');
-		const progressFill = progressBar.createDiv('progress-fill');
-		// Set dynamic width using setCssProps
-		setCssProps(progressFill, { width: `${this.stateMachine.getProgress()}%` });
+			if (!state || !this.stateMachine) {
+				console.error('SetupWizardModal: state or stateMachine is missing in renderProgress');
+				return;
+			}
 
-		// Add step text below the progress bar with state information
-		const progressText = progress.createDiv('progress-text');
-		progressText.textContent = `Step ${state.currentStep + 1} of ${totalSteps} - ${this.stateMachine.getStateDescription()}`;
+			const progress = container.createDiv('wizard-progress');
+
+			// Synchronize state machine with current state index
+			this.stateMachine.jumpToStep(state.currentStep);
+
+			const progressBar = progress.createDiv('progress-bar');
+			const progressFill = progressBar.createDiv('progress-fill');
+
+			// Calculate progress percentage
+			const progressPercent = this.stateMachine.getProgress();
+
+			// Set dynamic width using setCssProps
+			setCssProps(progressFill, { width: `${progressPercent}%` });
+
+			// Add step text below the progress bar with state information
+			const progressText = progress.createDiv('progress-text');
+			progressText.textContent = `Step ${state.currentStep + 1} of ${totalSteps} - ${this.stateMachine.getStateDescription()}`;
+		} catch (error: unknown) {
+			console.error('SetupWizardModal: Error rendering progress bar:', error);
+			// Don't throw - allow the rest of the wizard to render if possible
+		}
 	}
 
 	private async renderStepContent(container: HTMLElement) {
@@ -220,7 +240,7 @@ export class SetupWizardModal extends Modal {
 	private renderFooter(container: HTMLElement) {
 		const footer = container.createDiv('wizard-footer');
 		setCssProps(footer, { display: 'flex', justifyContent: 'space-between', alignItems: 'center' });
-		
+
 		// Startup setting checkbox (only on the first step)
 		if (this.stateManager.getState().currentStep === 0) {
 			const startupSetting = footer.createDiv('wizard-startup-setting-footer');
@@ -231,7 +251,7 @@ export class SetupWizardModal extends Modal {
 			setCssProps(checkbox, { cursor: 'default' });
 			checkbox.checked = !this.plugin.settings.runWizardOnStartup;
 			label.createSpan({ text: " I've already set up my vault, don't show on startup" });
-			
+
 			checkbox.addEventListener('change', () => {
 				this.plugin.settings.runWizardOnStartup = !checkbox.checked;
 				void this.plugin.saveSettings();
@@ -240,10 +260,10 @@ export class SetupWizardModal extends Modal {
 			// Empty div to keep buttons pushed to the right
 			footer.createDiv();
 		}
-		
+
 		const buttons = footer.createDiv('wizard-buttons');
 		setCssProps(buttons, { display: 'flex', gap: '10px' });
-		
+
 		// Previous button
 		if (this.stateManager.canGoPrevious()) {
 			const prevBtn = buttons.createEl('button', {
@@ -341,15 +361,15 @@ export class SetupWizardModal extends Modal {
 					// For other steps, just save the current step
 					await this.saveCurrentStepToWizardState();
 				}
-				
+
 				// Mark wizard as completed and disable startup trigger
 				this.plugin.settings.wizardCompleted = true;
 				this.plugin.settings.runWizardOnStartup = false;
 				await this.plugin.saveSettings();
-				
+
 				// CRITICAL: Reload settings from disk to ensure everything is synchronized
 				await this.plugin.loadSettings();
-				
+
 				this.close();
 
 				// Trigger restart if requested
@@ -378,11 +398,11 @@ export class SetupWizardModal extends Modal {
 		// This is called when NEXT is clicked to ensure data.json stays in sync
 		try {
 			// Build final settings from wizard state (updates plugin.settings)
-			this.stateManager.buildFinalSettings();
-			
+			await this.stateManager.buildFinalSettings();
+
 			// Save to data.json
 			await this.plugin.saveSettings();
-			
+
 			// Reload settings to ensure the plugin has the latest values
 			await this.plugin.loadSettings();
 		} catch (error: unknown) {
@@ -402,22 +422,22 @@ export class SetupWizardModal extends Modal {
 		// This ensures changes are preserved even if user closes modal without completing wizard
 		try {
 			// Build final settings from wizard state
-			this.stateManager.buildFinalSettings();
-			
+			await this.stateManager.buildFinalSettings();
+
 			// Check if any changes were actually made
 			const hasChanges = this.hasSettingsChanged();
-			
+
 			// Only save to data.json if there were actual changes
 			if (!hasChanges) {
 				return; // No changes, don't save anything
 			}
-			
+
 			// Save to data.json
 			await this.plugin.saveSettings();
-			
+
 			// Reload settings to ensure the plugin has the latest values
 			await this.plugin.loadSettings();
-			
+
 			// Only show notification if requested
 			if (showNotification) {
 				new Notice('Configuration saved');
@@ -429,7 +449,7 @@ export class SetupWizardModal extends Modal {
 			}
 		}
 	}
-	
+
 	private createSettingsSnapshot(): Partial<WizardState> {
 		// Create a deep copy of current state for comparison
 		const state = this.stateManager.getState();
@@ -452,14 +472,14 @@ export class SetupWizardModal extends Modal {
 			homeBase: state.homeBase
 		}));
 	}
-	
+
 	private hasSettingsChanged(): boolean {
 		if (!this.initialSettingsSnapshot) {
 			return false;
 		}
-		
+
 		const currentSnapshot = this.createSettingsSnapshot();
-		
+
 		// Compare key settings that can be changed in the wizard
 		return (
 			JSON.stringify(currentSnapshot.projectDetection) !== JSON.stringify(this.initialSettingsSnapshot.projectDetection) ||
