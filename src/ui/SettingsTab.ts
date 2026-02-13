@@ -157,20 +157,6 @@ export class SettingsTab extends PluginSettingTab {
 		const gitGroup = createSettingsGroup(this.contentEl, 'Git configuration', 'vault-cms-git');
 
 		gitGroup.addSetting((setting) => {
-			setting.setName('GitHub Personal Access Token')
-				.setDesc('Token used for Git operations (stored locally)')
-				.addText(text => {
-					text.setPlaceholder('ghp_xxxxxxxxxxxx')
-						.setValue(this.plugin.settings.gitConfig.pat || '')
-						.onChange(async (value) => {
-							this.plugin.settings.gitConfig.pat = value.trim();
-							await this.plugin.saveSettings();
-						});
-					text.inputEl.type = 'password';
-				});
-		});
-
-		gitGroup.addSetting((setting) => {
 			setting.setName('Enable Git integration')
 				.setDesc('Enable Git features in Vault CMS')
 				.addToggle(toggle => {
@@ -178,9 +164,72 @@ export class SettingsTab extends PluginSettingTab {
 						.onChange(async (value) => {
 							this.plugin.settings.gitConfig.enabled = value;
 							await this.plugin.saveSettings();
+							// Re-render to show/hide relevant settings
+							this.display();
 						});
 				});
 		});
+
+		// Only show PAT if Git integration is enabled
+		if (this.plugin.settings.gitConfig.enabled) {
+			gitGroup.addSetting((setting) => {
+				setting.setName('GitHub Personal Access Token')
+					.setDesc('Token used for Git operations (stored securely)')
+					.addText(async text => {
+						// Try to get from secret storage first
+						const savedSecret = (this.app as any).secretStorage?.getSecret('vault-cms-github-pat');
+
+						text.setPlaceholder('ghp_xxxxxxxxxxxx')
+							.setValue(this.plugin.settings.gitConfig.pat || savedSecret || '')
+							.onChange(async (value) => {
+								const trimmedValue = value.trim();
+								this.plugin.settings.gitConfig.pat = trimmedValue;
+
+								// Also update secret storage for consistency
+								if (trimmedValue && (this.app as any).secretStorage) {
+									(this.app as any).secretStorage.setSecret('vault-cms-github-pat', trimmedValue);
+								}
+
+								await this.plugin.saveSettings();
+							});
+						text.inputEl.type = 'password';
+					})
+					.addButton(button => {
+						button.setButtonText('Verify Token')
+							.onClick(async () => {
+								const token = this.plugin.settings.gitConfig.pat || (this.app as any).secretStorage?.getSecret('vault-cms-github-pat');
+								if (!token) {
+									new Notice('Please enter a token first.');
+									return;
+								}
+								button.setDisabled(true);
+								button.setButtonText('Verifying...');
+
+								try {
+									const { GitManager } = await import('../utils/GitManager');
+									const username = await GitManager.verifyToken(token);
+									if (username) {
+										new Notice(`Token verified successfully as ${username}!`);
+										if ((this.app as any).secretStorage) {
+											(this.app as any).secretStorage.setSecret('vault-cms-github-pat', token);
+										}
+										button.setButtonText('Verified');
+										button.buttonEl.style.backgroundColor = 'var(--background-modifier-success)';
+										button.buttonEl.style.color = 'white';
+									} else {
+										new Notice('Invalid token or GitHub API error.');
+										button.setButtonText('Verify Token');
+										button.setDisabled(false);
+									}
+								} catch (e) {
+									new Notice('Verification failed. Check your connection.');
+									button.setButtonText('Verify Token');
+									button.setDisabled(false);
+								}
+							});
+					});
+			});
+		}
 	}
 
 	private updateGitSetting(status: 'configured' | 'not-configured') {

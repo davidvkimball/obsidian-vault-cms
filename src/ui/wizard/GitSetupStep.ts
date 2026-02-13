@@ -108,7 +108,7 @@ export class GitSetupStep extends BaseWizardStep {
                             this.app.saveLocalStorage('obsidian-git:username', username);
 
                             this.state.gitConfig.enabled = true;
-                            button.setButtonText('✅ Verified');
+                            button.setButtonText('Verified');
                             button.buttonEl.style.backgroundColor = 'var(--background-modifier-success)';
                             button.buttonEl.style.color = 'white';
                         } else {
