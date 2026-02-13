@@ -63,7 +63,7 @@ export class GitSetupStep extends BaseWizardStep {
                     cls: 'git-status-message',
                     attr: { style: 'margin-bottom: 2rem;' }
                 });
-                statusEl.createSpan({ text: ' ✅ Git is already initialized.' });
+                statusEl.createSpan({ text: 'Git is already initialized.' });
             }
         }
 

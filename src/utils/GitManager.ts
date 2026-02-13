@@ -2,6 +2,7 @@ import { requestUrl, RequestUrlParam } from 'obsidian';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import * as path from 'path';
+import * as fs from 'fs';
 
 const execAsync = promisify(exec);
 
@@ -16,16 +17,19 @@ export class GitManager {
      */
     static async isRepo(projectRoot: string): Promise<boolean> {
         try {
-            // Get the absolute path of the git repository's top level
+            // THE MOST FOOLPROOF WAY: Check if .git folder exists in the project root
+            const dotGitPath = path.join(projectRoot, '.git');
+            if (fs.existsSync(dotGitPath)) {
+                return true;
+            }
+
+            // Fallback to git rev-parse but ensure it's THIS directory
             const { stdout } = await execAsync('git rev-parse --show-toplevel', { cwd: projectRoot });
             const gitRoot = stdout.trim();
 
-            // Normalize paths for comparison (especially important on Windows)
             const normalizedProjectRoot = path.normalize(projectRoot).toLowerCase();
             const normalizedGitRoot = path.normalize(gitRoot).toLowerCase();
 
-            // It's ONLY a repo for THIS project if the roots match exactly
-            // Otherwise, it's just finding a parent repo
             return normalizedProjectRoot === normalizedGitRoot;
         } catch {
             return false;

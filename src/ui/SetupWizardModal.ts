@@ -178,16 +178,12 @@ export class SetupWizardModal extends Modal {
 			const progressBar = progress.createDiv('progress-bar');
 			const progressFill = progressBar.createDiv('progress-fill');
 
-			// Calculate progress percentage using stateMachine
-			const progressPercent = this.stateMachine.getProgress();
+			// Calculate progress percentage: (Step X of Y) -> ((currentStep + 1) / totalSteps) * 100
+			// This matches the reference project's logic where Step 1 shows progress
+			const progressPercent = ((state.currentStep + 1) / totalSteps) * 100;
 
-			// Ensure style is applied after the element is in the DOM
-			requestAnimationFrame(() => {
-				setCssProps(progressFill, {
-					width: `${progressPercent}%`,
-					backgroundColor: 'var(--interactive-accent, #007acc)'
-				});
-			});
+			// Direct style application (most reliable with the new CSS)
+			progressFill.style.width = `${progressPercent}%`;
 
 			// Add step text below the progress bar with state information
 			const progressText = progress.createDiv('progress-text');
