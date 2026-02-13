@@ -38,7 +38,7 @@ export interface WizardState {
 	preset: 'vanilla' | 'opinionated' | 'custom';
 	presetName: string;
 	presetsRepo: string;
-	enableWYSIWYG: boolean;
+	enableEditingToolbar: boolean;
 	enableMdxSupport?: boolean; // MDX file support flag (optional to allow auto-detection)
 	enabledPlugins: string[];
 	disabledPlugins: string[];

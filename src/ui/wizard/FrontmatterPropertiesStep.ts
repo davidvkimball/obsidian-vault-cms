@@ -22,18 +22,18 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 
 	async display(): Promise<void> {
 		const { containerEl } = this;
-		
+
 		// Clear only the step content, preserve navigation footer
 		const existingWrapper = containerEl.querySelector('.frontmatter-step-content');
 		if (existingWrapper) {
 			existingWrapper.remove();
 		}
-		
+
 		const stepContentWrapper = containerEl.createDiv({ cls: 'frontmatter-step-content' });
 
 		stepContentWrapper.createEl('h2', { text: 'Frontmatter properties' });
-		stepContentWrapper.createEl('p', { 
-			text: 'Map frontmatter properties for each content type. We\'ll find example files to help you.' 
+		stepContentWrapper.createEl('p', {
+			text: 'Map frontmatter properties for each content type. We\'ll find example files to help you.'
 		});
 
 		for (const contentType of this.state.contentTypes) {
@@ -44,24 +44,30 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 			// Create a wrapper for this content type's settings
 			const contentTypeWrapper = stepContentWrapper.createDiv({ cls: 'content-type-settings' });
 
-			// Find example file
+			// Find example file and all properties
+			const pathResolver = new PathResolver(this.app);
+			const folderPath = pathResolver.getFolderPathFromVaultRoot(contentType.folder, this.state.projectDetection);
+
 			if (!this.examples[contentType.id]) {
-				// Get the correct folder path from vault root using PathResolver
-				const pathResolver = new PathResolver(this.app);
-				const folderPath = pathResolver.getFolderPathFromVaultRoot(contentType.folder, this.state.projectDetection);
-				const example = await this.frontmatterAnalyzer.findExampleFile(folderPath);
+				const example = await this.frontmatterAnalyzer.findExampleFile(folderPath, this.state.enableMdxSupport);
 				if (example) {
 					this.examples[contentType.id] = example;
 				}
 			}
 
 			const example = this.examples[contentType.id];
-			
+
+			// Get ALL properties in this folder for better auto-detection
+			const aggregateProps = await this.frontmatterAnalyzer.getPropertiesInFolder(folderPath, this.state.enableMdxSupport);
+			// Create a dummy frontmatter object from all found keys for detector functions
+			const dummyFrontmatter: Record<string, unknown> = {};
+			aggregateProps.forEach(key => dummyFrontmatter[key] = null);
+
 			contentTypeWrapper.createEl('h3', { text: contentType.name });
 
 			if (example) {
 				contentTypeWrapper.createEl('p', { text: `Example file: ${example.file}` });
-				const preEl = contentTypeWrapper.createEl('pre', { 
+				const preEl = contentTypeWrapper.createEl('pre', {
 					text: example.rawYaml,
 					cls: 'frontmatter-example'
 				});
@@ -81,18 +87,16 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 
 			// Initialize properties if not exists
 			if (!this.state.frontmatterProperties[contentType.id]) {
-				const detectedDraft = example ? this.frontmatterAnalyzer.autoDetectDraftProperty(example.frontmatter) : null;
-				const detectedTags = example ? this.frontmatterAnalyzer.autoDetectTagsProperty(example.frontmatter) : null;
-				const detectedImage = example ? this.frontmatterAnalyzer.autoDetectImageProperty(example.frontmatter) : null;
-				const detectedDesc = example ? this.frontmatterAnalyzer.autoDetectDescriptionProperty(example.frontmatter) : null;
-				const detectedTitle = example ? (example.frontmatter.hasOwnProperty('title') ? 'title' : null) : null;
-				const detectedDate = example ? this.frontmatterAnalyzer.autoDetectDateProperty(example.frontmatter) : null;
-				
+				const detectedDraft = this.frontmatterAnalyzer.autoDetectDraftProperty(dummyFrontmatter);
+				const detectedTags = this.frontmatterAnalyzer.autoDetectTagsProperty(dummyFrontmatter);
+				const detectedImage = this.frontmatterAnalyzer.autoDetectImageProperty(dummyFrontmatter);
+				const detectedDesc = this.frontmatterAnalyzer.autoDetectDescriptionProperty(dummyFrontmatter);
+				const detectedTitle = dummyFrontmatter.hasOwnProperty('title') ? 'title' : null;
+				const detectedDate = this.frontmatterAnalyzer.autoDetectDateProperty(dummyFrontmatter);
+
 				// Check for underscore-prefixed files
-				const pathResolver = new PathResolver(this.app);
-				const folderPath = pathResolver.getFolderPathFromVaultRoot(contentType.folder, this.state.projectDetection);
 				const hasUnderscoreFiles = await this.frontmatterAnalyzer.hasUnderscoreFiles(folderPath);
-				
+
 				this.state.frontmatterProperties[contentType.id] = {
 					titleProperty: detectedTitle || undefined, // Only set if detected, otherwise blank
 					dateProperty: detectedDate || undefined, // Only set if detected, otherwise blank
@@ -134,15 +138,15 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 			const descSetting = new Setting(contentTypeWrapper)
 				.setName('Has description/summary?')
 				.setDesc('Does this content type have a description or summary field?');
-			
+
 			let descTextSetting: Setting | null = null;
-			
+
 			descSetting.addToggle(toggle => toggle
 				.setValue(!!props.descriptionProperty)
 				.onChange(value => {
 					if (value && !props.descriptionProperty) {
-						props.descriptionProperty = example ? 
-							this.frontmatterAnalyzer.autoDetectDescriptionProperty(example.frontmatter) || 'description' : 
+						props.descriptionProperty = example ?
+							this.frontmatterAnalyzer.autoDetectDescriptionProperty(example.frontmatter) || 'description' :
 							'description';
 						// Show text field
 						if (!descTextSetting) {
@@ -186,9 +190,9 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 			const tagsSetting = new Setting(contentTypeWrapper)
 				.setName('Has tags?')
 				.setDesc('Does this content type have tags?');
-			
+
 			let tagsTextSetting: Setting | null = null;
-			
+
 			tagsSetting.addToggle(toggle => toggle
 				.setValue(!!props.tagsProperty)
 				.onChange(value => {
@@ -243,15 +247,15 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 			const draftSetting = new Setting(contentTypeWrapper)
 				.setName('Has draft status?')
 				.setDesc('Does this content type have draft status?');
-			
+
 			let draftPropertySetting: Setting | null = null;
 			let draftLogicSetting: Setting | null = null;
-			
+
 			// Initialize hasDraftStatus if not set (for backwards compatibility)
 			if (props.hasDraftStatus === undefined) {
 				props.hasDraftStatus = !!props.draftProperty;
 			}
-			
+
 			draftSetting.addToggle(toggle => toggle
 				.setValue(props.hasDraftStatus ?? !!props.draftProperty)
 				.onChange(value => {
@@ -407,9 +411,9 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 			const imageSetting = new Setting(contentTypeWrapper)
 				.setName('Has image/cover property?')
 				.setDesc('Does this content type have an image or cover property? Used for Bases CMS cover images and Image Manager.');
-			
+
 			let imageTextSetting: Setting | null = null;
-			
+
 			imageSetting.addToggle(toggle => toggle
 				.setValue(!!props.imageProperty)
 				.onChange(value => {
@@ -462,14 +466,19 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 
 			// Template editor
 			contentTypeWrapper.createEl('h4', { text: 'Template' });
-			contentTypeWrapper.createEl('p', { 
-				text: 'Edit the template that will be used when creating new files of this content type. Use {{title}} and {{date}} as variables. Note: {{title}} should be in quotes (e.g., title: "{{title}}"), while {{date}} should not be in quotes (e.g., date: {{date}}).' 
+			contentTypeWrapper.createEl('p', {
+				text: 'Edit the template that will be used when creating new files of this content type. Use {{title}} and {{date}} as variables. Note: {{title}} should be in quotes (e.g., title: "{{title}}"), while {{date}} should not be in quotes (e.g., date: {{date}}).'
 			});
 
 			// Initialize template if not exists
 			if (!props.template) {
-				// Generate default template based on properties
-				props.template = this.generateDefaultTemplate(props, example);
+				// Get correct folder path for aggregation
+				const pathResolver = new PathResolver(this.app);
+				const folderPath = pathResolver.getFolderPathFromVaultRoot(contentType.folder, this.state.projectDetection);
+				const aggregateProps = await this.frontmatterAnalyzer.getPropertiesInFolder(folderPath, this.state.enableMdxSupport);
+
+				// Generate default template based on properties and ALL found keys
+				props.template = this.generateDefaultTemplate(props, example, aggregateProps);
 			}
 
 			const templateTextArea = contentTypeWrapper.createEl('textarea', {
@@ -488,22 +497,22 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 		}
 	}
 
-	private generateDefaultTemplate(props: { titleProperty?: string; dateProperty?: string; descriptionProperty?: string; tagsProperty?: string; draftProperty?: string; draftLogic?: 'true-draft' | 'false-draft' }, example: ExampleFrontmatter | undefined): string {
+	private generateDefaultTemplate(props: { titleProperty?: string; dateProperty?: string; descriptionProperty?: string; tagsProperty?: string; draftProperty?: string; draftLogic?: 'true-draft' | 'false-draft'; imageProperty?: string }, example: ExampleFrontmatter | undefined, aggregateProps: Set<string>): string {
 		let template = '---\n';
-		
+
 		// Parse the original YAML to maintain order
 		if (example && example.rawYaml) {
 			// Parse the raw YAML line by line to maintain order
 			const lines = example.rawYaml.split('\n');
 			const processedProps = new Set<string>();
-			
+
 			// First, add title property if it's detected/enabled (ALWAYS include it)
 			let titleAdded = false;
 			if (props.titleProperty) {
 				for (const line of lines) {
 					const trimmed = line.trim();
 					if (!trimmed || trimmed.startsWith('#')) continue;
-					
+
 					const colonIndex = trimmed.indexOf(':');
 					if (colonIndex > 0) {
 						const prop = trimmed.substring(0, colonIndex).trim();
@@ -519,40 +528,40 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 					template += `${props.titleProperty}: "{{title}}"\n`;
 				}
 			}
-			
+
 			// Then process other lines in order
 			for (const line of lines) {
 				const trimmed = line.trim();
 				if (!trimmed || trimmed.startsWith('#')) continue;
-				
+
 				const colonIndex = trimmed.indexOf(':');
 				if (colonIndex > 0) {
 					const prop = trimmed.substring(0, colonIndex).trim();
-					
+
 					// Skip if already processed
 					if (processedProps.has(prop)) {
 						continue;
 					}
-					
+
 					// Skip title (already added)
 					if (prop === props.titleProperty) {
 						continue;
 					}
-					
+
 					// Handle date property - ALWAYS include if detected/enabled
 					if (prop === props.dateProperty && props.dateProperty) {
 						template += `${props.dateProperty}: {{date}}\n`;
 						processedProps.add(prop);
 						continue;
 					}
-					
+
 					// Handle description property
 					if (prop === props.descriptionProperty) {
 						template += `${props.descriptionProperty}: ""\n`;
 						processedProps.add(prop);
 						continue;
 					}
-					
+
 					// Process other properties
 					const value = example.frontmatter[prop];
 					if (value === null || value === undefined) {
@@ -578,9 +587,33 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 							template += `${prop}:\n`;
 						}
 					}
-					
+
 					processedProps.add(prop);
 				}
+			}
+
+			// Finally, add any missing properties that were found in the folder but weren't in the example
+			for (const prop of aggregateProps) {
+				if (processedProps.has(prop)) continue;
+
+				if (prop === props.titleProperty) {
+					template += `${prop}: "{{title}}"\n`;
+				} else if (prop === props.dateProperty) {
+					template += `${prop}: {{date}}\n`;
+				} else if (prop === props.descriptionProperty) {
+					template += `${prop}: ""\n`;
+				} else if (prop === props.tagsProperty) {
+					template += `${prop}: []\n`;
+				} else if (prop === props.imageProperty) {
+					template += `${prop}: ""\n`;
+				} else if (prop === props.draftProperty) {
+					const draftValue = props.draftLogic === 'false-draft' ? 'false' : 'true';
+					template += `${prop}: ${draftValue}\n`;
+				} else {
+					// Generic fallback for other properties
+					template += `${prop}: ""\n`;
+				}
+				processedProps.add(prop);
 			}
 		} else {
 			// Default template if no example - only include properties that are set
@@ -601,7 +634,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 				template += `${props.draftProperty}: ${draftValue}\n`;
 			}
 		}
-		
+
 		template += '---\n';
 		return template;
 	}

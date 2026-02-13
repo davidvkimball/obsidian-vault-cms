@@ -32,176 +32,201 @@ export class GitSetupStep extends BaseWizardStep {
 
         containerEl.createEl('h2', { text: 'Git Integration (Optional)' });
 
-        const instructions = containerEl.createDiv({ cls: 'git-instructions' });
-        instructions.createEl('p', {
-            text: 'Connect your project to GitHub to publish your site. You can skip this and set it up later or if you already set it up.'
-        });
-
-        const tokenLink = instructions.createEl('p');
-        tokenLink.createSpan({ text: '1. ' });
-        tokenLink.createEl('a', {
-            text: 'Generate a new GitHub Personal Access Token',
-            href: 'https://github.com/settings/tokens/new'
-        });
-
-        const tokenHelp = instructions.createEl('ul');
-        tokenHelp.createEl('li', { text: 'Set a Note (e.g., "My blog")' });
-        tokenHelp.createEl('li', { text: 'Set Expiration to "No expiration"' });
-        tokenHelp.createEl('li', { text: 'Check the "repo" box (so all top options are selected)' });
-        tokenHelp.createEl('li', { text: 'Click "Generate token" at the bottom, copy it, and paste it below.' });
-
         const projectRoot = this.getAbsoluteProjectRoot();
+        let isRepo = false;
+        let remoteUrl: string | null = null;
+
         if (projectRoot) {
-            const isRepo = await this.gitManager.isRepo(projectRoot);
-
-            const rootInfo = containerEl.createDiv({ cls: 'git-root-info', attr: { style: 'margin-bottom: 1rem;' } });
-            rootInfo.createEl('b', { text: 'Project Root: ' });
-            rootInfo.createSpan({ text: projectRoot });
-
+            isRepo = await this.gitManager.isRepo(projectRoot);
             if (isRepo) {
+                remoteUrl = await this.gitManager.getRemoteUrl(projectRoot);
+
+                const rootInfo = containerEl.createDiv({ cls: 'git-root-info', attr: { style: 'margin-bottom: 1rem;' } });
+                rootInfo.createEl('b', { text: 'Project Root: ' });
+                rootInfo.createSpan({ text: projectRoot });
+
                 const statusEl = containerEl.createDiv({
                     cls: 'git-status-message',
-                    attr: { style: 'margin-bottom: 2rem;' }
+                    attr: { style: 'margin-bottom: 2rem; padding: 1rem; border: 1px solid var(--background-modifier-border); border-radius: 4px;' }
                 });
+                statusEl.createEl('b', { text: 'Status: ' });
                 statusEl.createSpan({ text: 'Git is already initialized.' });
+
+                if (remoteUrl) {
+                    const remoteEl = statusEl.createDiv({ attr: { style: 'margin-top: 0.5rem;' } });
+                    remoteEl.createEl('b', { text: 'Remote: ' });
+                    remoteEl.createSpan({ text: remoteUrl });
+                }
             }
         }
 
-        // GitHub PAT Setting
-        const patSetting = new Setting(containerEl)
-            .setName('GitHub Personal Access Token')
-            .setDesc('Stored securely in Obsidian Secrets.')
-            .addText(text => {
-                // Try to get from secret storage first
-                const savedSecret = (this.app as any).secretStorage?.getSecret('vault-cms-github-pat');
+        // Configuration Container (hide if remote exists)
+        const configContainer = containerEl.createDiv({ cls: 'git-config-container' });
+        if (isRepo && remoteUrl) {
+            configContainer.hide();
 
-                text.setPlaceholder('ghp_xxxxxxxxxxxx')
-                    .setValue(this.state.gitConfig.pat || savedSecret || '')
-                    .onChange(value => {
-                        const trimmedValue = value.trim();
-                        this.state.gitConfig.pat = trimmedValue;
-                        // Don't save to secretStorage on every keystroke, wait for Verify or Initialize
-                    });
-                text.inputEl.type = 'password';
+            // Re-label the skip info slightly to be more proactive
+            containerEl.createEl('p', {
+                cls: 'git-skip-info',
+                attr: { style: 'font-size: 0.8em; color: var(--text-muted); margin-top: 1rem; border-top: 1px solid var(--background-modifier-border); padding-top: 1rem;' },
+                text: 'Git is already configured. Click "Next" to continue to the final step.'
+            });
+        } else {
+            const instructions = configContainer.createDiv({ cls: 'git-instructions' });
+            instructions.createEl('p', {
+                text: 'Connect your project to GitHub to publish your site. You can skip this and set it up later or if you already set it up.'
             });
 
-        patSetting.addButton(button => {
-            button.setButtonText('Verify Token')
-                .onClick(async () => {
-                    const token = this.state.gitConfig.pat || (this.app as any).secretStorage?.getSecret('vault-cms-github-pat');
-                    if (!token) {
-                        new Notice('Please enter a token first.');
-                        return;
-                    }
-                    button.setDisabled(true);
-                    button.setButtonText('Verifying...');
+            const tokenLink = instructions.createEl('p');
+            tokenLink.createSpan({ text: '1. ' });
+            tokenLink.createEl('a', {
+                text: 'Generate a new GitHub Personal Access Token',
+                href: 'https://github.com/settings/tokens/new'
+            });
 
-                    try {
-                        const username = await this.gitManager.verifyToken(token);
-                        if (username) {
-                            new Notice(`Token verified successfully as ${username}!`);
-                            // Save to secret storage on successful verification
-                            if ((this.app as any).secretStorage) {
-                                (this.app as any).secretStorage.setSecret('vault-cms-github-pat', token);
+            const tokenHelp = instructions.createEl('ul');
+            tokenHelp.createEl('li', { text: 'Set a Note (e.g., "My blog")' });
+            tokenHelp.createEl('li', { text: 'Set Expiration to "No expiration"' });
+            tokenHelp.createEl('li', { text: 'Check the "repo" box (so all top options are selected)' });
+            tokenHelp.createEl('li', { text: 'Click "Generate token" at the bottom, copy it, and paste it below.' });
+
+            if (isRepo && !remoteUrl) {
+                configContainer.createEl('h3', { text: 'Connect to GitHub' });
+            } else if (!isRepo) {
+                configContainer.createEl('h3', { text: 'Create New Repository' });
+            }
+
+            // GitHub PAT Setting
+            const patSetting = new Setting(configContainer)
+                .setName('GitHub Personal Access Token')
+                .setDesc('Stored securely in Obsidian Secrets.')
+                .addText(text => {
+                    const savedSecret = (this.app as any).secretStorage?.getSecret('vault-cms-github-pat');
+                    text.setPlaceholder('ghp_xxxxxxxxxxxx')
+                        .setValue(this.state.gitConfig.pat || savedSecret || '')
+                        .onChange(value => {
+                            this.state.gitConfig.pat = value.trim();
+                        });
+                    text.inputEl.type = 'password';
+                });
+
+            patSetting.addButton(button => {
+                button.setButtonText('Verify Token')
+                    .onClick(async () => {
+                        const token = this.state.gitConfig.pat || (this.app as any).secretStorage?.getSecret('vault-cms-github-pat');
+                        if (!token) {
+                            new Notice('Please enter a token first.');
+                            return;
+                        }
+                        button.setDisabled(true);
+                        button.setButtonText('Verifying...');
+
+                        try {
+                            const username = await this.gitManager.verifyToken(token);
+                            if (username) {
+                                new Notice(`Token verified successfully as ${username}!`);
+                                if ((this.app as any).secretStorage) {
+                                    (this.app as any).secretStorage.setSecret('vault-cms-github-pat', token);
+                                }
+                                this.app.saveLocalStorage('obsidian-git:username', username);
+                                this.state.gitConfig.enabled = true;
+                                button.setButtonText('Verified');
+                                button.buttonEl.style.backgroundColor = 'var(--interactive-accent)';
+                                button.buttonEl.style.color = 'var(--text-on-accent)';
+                            } else {
+                                new Notice('Invalid token or GitHub API error.');
+                                button.setButtonText('Verify Token');
+                                button.setDisabled(false);
                             }
-                            // Also save username for obsidian-git
-                            this.app.saveLocalStorage('obsidian-git:username', username);
-
-                            this.state.gitConfig.enabled = true;
-                            button.setButtonText('Verified');
-                            button.buttonEl.style.backgroundColor = 'var(--background-modifier-success)';
-                            button.buttonEl.style.color = 'white';
-                        } else {
-                            new Notice('Invalid token or GitHub API error.');
+                        } catch (e) {
+                            new Notice('Verification failed. Check your connection.');
                             button.setButtonText('Verify Token');
                             button.setDisabled(false);
                         }
-                    } catch (e) {
-                        new Notice('Verification failed. Check your connection.');
-                        button.setButtonText('Verify Token');
-                        button.setDisabled(false);
-                    }
+                    });
+            });
+
+            // Repo creation settings (only if not already a repo)
+            if (!isRepo) {
+                new Setting(configContainer)
+                    .setName('Repository Name')
+                    .setDesc('The name of your new GitHub repository.')
+                    .addText(text => {
+                        const defaultName = projectRoot ? projectRoot.split(/[\\/]/).pop() : '';
+                        text.setPlaceholder('my-blog')
+                            .setValue(this.state.gitConfig.repoName || defaultName || '')
+                            .onChange(value => {
+                                this.state.gitConfig.repoName = value.trim();
+                            });
+                    });
+
+                new Setting(configContainer)
+                    .setName('Description')
+                    .setDesc('A short description for your repository.')
+                    .addText(text => {
+                        text.setPlaceholder('My personal blog')
+                            .setValue(this.state.gitConfig.repoDescription || '')
+                            .onChange(value => {
+                                this.state.gitConfig.repoDescription = value.trim();
+                            });
+                    });
+
+                new Setting(configContainer)
+                    .setName('Private Repository')
+                    .setDesc('Keep this repository private and hidden from the public.')
+                    .addToggle(toggle => {
+                        toggle.setValue(this.state.gitConfig.isPrivate)
+                            .onChange(value => {
+                                this.state.gitConfig.isPrivate = value;
+                            });
+                    });
+            }
+
+            // Branch Name
+            new Setting(configContainer)
+                .setName('Default Branch')
+                .setDesc('The name of the initial branch (e.g., "main" or "master").')
+                .addText(text => {
+                    text.setPlaceholder('main')
+                        .setValue(this.state.gitConfig.branchName || 'main')
+                        .onChange(value => {
+                            this.state.gitConfig.branchName = value.trim() || 'main';
+                        });
                 });
-        });
 
-        // Repo Name & Description
-        new Setting(containerEl)
-            .setName('Repository Name')
-            .setDesc('The name of your new GitHub repository.')
-            .addText(text => {
-                const defaultName = projectRoot ? projectRoot.split(/[\\/]/).pop() : '';
-                text.setPlaceholder('my-blog')
-                    .setValue(this.state.gitConfig.repoName || defaultName || '')
-                    .onChange(value => {
-                        this.state.gitConfig.repoName = value.trim();
-                    });
+            // Auto-configure obsidian-git
+            new Setting(configContainer)
+                .setName('Auto-configure Git plugin')
+                .setDesc('Automatically set up the "Git" plugin to work with this project.')
+                .addToggle(toggle => {
+                    toggle.setValue(this.state.gitConfig.autoConfigureObsidianGit)
+                        .onChange(value => {
+                            this.state.gitConfig.autoConfigureObsidianGit = value;
+                        });
+                });
+
+            // Action Button
+            const actionContainer = configContainer.createDiv({ cls: 'git-action-container', attr: { style: 'margin-top: 2rem;' } });
+            let buttonText = isRepo ? 'Connect to GitHub' : 'Initialize & Push to GitHub';
+
+            const createBtn = new ButtonComponent(actionContainer)
+                .setButtonText(buttonText)
+                .setCta()
+                .onClick(async () => {
+                    await this.handleGitSetup(createBtn, isRepo, !!remoteUrl);
+                });
+
+            configContainer.createEl('p', {
+                cls: 'git-skip-info',
+                attr: { style: 'font-size: 0.8em; color: var(--text-muted); margin-top: 1rem; border-top: 1px solid var(--background-modifier-border); padding-top: 1rem;' },
+                text: 'Click "Next" to skip Git setup or if you already have it manually configured.'
             });
-
-        new Setting(containerEl)
-            .setName('Description')
-            .setDesc('A short description for your repository.')
-            .addText(text => {
-                text.setPlaceholder('My personal blog')
-                    .setValue(this.state.gitConfig.repoDescription || '')
-                    .onChange(value => {
-                        this.state.gitConfig.repoDescription = value.trim();
-                    });
-            });
-
-        // Visibility Toggle
-        new Setting(containerEl)
-            .setName('Private Repository')
-            .setDesc('Keep this repository private and hidden from the public.')
-            .addToggle(toggle => {
-                toggle.setValue(this.state.gitConfig.isPrivate)
-                    .onChange(value => {
-                        this.state.gitConfig.isPrivate = value;
-                    });
-            });
-
-        // Branch Name
-        new Setting(containerEl)
-            .setName('Default Branch')
-            .setDesc('The name of the initial branch (e.g., "main" or "master").')
-            .addText(text => {
-                text.setPlaceholder('main')
-                    .setValue(this.state.gitConfig.branchName || 'main')
-                    .onChange(value => {
-                        this.state.gitConfig.branchName = value.trim() || 'main';
-                    });
-            });
-
-        // Auto-configure obsidian-git
-        new Setting(containerEl)
-            .setName('Auto-configure Git plugin')
-            .setDesc('Automatically set up the "Git" plugin to work with this project.')
-            .addToggle(toggle => {
-                toggle.setValue(this.state.gitConfig.autoConfigureObsidianGit)
-                    .onChange(value => {
-                        this.state.gitConfig.autoConfigureObsidianGit = value;
-                    });
-            });
-
-        // Action Button
-        const actionContainer = containerEl.createDiv({ cls: 'git-action-container', attr: { style: 'margin-top: 2rem;' } });
-        const createBtn = new ButtonComponent(actionContainer)
-            .setButtonText('Initialize & Push to GitHub')
-            .setCta()
-            .onClick(async () => {
-                await this.handleGitSetup(createBtn);
-            });
-
-        // Info about skipping
-        containerEl.createEl('p', {
-            cls: 'git-skip-info',
-            attr: { style: 'font-size: 0.8em; color: var(--text-muted); margin-top: 1rem;' },
-            text: 'Click "Next" to skip Git setup or if you already have it manually configured.'
-        });
+        }
     }
 
     private hasAdvanced = false;
 
-    private async handleGitSetup(button: ButtonComponent) {
+    private async handleGitSetup(button: ButtonComponent, alreadyRepo: boolean, alreadyHasRemote: boolean) {
         if (this.hasAdvanced) return;
 
         const { pat, repoName, repoDescription, isPrivate, branchName } = this.state.gitConfig;
@@ -211,41 +236,46 @@ export class GitSetupStep extends BaseWizardStep {
         // Try to get token from secret storage if not provided for this run
         const token = pat || (this.app as any).secretStorage?.getSecret('vault-cms-github-pat');
 
-        if (!token || !repoName || !projectRoot) {
-            new Notice('Please provide a Token, Repository Name, and ensure project root is detected.');
+        if (!token || !projectRoot) {
+            new Notice('Please provide a Token and ensure project root is detected.');
+            return;
+        }
+
+        if (!alreadyHasRemote && !repoName) {
+            new Notice('Please provide a Repository Name.');
             return;
         }
 
         button.setDisabled(true);
-        button.setButtonText('Initializing...');
+        button.setButtonText(alreadyHasRemote ? 'Updating...' : 'Initializing...');
 
         try {
-            // 1. Git Init
-            const isRepo = await this.gitManager.isRepo(projectRoot);
-            if (!isRepo) {
+            // 1. Git Init (only if not already a repo)
+            if (!alreadyRepo) {
                 await this.gitManager.initRepo(projectRoot);
                 new Notice('Local Git repository initialized.');
             }
 
-            // 2. Create GitHub Repo
-            new Notice('Creating GitHub repository...');
-            const repoInfo = await this.gitManager.createGitHubRepo(token, repoName, repoDescription || '', isPrivate);
+            // 2. Create GitHub Repo & Set Remote (only if no remote)
+            if (!alreadyHasRemote) {
+                new Notice('Creating GitHub repository...');
+                const repoInfo = await this.gitManager.createGitHubRepo(token, repoName!, repoDescription || '', isPrivate);
 
-            // 3. Set Remote
-            await this.gitManager.setRemote(projectRoot, repoInfo.clone_url);
-            new Notice(`Successfully connected to ${repoInfo.html_url}`);
+                await this.gitManager.setRemote(projectRoot, repoInfo.clone_url);
+                new Notice(`Successfully connected to ${repoInfo.html_url}`);
+            }
 
-            // 4. Initial Commit and Push
-            new Notice(`Performing initial commit and pushing to ${branch}...`);
+            // 3. Initial Commit and Push (always good to sync if we're here)
+            new Notice(`Syncing with ${branch}...`);
             await this.gitManager.initialCommitAndPush(projectRoot, branch);
-            new Notice('Initial commit pushed successfully!');
+            new Notice('Successfully synced with GitHub!');
 
-            // 5. Configure Obsidian Git
+            // 4. Configure Obsidian Git
             if (this.state.gitConfig.autoConfigureObsidianGit) {
                 await this.configureObsidianGit(token, projectRoot);
             }
 
-            // 6. Securely save token if it was just entered
+            // 5. Securely save token if it was just entered
             if (pat && (this.app as any).secretStorage) {
                 (this.app as any).secretStorage.setSecret('vault-cms-github-pat', pat);
             }
@@ -268,7 +298,7 @@ export class GitSetupStep extends BaseWizardStep {
             const errorMessage = error instanceof Error ? error.message : String(error);
             new Notice(`Setup failed: ${errorMessage}`);
             button.setDisabled(false);
-            button.setButtonText('Initialize & Push to GitHub');
+            button.setButtonText(alreadyHasRemote ? 'Update Settings & Sync' : 'Initialize & Push to GitHub');
         }
     }
 

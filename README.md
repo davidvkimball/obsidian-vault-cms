@@ -58,7 +58,7 @@ Via Command Palette (`Ctrl/Cmd + P`):
 3. **Content Types**: Scans your project to identify and categorize content folders.
 4. **Default Content Type**: Select the primary content type for new notes.
 5. **Frontmatter Properties**: Analyzes your data to map existing frontmatter structures.
-6. **WYSIWYG Preference**: Toggles the editing toolbar based on your workflow.
+6. **Editing Toolbar Preference**: Toggles the editing toolbar based on your workflow.
 7. **Bases CMS Configuration**: Dynamically creates CMS views for your content types.
 8. **Astro Composer Configuration**: Bridges Obsidian with Astro's content management.
 9. **SEO Configuration**: Sets up scanning directories and property mappings for SEO audits.

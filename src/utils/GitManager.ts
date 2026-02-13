@@ -60,6 +60,18 @@ export class GitManager {
     }
 
     /**
+     * Gets the remote URL for the repository.
+     */
+    static async getRemoteUrl(projectRoot: string, remoteName: string = 'origin'): Promise<string | null> {
+        try {
+            const { stdout } = await execAsync(`git remote get-url ${remoteName}`, { cwd: projectRoot });
+            return stdout.trim() || null;
+        } catch {
+            return null;
+        }
+    }
+
+    /**
      * Gets the current local branch name.
      */
     static async getCurrentBranch(projectRoot: string): Promise<string> {

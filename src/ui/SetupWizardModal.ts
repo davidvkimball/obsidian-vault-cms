@@ -9,7 +9,7 @@ import { ProjectDetectionStep } from './wizard/ProjectDetectionStep';
 import { ContentTypeStep } from './wizard/ContentTypeStep';
 import { DefaultContentTypeStep } from './wizard/DefaultContentTypeStep';
 import { FrontmatterPropertiesStep } from './wizard/FrontmatterPropertiesStep';
-import { WYSIWYGPreferenceStep } from './wizard/WYSIWYGPreferenceStep';
+import { EditingToolbarStep } from './wizard/EditingToolbarStep';
 import { BasesCMSConfigStep } from './wizard/BasesCMSConfigStep';
 import { AstroComposerStep } from './wizard/AstroComposerStep';
 import { SEOConfigStep } from './wizard/SEOConfigStep';
@@ -58,7 +58,7 @@ export class SetupWizardModal extends Modal {
 			ContentTypeStep,
 			DefaultContentTypeStep,
 			FrontmatterPropertiesStep,
-			WYSIWYGPreferenceStep,
+			EditingToolbarStep,
 			BasesCMSConfigStep,
 			AstroComposerStep,
 			SEOConfigStep,
@@ -461,7 +461,7 @@ export class SetupWizardModal extends Modal {
 			frontmatterProperties: state.frontmatterProperties,
 			defaultContentTypeId: state.defaultContentTypeId,
 			preset: state.preset,
-			enableWYSIWYG: state.enableWYSIWYG,
+			enableEditingToolbar: state.enableEditingToolbar,
 			enabledPlugins: state.enabledPlugins,
 			disabledPlugins: state.disabledPlugins,
 			theme: state.theme,
@@ -488,7 +488,7 @@ export class SetupWizardModal extends Modal {
 			JSON.stringify(currentSnapshot.frontmatterProperties) !== JSON.stringify(this.initialSettingsSnapshot.frontmatterProperties) ||
 			currentSnapshot.defaultContentTypeId !== this.initialSettingsSnapshot.defaultContentTypeId ||
 			currentSnapshot.preset !== this.initialSettingsSnapshot.preset ||
-			currentSnapshot.enableWYSIWYG !== this.initialSettingsSnapshot.enableWYSIWYG ||
+			currentSnapshot.enableEditingToolbar !== this.initialSettingsSnapshot.enableEditingToolbar ||
 			JSON.stringify(currentSnapshot.enabledPlugins) !== JSON.stringify(this.initialSettingsSnapshot.enabledPlugins) ||
 			JSON.stringify(currentSnapshot.disabledPlugins) !== JSON.stringify(this.initialSettingsSnapshot.disabledPlugins) ||
 			currentSnapshot.theme !== this.initialSettingsSnapshot.theme ||

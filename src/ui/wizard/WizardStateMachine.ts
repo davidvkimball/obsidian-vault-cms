@@ -6,7 +6,7 @@ import { ProjectDetectionStep } from './ProjectDetectionStep';
 import { ContentTypeStep } from './ContentTypeStep';
 import { DefaultContentTypeStep } from './DefaultContentTypeStep';
 import { FrontmatterPropertiesStep } from './FrontmatterPropertiesStep';
-import { WYSIWYGPreferenceStep } from './WYSIWYGPreferenceStep';
+import { EditingToolbarStep } from './EditingToolbarStep';
 import { BasesCMSConfigStep } from './BasesCMSConfigStep';
 import { AstroComposerStep } from './AstroComposerStep';
 import { SEOConfigStep } from './SEOConfigStep';
@@ -65,7 +65,7 @@ export class WizardStateMachine {
 		[2, 'content-types'],
 		[3, 'content-types'], // DefaultContentTypeStep is part of content-types
 		[4, 'frontmatter'],
-		[5, 'plugins'], // WYSIWYGPreferenceStep starts plugin configuration
+		[5, 'plugins'], // EditingToolbarStep starts plugin configuration
 		[6, 'plugins'], // BasesCMSConfigStep
 		[7, 'plugins'], // AstroComposerStep
 		[8, 'plugins'], // SEOConfigStep
@@ -94,7 +94,7 @@ export class WizardStateMachine {
 			ContentTypeStep,
 			DefaultContentTypeStep,
 			FrontmatterPropertiesStep,
-			WYSIWYGPreferenceStep,
+			EditingToolbarStep,
 			BasesCMSConfigStep,
 			AstroComposerStep,
 			SEOConfigStep,

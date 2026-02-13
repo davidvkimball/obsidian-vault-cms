@@ -11,7 +11,7 @@ export interface VaultCMSSettings {
 	preset: 'vanilla' | 'opinionated' | 'custom';
 	presetName: string;
 	presetsRepo: string;
-	enableWYSIWYG: boolean;
+	enableEditingToolbar: boolean;
 	enableMdxSupport?: boolean;
 	enabledPlugins: string[];
 	disabledPlugins: string[];
@@ -39,7 +39,7 @@ export const DEFAULT_SETTINGS: VaultCMSSettings = {
 	preset: 'vanilla',
 	presetName: '',
 	presetsRepo: 'davidvkimball/vault-cms-presets',
-	enableWYSIWYG: false,
+	enableEditingToolbar: false,
 	enabledPlugins: [],
 	disabledPlugins: [],
 	theme: '',

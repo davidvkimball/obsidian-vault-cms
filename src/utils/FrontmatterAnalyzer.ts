@@ -9,82 +9,122 @@ export class FrontmatterAnalyzer {
 		this.app = app;
 	}
 
-	async findExampleFile(folderPath: string): Promise<ExampleFrontmatter | null> {
+	async findExampleFile(folderPath: string, includeMdx: boolean = false): Promise<ExampleFrontmatter | null> {
 		const folder = this.app.vault.getAbstractFileByPath(folderPath);
-		
+
 		if (!folder) {
 			return null;
 		}
-		
-		if (folder instanceof TFile && folder.extension === 'md') {
-			return await this.parseFrontmatter(folder);
+
+		if (folder instanceof TFile) {
+			const ext = folder.extension;
+			if (ext === 'md' || (includeMdx && ext === 'mdx')) {
+				return await this.parseFrontmatter(folder);
+			}
+			return null;
 		}
-		
+
 		// It's a folder, get files from it
-		// First, try to find files in the immediate folder
 		if (!(folder instanceof TFolder)) {
 			return null;
 		}
-		let files = this.getMarkdownFiles(folder, false); // false = only immediate children
-		
+		let files = this.getMarkdownFiles(folder, false, undefined, 0, includeMdx); // false = only immediate children
+
 		// If no files found in immediate folder, search deeper (one level at a time)
-		if (files.length === 0 && folder instanceof TFolder) {
+		if (files.length === 0) {
 			// Search one level deeper
-			files = this.getMarkdownFiles(folder, true, 1); // true = recursive, maxDepth = 1
-			
+			files = this.getMarkdownFiles(folder, true, 1, 0, includeMdx); // true = recursive, maxDepth = 1
+
 			// If still no files, search two levels deeper
 			if (files.length === 0) {
-				files = this.getMarkdownFiles(folder, true, 2); // maxDepth = 2
+				files = this.getMarkdownFiles(folder, true, 2, 0, includeMdx); // maxDepth = 2
 			}
-			
+
 			// If still no files, search all levels (unlimited depth)
 			if (files.length === 0) {
-				files = this.getMarkdownFiles(folder, true); // unlimited depth
+				files = this.getMarkdownFiles(folder, true, undefined, 0, includeMdx); // unlimited depth
 			}
 		}
-		
+
 		for (const file of files) {
 			const example = await this.parseFrontmatter(file);
 			if (example) {
 				return example;
 			}
 		}
-		
+
 		return null;
+	}
+
+	/**
+	 * Scans multiple files in a folder to aggregate all unique frontmatter properties.
+	 * This ensures properties aren't missed just because they're not in the single "latest" file.
+	 */
+	async getPropertiesInFolder(folderPath: string, includeMdx: boolean = false, limit: number = 50): Promise<Set<string>> {
+		const folder = this.app.vault.getAbstractFileByPath(folderPath);
+		if (!(folder instanceof TFolder)) {
+			return new Set<string>();
+		}
+
+		const files = this.getMarkdownFiles(folder, true, undefined, 0, includeMdx);
+		const aggregateProps = new Set<string>();
+
+		// Limit the number of files we scan to keep it performant
+		const filesToScan = files.slice(0, limit);
+
+		for (const file of filesToScan) {
+			if (file.extension === 'md') {
+				// Use Obsidian's metadata cache for standard markdown files (very fast)
+				const cache = this.app.metadataCache.getFileCache(file);
+				if (cache && cache.frontmatter) {
+					Object.keys(cache.frontmatter).forEach(key => aggregateProps.add(key));
+				}
+			} else if (includeMdx && file.extension === 'mdx') {
+				// MDX files aren't in Obsidian's metadata cache natively, so we have to parse manually
+				const example = await this.parseFrontmatter(file);
+				if (example && example.frontmatter) {
+					Object.keys(example.frontmatter).forEach(key => aggregateProps.add(key));
+				}
+			}
+		}
+
+		return aggregateProps;
 	}
 
 	hasUnderscoreFiles(folderPath: string): Promise<boolean> {
 		const folder = this.app.vault.getAbstractFileByPath(folderPath);
-		
+
 		if (!(folder instanceof TFolder)) {
 			return Promise.resolve(false);
 		}
-		
+
 		const files = this.getMarkdownFiles(folder, true);
 		return Promise.resolve(files.some(file => file.name.startsWith('_')));
 	}
 
-	private getMarkdownFiles(folder: TFolder, recursive: boolean = true, maxDepth?: number, currentDepth: number = 0): TFile[] {
+	private getMarkdownFiles(folder: TFolder, recursive: boolean = true, maxDepth?: number, currentDepth: number = 0, includeMdx: boolean = false): TFile[] {
 		const files: TFile[] = [];
-		
+
 		if (!folder.children) {
 			return files;
 		}
-		
+
 		// Check if we've exceeded max depth
 		if (maxDepth !== undefined && currentDepth >= maxDepth) {
 			return files;
 		}
-		
+
 		for (const child of folder.children) {
-			if (child instanceof TFile && child.extension === 'md') {
-				files.push(child);
+			if (child instanceof TFile) {
+				if (child.extension === 'md' || (includeMdx && child.extension === 'mdx')) {
+					files.push(child);
+				}
 			} else if (recursive && child instanceof TFolder && child.children) {
 				// Recursively search subfolders
-				files.push(...this.getMarkdownFiles(child, recursive, maxDepth, currentDepth + 1));
+				files.push(...this.getMarkdownFiles(child, recursive, maxDepth, currentDepth + 1, includeMdx));
 			}
 		}
-		
+
 		return files;
 	}
 
@@ -93,18 +133,18 @@ export class FrontmatterAnalyzer {
 			const content = await this.app.vault.read(file);
 			const frontmatterRegex = /^---\s*\n([\s\S]*?)\n---\s*\n/;
 			const match = content.match(frontmatterRegex);
-			
+
 			if (!match) {
 				return null;
 			}
-			
+
 			const yamlContent = match[1];
 			const frontmatter = yaml.parse(yamlContent) as Record<string, unknown> | null;
-			
+
 			if (!frontmatter || typeof frontmatter !== 'object') {
 				return null;
 			}
-			
+
 			return {
 				file: file.path,
 				frontmatter,
@@ -117,25 +157,25 @@ export class FrontmatterAnalyzer {
 
 	autoDetectDateProperty(frontmatter: Record<string, unknown>): string | null {
 		const dateProperties = ['date', 'pubDate', 'publishedDate', 'publishDate'];
-		
+
 		for (const prop of dateProperties) {
 			if (frontmatter.hasOwnProperty(prop)) {
 				return prop;
 			}
 		}
-		
+
 		return null; // Return null when not found, don't default to 'date'
 	}
 
 	autoDetectDescriptionProperty(frontmatter: Record<string, unknown>): string | null {
 		const descriptionProperties = ['description', 'summary', 'excerpt', 'intro', 'snippet', 'blurb'];
-		
+
 		for (const prop of descriptionProperties) {
 			if (frontmatter.hasOwnProperty(prop)) {
 				return prop;
 			}
 		}
-		
+
 		return null;
 	}
 
@@ -144,7 +184,7 @@ export class FrontmatterAnalyzer {
 		if (frontmatter.hasOwnProperty('tags')) {
 			return 'tags';
 		}
-		
+
 		return null;
 	}
 
@@ -153,24 +193,24 @@ export class FrontmatterAnalyzer {
 			// If property is "draft", logic should be "true-draft"
 			return { property: 'draft', logic: 'true-draft' };
 		}
-		
+
 		if (frontmatter.hasOwnProperty('published')) {
 			// If property is "published", logic should be "false-draft"
 			return { property: 'published', logic: 'false-draft' };
 		}
-		
+
 		return null;
 	}
 
 	autoDetectImageProperty(frontmatter: Record<string, unknown>): string | null {
 		const imageProperties = ['image', 'cover', 'coverImage', 'thumbnail', 'featuredImage'];
-		
+
 		for (const prop of imageProperties) {
 			if (frontmatter.hasOwnProperty(prop)) {
 				return prop;
 			}
 		}
-		
+
 		return null;
 	}
 }

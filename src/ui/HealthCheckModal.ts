@@ -1,4 +1,4 @@
-import { App, Modal, TFile } from 'obsidian';
+import { App, Modal, TFile, setIcon } from 'obsidian';
 import VaultCMSPlugin from '../main';
 import { ProjectDetector } from '../utils/ProjectDetector';
 
@@ -311,6 +311,8 @@ export class HealthCheckModal extends Modal {
 		if (projectRoot) {
 			const { GitManager } = await import('../utils/GitManager');
 			const isRepo = await GitManager.isRepo(projectRoot);
+			const remoteUrl = isRepo ? await GitManager.getRemoteUrl(projectRoot) : null;
+
 			checks.push({
 				name: 'Git repository initialized',
 				status: isRepo ? 'pass' : 'fail',
@@ -318,13 +320,30 @@ export class HealthCheckModal extends Modal {
 			});
 
 			if (isRepo) {
-				// 2. Check Remote
-				// We'd need to run 'git remote -v' but for now let's just check if it's enabled in settings
+				// 2. Check Remote / Config
+				// If they have a remote, we consider it "configured" even if gitConfig.enabled is false (manual setup)
+				const isConfigured = gitConfig.enabled || !!remoteUrl;
+
 				checks.push({
-					name: 'Git enabled in settings',
-					status: gitConfig.enabled ? 'pass' : 'warning',
-					message: gitConfig.enabled ? 'Integration active' : 'Git setup skipped or not finished'
+					name: 'Git integration status',
+					status: isConfigured ? 'pass' : 'warning',
+					message: isConfigured
+						? (remoteUrl ? `Connected to ${remoteUrl}` : 'Integration active')
+						: 'Git integration disabled in settings'
 				});
+
+				// 3. Check GitHub PAT - only warn if not enabled AND no remote (i.e. truly not set up)
+				// If they have a remote, they might not NEED a PAT in our settings if they handle Git manually
+				const savedSecret = (this.app as any).secretStorage?.getSecret('vault-cms-github-pat');
+				const hasPat = !!(gitConfig.pat || savedSecret);
+
+				if (gitConfig.enabled || !remoteUrl) {
+					checks.push({
+						name: 'GitHub PAT configured',
+						status: hasPat ? 'pass' : 'warning',
+						message: hasPat ? 'Token present' : 'No token found in settings'
+					});
+				}
 			}
 		} else {
 			checks.push({
@@ -333,14 +352,6 @@ export class HealthCheckModal extends Modal {
 				message: 'Project root not configured'
 			});
 		}
-
-		// 3. Check GitHub PAT
-		const hasPat = !!gitConfig.pat;
-		checks.push({
-			name: 'GitHub PAT configured',
-			status: hasPat ? 'pass' : 'warning',
-			message: hasPat ? 'Token present' : 'No token found in settings'
-		});
 
 		this.results.push({
 			category: 'Git Integration',
@@ -363,13 +374,13 @@ export class HealthCheckModal extends Modal {
 				// Add status icon
 				const statusIcon = checkItem.createSpan({ cls: 'health-check-icon' });
 				if (check.status === 'pass') {
-					statusIcon.setText('✓');
+					setIcon(statusIcon, 'lucide-check-circle-2');
 					statusIcon.addClass('health-check-pass');
 				} else if (check.status === 'fail') {
-					statusIcon.setText('✗');
+					setIcon(statusIcon, 'lucide-alert-circle');
 					statusIcon.addClass('health-check-fail');
 				} else {
-					statusIcon.setText('⚠');
+					setIcon(statusIcon, 'lucide-help-circle');
 					statusIcon.addClass('health-check-warning');
 				}
 
@@ -437,15 +448,25 @@ export class HealthCheckModal extends Modal {
 			}
 
 			.health-check-pass {
-				color: var(--color-green);
+				color: var(--interactive-accent);
 			}
 
-			.health-check-fail {
-				color: var(--color-red);
+			.health-check-fail, .health-check-warning {
+				color: var(--text-muted);
 			}
 
-			.health-check-warning {
-				color: var(--color-orange);
+			.health-check-icon svg {
+				width: 18px;
+				height: 18px;
+				display: block;
+			}
+
+			.health-check-icon {
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				min-width: 24px;
+				height: 24px;
 			}
 
 			.health-check-name {

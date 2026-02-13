@@ -227,7 +227,7 @@ export class ProjectOptimizer {
 		const statusEl = container.createDiv({ cls: 'vault-cms-plugin-status' });
 		if (status === 'configured') {
 			setIcon(statusEl, 'lucide-check-circle-2');
-			setCssProps(statusEl, { color: 'var(--text-success)' });
+			setCssProps(statusEl, { color: 'var(--interactive-accent)' });
 		} else {
 			setIcon(statusEl, 'lucide-alert-circle');
 			setCssProps(statusEl, { color: 'var(--text-warning)' });

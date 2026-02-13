@@ -62,8 +62,8 @@ export class FinalizeStep extends BaseWizardStep {
 		const enabledContentTypes = this.state.contentTypes.filter(ct => ct.enabled);
 		summary.createEl('p', { text: `Content Types: ${enabledContentTypes.length}` });
 
-		// WYSIWYG Toolbar
-		summary.createEl('p', { text: `WYSIWYG Toolbar: ${this.state.enableWYSIWYG ? 'Enabled' : 'Disabled'}` });
+		// Editing Toolbar
+		summary.createEl('p', { text: `Editing Toolbar: ${this.state.enableEditingToolbar ? 'Enabled' : 'Disabled'}` });
 
 		// Bases CMS Views (count enabled content types as views to be created)
 		const basesViewsCount = enabledContentTypes.length;
@@ -141,8 +141,8 @@ export class FinalizeStep extends BaseWizardStep {
 
 			// Configure WYSIWYG Toolbar (toggle visibility directly)
 			// Always call this to ensure cMenuVisibility is set correctly, even if disabled
-			console.debug(`FinalizeStep: Configuring editing toolbar, enableWYSIWYG=${this.state.enableWYSIWYG}`);
-			await this.editingToolbarConfigurator.toggleVisibility(this.app, this.state.enableWYSIWYG);
+			console.debug(`FinalizeStep: Configuring editing toolbar, enableEditingToolbar=${this.state.enableEditingToolbar}`);
+			await this.editingToolbarConfigurator.toggleVisibility(this.app, this.state.enableEditingToolbar);
 
 			// Configure Property Over File Name
 			const firstType = this.state.contentTypes.find(ct => ct.enabled);

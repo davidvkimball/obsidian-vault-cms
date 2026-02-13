@@ -60,7 +60,7 @@ export class WizardStateManager {
 			preset: settings.preset || 'vanilla',
 			presetName: settings.presetName || '',
 			presetsRepo: settings.presetsRepo || 'davidvkimball/vault-cms-presets',
-			enableWYSIWYG: settings.enableWYSIWYG ?? false,
+			enableEditingToolbar: settings.enableEditingToolbar ?? (settings as any).enableWYSIWYG ?? false,
 			enableMdxSupport: settings.enableMdxSupport,
 			enabledPlugins: settings.enabledPlugins || [],
 			disabledPlugins: settings.disabledPlugins || [],
@@ -176,12 +176,12 @@ export class WizardStateManager {
 		this.state.presetName = settings.presetName || '';
 		this.state.presetsRepo = settings.presetsRepo || 'vaultcms/vault-cms-presets';
 
-		// Sync enableWYSIWYG with actual plugin state
+		// Sync enableEditingToolbar with actual plugin state
 		const actualVisibility = await this.editingToolbarConfigurator.getVisibility(this.plugin.app);
 		if (actualVisibility !== undefined) {
-			this.state.enableWYSIWYG = actualVisibility;
+			this.state.enableEditingToolbar = actualVisibility;
 		} else {
-			this.state.enableWYSIWYG = settings.enableWYSIWYG ?? false;
+			this.state.enableEditingToolbar = settings.enableEditingToolbar ?? (settings as any).enableWYSIWYG ?? false;
 		}
 
 		this.state.enableMdxSupport = settings.enableMdxSupport;
@@ -273,7 +273,12 @@ export class WizardStateManager {
 		settings.preset = this.state.preset;
 		settings.presetName = this.state.presetName || '';
 		settings.presetsRepo = this.state.presetsRepo || 'davidvkimball/vault-cms-presets';
-		settings.enableWYSIWYG = this.state.enableWYSIWYG;
+		settings.enableEditingToolbar = this.state.enableEditingToolbar;
+
+		// Clean up old WYSIWYG setting name
+		if ((settings as any).enableWYSIWYG !== undefined) {
+			delete (settings as any).enableWYSIWYG;
+		}
 		settings.enableMdxSupport = this.state.enableMdxSupport ?? false;
 		settings.enabledPlugins = this.state.enabledPlugins;
 		settings.disabledPlugins = this.state.disabledPlugins;
