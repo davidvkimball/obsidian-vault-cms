@@ -59,7 +59,10 @@ export class GitSetupStep extends BaseWizardStep {
             rootInfo.createSpan({ text: projectRoot });
 
             if (isRepo) {
-                const statusEl = containerEl.createDiv({ cls: 'git-status-message' });
+                const statusEl = containerEl.createDiv({
+                    cls: 'git-status-message',
+                    attr: { style: 'margin-bottom: 2rem;' }
+                });
                 statusEl.createSpan({ text: ' ✅ Git is already initialized.' });
             }
         }
@@ -156,6 +159,18 @@ export class GitSetupStep extends BaseWizardStep {
                     });
             });
 
+        // Branch Name
+        new Setting(containerEl)
+            .setName('Default Branch')
+            .setDesc('The name of the initial branch (e.g., "main" or "master").')
+            .addText(text => {
+                text.setPlaceholder('main')
+                    .setValue(this.state.gitConfig.branchName || 'main')
+                    .onChange(value => {
+                        this.state.gitConfig.branchName = value.trim() || 'main';
+                    });
+            });
+
         // Auto-configure obsidian-git
         new Setting(containerEl)
             .setName('Auto-configure Git plugin')
@@ -170,7 +185,7 @@ export class GitSetupStep extends BaseWizardStep {
         // Action Button
         const actionContainer = containerEl.createDiv({ cls: 'git-action-container', attr: { style: 'margin-top: 2rem;' } });
         const createBtn = new ButtonComponent(actionContainer)
-            .setButtonText('Initialize & Create on GitHub')
+            .setButtonText('Initialize & Push to GitHub')
             .setCta()
             .onClick(async () => {
                 await this.handleGitSetup(createBtn);
@@ -184,9 +199,14 @@ export class GitSetupStep extends BaseWizardStep {
         });
     }
 
+    private hasAdvanced = false;
+
     private async handleGitSetup(button: ButtonComponent) {
-        const { pat, repoName, repoDescription, isPrivate } = this.state.gitConfig;
+        if (this.hasAdvanced) return;
+
+        const { pat, repoName, repoDescription, isPrivate, branchName } = this.state.gitConfig;
         const projectRoot = this.getAbsoluteProjectRoot();
+        const branch = branchName || 'main';
 
         // Try to get token from secret storage if not provided for this run
         const token = pat || (this.app as any).secretStorage?.getSecret('vault-cms-github-pat');
@@ -215,12 +235,17 @@ export class GitSetupStep extends BaseWizardStep {
             await this.gitManager.setRemote(projectRoot, repoInfo.clone_url);
             new Notice(`Successfully connected to ${repoInfo.html_url}`);
 
-            // 4. Configure Obsidian Git
+            // 4. Initial Commit and Push
+            new Notice(`Performing initial commit and pushing to ${branch}...`);
+            await this.gitManager.initialCommitAndPush(projectRoot, branch);
+            new Notice('Initial commit pushed successfully!');
+
+            // 5. Configure Obsidian Git
             if (this.state.gitConfig.autoConfigureObsidianGit) {
                 await this.configureObsidianGit(token, projectRoot);
             }
 
-            // 5. Securely save token if it was just entered
+            // 6. Securely save token if it was just entered
             if (pat && (this.app as any).secretStorage) {
                 (this.app as any).secretStorage.setSecret('vault-cms-github-pat', pat);
             }
@@ -233,13 +258,17 @@ export class GitSetupStep extends BaseWizardStep {
             new Notice('Git setup complete!');
 
             // Auto-advance after small delay
-            setTimeout(() => this.onNext(), 1500);
+            if (!this.hasAdvanced) {
+                this.hasAdvanced = true;
+                setTimeout(() => this.onNext(), 1500);
+            }
 
         } catch (error) {
             console.error('Git integration failed:', error);
-            new Notice(`Setup failed: ${error instanceof Error ? error.message : String(error)}`);
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            new Notice(`Setup failed: ${errorMessage}`);
             button.setDisabled(false);
-            button.setButtonText('Initialize & Create on GitHub');
+            button.setButtonText('Initialize & Push to GitHub');
         }
     }
 

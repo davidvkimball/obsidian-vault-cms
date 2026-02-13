@@ -1,6 +1,7 @@
 import { requestUrl, RequestUrlParam } from 'obsidian';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import * as path from 'path';
 
 const execAsync = promisify(exec);
 
@@ -15,8 +16,17 @@ export class GitManager {
      */
     static async isRepo(projectRoot: string): Promise<boolean> {
         try {
-            const { stdout } = await execAsync('git rev-parse --is-inside-work-tree', { cwd: projectRoot });
-            return stdout.trim() === 'true';
+            // Get the absolute path of the git repository's top level
+            const { stdout } = await execAsync('git rev-parse --show-toplevel', { cwd: projectRoot });
+            const gitRoot = stdout.trim();
+
+            // Normalize paths for comparison (especially important on Windows)
+            const normalizedProjectRoot = path.normalize(projectRoot).toLowerCase();
+            const normalizedGitRoot = path.normalize(gitRoot).toLowerCase();
+
+            // It's ONLY a repo for THIS project if the roots match exactly
+            // Otherwise, it's just finding a parent repo
+            return normalizedProjectRoot === normalizedGitRoot;
         } catch {
             return false;
         }
@@ -63,9 +73,23 @@ export class GitManager {
     static async initialCommitAndPush(projectRoot: string, branch: string, remoteName: string = 'origin'): Promise<void> {
         try {
             await execAsync('git add .', { cwd: projectRoot });
-            await execAsync('git commit -m "Initial commit from Vault CMS"', { cwd: projectRoot });
+
+            // Check if there are changes to commit
+            try {
+                await execAsync('git commit -m "Initial commit from Vault CMS"', { cwd: projectRoot });
+            } catch (commitError) {
+                // If nothing to commit, it's NOT an error for us
+                const errorMessage = commitError instanceof Error ? commitError.message : String(commitError);
+                if (errorMessage.includes('nothing to commit') || errorMessage.includes('working tree clean')) {
+                    console.debug('GitManager: Nothing to commit, proceeding to push');
+                } else {
+                    throw commitError;
+                }
+            }
+
             // Ensure branch name is set locally
             await execAsync(`git branch -M ${branch}`, { cwd: projectRoot });
+
             // Push and set upstream
             await execAsync(`git push -u ${remoteName} ${branch}`, { cwd: projectRoot });
         } catch (error) {
@@ -95,16 +119,38 @@ export class GitManager {
 
         try {
             const response = await requestUrl(params);
+
             if (response.status === 422) {
                 throw new Error('Repository name already exists on your GitHub account.');
             }
+
             if (response.status !== 201) {
-                const errorData = response.json;
-                throw new Error(`GitHub API Error: ${errorData?.message || response.status}`);
+                // Try to parse more detailed error message if available
+                let errorMessage = `GitHub API Error: ${response.status}`;
+                try {
+                    const errorData = typeof response.json === 'string' ? JSON.parse(response.json) : response.json;
+                    if (errorData?.message) {
+                        errorMessage = `GitHub API Error: ${errorData.message}`;
+                        if (errorData.errors?.[0]?.message) {
+                            errorMessage += ` (${errorData.errors[0].message})`;
+                        }
+                    }
+                } catch (e) {
+                    // Ignore parse error, use basic message
+                }
+                throw new Error(errorMessage);
             }
+
             return response.json as GitHubRepoResponse;
         } catch (error) {
-            if (error instanceof Error && (error.message.includes('422') || error.message.includes('already exists'))) {
+            // Check if it's already an Error with the message we want
+            if (error instanceof Error && (error.message.includes('already exists') || error.message.includes('GitHub API Error'))) {
+                throw error;
+            }
+
+            // Handle unexpected errors or request failures
+            const message = error instanceof Error ? error.message : String(error);
+            if (message.includes('422') || message.includes('already exists')) {
                 throw new Error('Repository name already exists on your GitHub account.');
             }
             throw error;

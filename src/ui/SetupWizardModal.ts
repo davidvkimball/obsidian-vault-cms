@@ -178,11 +178,16 @@ export class SetupWizardModal extends Modal {
 			const progressBar = progress.createDiv('progress-bar');
 			const progressFill = progressBar.createDiv('progress-fill');
 
-			// Calculate progress percentage
+			// Calculate progress percentage using stateMachine
 			const progressPercent = this.stateMachine.getProgress();
 
-			// Set dynamic width using setCssProps
-			setCssProps(progressFill, { width: `${progressPercent}%` });
+			// Ensure style is applied after the element is in the DOM
+			requestAnimationFrame(() => {
+				setCssProps(progressFill, {
+					width: `${progressPercent}%`,
+					backgroundColor: 'var(--interactive-accent, #007acc)'
+				});
+			});
 
 			// Add step text below the progress bar with state information
 			const progressText = progress.createDiv('progress-text');
@@ -214,7 +219,7 @@ export class SetupWizardModal extends Modal {
 					void (async () => {
 						if (this.currentStepInstance && this.currentStepInstance.validate()) {
 							await this.saveCurrentStepToWizardState();
-							this.stateManager.nextStep();
+							this.stateManager.nextStep(this.steps.length);
 							this.stateMachine.next();
 							console.debug('SetupWizardModal: Advanced to next step -', this.stateMachine.getDebugInfo());
 							await this.renderCurrentStep();
@@ -293,7 +298,7 @@ export class SetupWizardModal extends Modal {
 							await this.saveCurrentStepToWizardState();
 							// Track that this step was saved
 							this.lastSavedStepIndex = this.stateManager.getState().currentStep;
-							this.stateManager.nextStep();
+							this.stateManager.nextStep(this.steps.length);
 							await this.renderCurrentStep();
 						}
 					})();
@@ -341,7 +346,7 @@ export class SetupWizardModal extends Modal {
 				setCssProps(skipBtn, { opacity: '0.6' });
 				skipBtn.addEventListener('click', () => {
 					// Skip without saving current step changes to wizard state
-					this.stateManager.nextStep();
+					this.stateManager.nextStep(this.steps.length);
 					void this.renderCurrentStep();
 				});
 			}

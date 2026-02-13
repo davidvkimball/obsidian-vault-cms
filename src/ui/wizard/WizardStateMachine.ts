@@ -212,18 +212,16 @@ export class WizardStateMachine {
 	 * Updates both step index and state
 	 */
 	jumpToStep(index: number): void {
-		if (index < 0 || index >= this.steps.length) {
-			console.error(`WizardStateMachine: Invalid step index ${index}`);
-			return;
-		}
+		// Clamp index to valid range
+		const clampedIndex = Math.max(0, Math.min(index, this.steps.length - 1));
 
-		const state = this.stepStateMap.get(index);
+		const state = this.stepStateMap.get(clampedIndex);
 		if (!state) {
-			console.error(`WizardStateMachine: No state mapping for step index ${index}`);
+			console.error(`WizardStateMachine: No state mapping for step index ${clampedIndex}`);
 			return;
 		}
 
-		this.stepIndex = index;
+		this.stepIndex = clampedIndex;
 		this.currentState = state;
 
 		console.debug(

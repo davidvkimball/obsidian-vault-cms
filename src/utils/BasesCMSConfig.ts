@@ -295,13 +295,16 @@ export class BasesCMSConfigurator {
 
 		// 2. Add other unique views (preserving original order as much as possible)
 		for (const view of existingViews) {
-			if (view.name === 'Guide' || processedViewNames.has(view.name)) continue;
+			if (view.name === 'Vault CMS Guide' || view.name === 'Guide' || processedViewNames.has(view.name)) continue;
 			finalViews.push(view);
 		}
 
-		// 3. Add Guide last
-		const guideView = viewsByName.get('Guide');
-		if (guideView) finalViews.push(guideView);
+		// 3. Add Vault CMS Guide last
+		let guideView = viewsByName.get('Vault CMS Guide') || viewsByName.get('Guide');
+		if (guideView) {
+			guideView = { ...guideView, name: 'Vault CMS Guide' };
+			finalViews.push(guideView);
+		}
 
 		// Serialize all final views
 		for (const view of finalViews) {

@@ -42,7 +42,8 @@ export class ProjectOptimizer {
 		const gitIgnorePath = path.join(projectRoot, '.gitignore').replace(/\\/g, '/');
 		if (await adapter.exists(gitIgnorePath)) {
 			const content = await adapter.read(gitIgnorePath);
-			if (content.includes(`${configDir}/workspace.json`)) {
+			// Check for both the new pattern and any variant that includes the configDir
+			if (content.includes(`${configDir}/workspace.json`) || content.includes(`**/${configDir}/workspace.json`)) {
 				status.gitIgnoreStatus = 'configured';
 			}
 		}
@@ -87,7 +88,16 @@ export class ProjectOptimizer {
 		try {
 			if (await adapter.exists(gitIgnorePath)) {
 				let content = await adapter.read(gitIgnorePath);
-				if (!content.includes(`${configDir}/workspace.json`)) {
+				const hasNewPattern = content.includes(`**/${configDir}/workspace.json`);
+				const hasOldPattern = content.includes(`*/${configDir}/workspace.json`) || content.includes(`${configDir}/workspace.json`);
+
+				if (hasOldPattern && !hasNewPattern) {
+					// Replace old patterns if they exist
+					content = content.replace(new RegExp(`\\*?/?${configDir}/workspace\\.json`, 'g'), `**/${configDir}/workspace.json`);
+					content = content.replace(new RegExp(`\\*?/?${configDir}/workspace-mobile\\.json`, 'g'), `**/${configDir}/workspace-mobile.json`);
+					await adapter.write(gitIgnorePath, content);
+				} else if (!hasNewPattern) {
+					// Add new rules if neither pattern exists
 					content += rules;
 					await adapter.write(gitIgnorePath, content);
 				}
@@ -132,7 +142,7 @@ export class ProjectOptimizer {
 
 		try {
 			const content = await adapter.read(resolvedConfigPath);
-			
+
 			if (content.includes('server.watch.ignored') && content.includes(configDir)) {
 				return true;
 			}
@@ -150,13 +160,13 @@ export class ProjectOptimizer {
 					for (let i = startIndex; i < content.length; i++) {
 						if (content[i] === '{') braceCount++;
 						else if (content[i] === '}') braceCount--;
-						
+
 						if (braceCount === 0) {
 							endIndex = i;
 							break;
 						}
 					}
-					
+
 					if (endIndex !== -1) {
 						configBody = content.substring(startIndex + 1, endIndex);
 					}

@@ -100,9 +100,11 @@ export class WizardStateManager {
 		this.state = { ...this.state, ...updates };
 	}
 
-	nextStep(): void {
-		// currentStep is 0-indexed, so we increment it
-		this.state.currentStep++;
+	nextStep(totalSteps: number): void {
+		// currentStep is 0-indexed, so we increment it but keep it within bounds
+		if (this.state.currentStep < totalSteps - 1) {
+			this.state.currentStep++;
+		}
 	}
 
 	previousStep(): void {
