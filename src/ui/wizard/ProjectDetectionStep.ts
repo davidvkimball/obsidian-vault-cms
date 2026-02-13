@@ -40,25 +40,21 @@ export class ProjectDetectionStep extends BaseWizardStep {
 		const hasSavedValues = this.state.projectDetection?.projectRoot && this.state.projectDetection?.configFilePath;
 		console.debug('ProjectDetectionStep.display: hasSavedValues =', hasSavedValues);
 		console.debug('ProjectDetectionStep.display: current enableMdxSupport =', this.state.enableMdxSupport);
-		
+
 		if (!hasSavedValues) {
 			containerEl.createEl('h2', { text: 'Project detection' });
-			containerEl.createEl('p', { 
-				text: 'Detecting your Astro project structure...' 
+			containerEl.createEl('p', {
+				text: 'Detecting your Astro project structure...'
 			});
 
 			const result = this.projectDetector.detectProject();
 			console.debug('ProjectDetectionStep.display: detection result =', result);
-			
+
 			if (result) {
-				// Convert absolute paths to relative paths (like browse button does)
-				const relativeProjectRoot = this.toRelativePath(result.projectRoot);
-				const relativeConfigFilePath = this.toRelativePath(result.configFilePath);
-				
-				// Initialize state with detected values (converted to relative paths)
+				// Store absolute paths for reliability within internal logic
 				this.state.projectDetection = {
-					projectRoot: relativeProjectRoot,
-					configFilePath: relativeConfigFilePath,
+					projectRoot: result.projectRoot,
+					configFilePath: result.configFilePath,
 					vaultLocation: result.vaultLocation
 				};
 				console.debug('ProjectDetectionStep.display: set projectDetection =', this.state.projectDetection);
@@ -72,7 +68,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 			console.debug('ProjectDetectionStep.display: using saved projectDetection =', this.state.projectDetection);
 			this.detected = true;
 		}
-		
+
 		if (this.state.projectDetection && (this.detected || hasSavedValues)) {
 
 			// Add slight delay before showing detected content (like astro-modular-settings)
@@ -81,9 +77,9 @@ export class ProjectDetectionStep extends BaseWizardStep {
 			containerEl.empty();
 			containerEl.createEl('h2', { text: 'Project detected' });
 			containerEl.createEl('p', {
-				text: 'Project structure detected successfully. You can modify the paths below if needed, then click "Next" to continue.' 
+				text: 'Project structure detected successfully. You can modify the paths below if needed, then click "Next" to continue.'
 			});
-			
+
 			// Project Root picker (with browse button even when detected)
 			const projectRootSetting = new Setting(containerEl)
 				.setName('Project root')
@@ -153,7 +149,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 					console.debug('ProjectDetectionStep: Starting MDX detection');
 					console.debug('ProjectDetectionStep: projectDetection =', this.state.projectDetection);
 					console.debug('ProjectDetectionStep: existing contentTypes =', this.state.contentTypes.length);
-					
+
 					// Get content types - use existing ones if available, otherwise detect them
 					let contentTypesToUse = this.state.contentTypes;
 					if (contentTypesToUse.length === 0) {
@@ -164,7 +160,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 					} else {
 						console.debug('ProjectDetectionStep: Using existing content types =', contentTypesToUse.map(ct => `${ct.name} (${ct.folder}, enabled: ${ct.enabled})`));
 					}
-					
+
 					if (contentTypesToUse.length > 0) {
 						console.debug('ProjectDetectionStep: Calling mdxDetector.detectMdxUsage...');
 						autoDetectedMdx = this.mdxDetector.detectMdxUsage(
@@ -196,22 +192,22 @@ export class ProjectDetectionStep extends BaseWizardStep {
 			const mdxSetting = new Setting(containerEl)
 				.setName('MDX file support')
 				.setDesc('Enable MDX file support for Astro Composer, Property Over File Name, SEO, and UI Tweaker plugins.');
-			
+
 			mdxSetting.addToggle(toggle => {
 				toggle
 					.setValue(this.state.enableMdxSupport ?? false)
 					.onChange(value => {
 						this.state.enableMdxSupport = value;
 					});
-				
+
 				// Show auto-detection message if MDX was detected
 				if (autoDetectedMdx && this.state.enableMdxSupport) {
 					const autoDetectMsg = mdxSetting.descEl.createDiv({
 						text: 'MDX files detected in content folders',
 						cls: 'vault-cms-auto-detect-msg'
 					});
-					setCssProps(autoDetectMsg, { 
-						color: 'var(--text-muted)', 
+					setCssProps(autoDetectMsg, {
+						color: 'var(--text-muted)',
 						fontSize: '0.9em',
 						marginTop: '4px'
 					});
@@ -220,8 +216,8 @@ export class ProjectDetectionStep extends BaseWizardStep {
 		} else {
 			containerEl.empty();
 			containerEl.createEl('h2', { text: 'Project detection failed' });
-			containerEl.createEl('p', { 
-				text: 'Could not detect Astro project structure. Please select your Astro project root and config file manually.' 
+			containerEl.createEl('p', {
+				text: 'Could not detect Astro project structure. Please select your Astro project root and config file manually.'
 			});
 
 			// Initialize state if needed
@@ -329,22 +325,22 @@ export class ProjectDetectionStep extends BaseWizardStep {
 			const mdxSetting = new Setting(containerEl)
 				.setName('MDX file support')
 				.setDesc('Enable MDX file support for Astro Composer, Property Over File Name, SEO, and UI Tweaker plugins.');
-			
+
 			mdxSetting.addToggle(toggle => {
 				toggle
 					.setValue(this.state.enableMdxSupport ?? false)
 					.onChange(value => {
 						this.state.enableMdxSupport = value;
 					});
-				
+
 				// Show auto-detection message if MDX was detected
 				if (autoDetectedMdx && this.state.enableMdxSupport) {
 					const autoDetectMsg = mdxSetting.descEl.createDiv({
 						text: 'MDX files detected in content folders',
 						cls: 'vault-cms-auto-detect-msg'
 					});
-					setCssProps(autoDetectMsg, { 
-						color: 'var(--text-muted)', 
+					setCssProps(autoDetectMsg, {
+						color: 'var(--text-muted)',
 						fontSize: '0.9em',
 						marginTop: '4px'
 					});
@@ -398,7 +394,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 
 			const vaultPath = this.getVaultPath();
 			let defaultPath = this.state.projectDetection?.projectRoot || vaultPath;
-			
+
 			// Convert relative path to absolute if needed
 			if (defaultPath && !path.isAbsolute(defaultPath)) {
 				defaultPath = path.resolve(vaultPath, defaultPath);
@@ -411,8 +407,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 			});
 
 			if (result && result.length > 0) {
-				const absolutePath = path.normalize(result[0]);
-				return this.toRelativePath(absolutePath);
+				return path.normalize(result[0]);
 			}
 		} catch (error: unknown) {
 			console.error('Error opening folder picker:', error);
@@ -431,36 +426,36 @@ export class ProjectDetectionStep extends BaseWizardStep {
 			// Try multiple ways to access Electron dialog API
 			let dialog: { showOpenDialogSync?: (options: { title: string; defaultPath: string; filters?: Array<{ name: string; extensions: string[] }>; properties: string[] }) => string[] | undefined } | null = null;
 
-		// Method 1: Try @electron/remote (newer Electron versions)
-		try {
-			// eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef -- dynamic require for Electron
-			const electronRemote = require('@electron/remote') as { dialog?: { showOpenDialogSync?: (options: { title: string; defaultPath: string; filters?: Array<{ name: string; extensions: string[] }>; properties: string[] }) => string[] | undefined } };
-			dialog = electronRemote?.dialog || null;
-		} catch {
-			// Not available, try next method
-		}
-
-		// Method 2: Try electron.remote.dialog (older Electron versions)
-		if (!dialog) {
+			// Method 1: Try @electron/remote (newer Electron versions)
 			try {
 				// eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef -- dynamic require for Electron
-				const electron = ((window as { require?: (module: string) => unknown }).require?.('electron') || require('electron')) as { remote?: { dialog?: { showOpenDialogSync?: (options: { title: string; defaultPath: string; filters?: Array<{ name: string; extensions: string[] }>; properties: string[] }) => string[] | undefined } } };
-				dialog = electron?.remote?.dialog || null;
+				const electronRemote = require('@electron/remote') as { dialog?: { showOpenDialogSync?: (options: { title: string; defaultPath: string; filters?: Array<{ name: string; extensions: string[] }>; properties: string[] }) => string[] | undefined } };
+				dialog = electronRemote?.dialog || null;
 			} catch {
 				// Not available, try next method
 			}
-		}
 
-		// Method 3: Try electron.dialog directly (main process, may not work)
-		if (!dialog) {
-			try {
-				// eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef -- dynamic require for Electron
-				const electron = require('electron') as { dialog?: { showOpenDialogSync?: (options: { title: string; defaultPath: string; filters?: Array<{ name: string; extensions: string[] }>; properties: string[] }) => string[] | undefined } };
-				dialog = electron?.dialog || null;
-			} catch {
-				// Not available
+			// Method 2: Try electron.remote.dialog (older Electron versions)
+			if (!dialog) {
+				try {
+					// eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef -- dynamic require for Electron
+					const electron = ((window as { require?: (module: string) => unknown }).require?.('electron') || require('electron')) as { remote?: { dialog?: { showOpenDialogSync?: (options: { title: string; defaultPath: string; filters?: Array<{ name: string; extensions: string[] }>; properties: string[] }) => string[] | undefined } } };
+					dialog = electron?.remote?.dialog || null;
+				} catch {
+					// Not available, try next method
+				}
 			}
-		}
+
+			// Method 3: Try electron.dialog directly (main process, may not work)
+			if (!dialog) {
+				try {
+					// eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef -- dynamic require for Electron
+					const electron = require('electron') as { dialog?: { showOpenDialogSync?: (options: { title: string; defaultPath: string; filters?: Array<{ name: string; extensions: string[] }>; properties: string[] }) => string[] | undefined } };
+					dialog = electron?.dialog || null;
+				} catch {
+					// Not available
+				}
+			}
 
 			if (!dialog || typeof dialog.showOpenDialogSync !== 'function') {
 				throw new Error('Electron dialog API not available');
@@ -468,7 +463,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 
 			const vaultPath = this.getVaultPath();
 			let startPath = defaultPath || vaultPath;
-			
+
 			// If we have a detected config file path, use its directory
 			if (!defaultPath && this.state.projectDetection?.configFilePath) {
 				const configPath = this.state.projectDetection.configFilePath;
@@ -504,8 +499,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 			});
 
 			if (result && result.length > 0) {
-				const absolutePath = path.normalize(result[0]);
-				return this.toRelativePath(absolutePath);
+				return path.normalize(result[0]);
 			}
 		} catch (error: unknown) {
 			console.error('Error opening file picker:', error);
@@ -544,10 +538,10 @@ export class ProjectDetectionStep extends BaseWizardStep {
 		if (!vaultPath) {
 			return absolutePath;
 		}
-		
+
 		const vaultNormalized = vaultPath.replace(/\\/g, '/').replace(/\/$/, '');
 		const absoluteNormalized = absolutePath.replace(/\\/g, '/').replace(/\/$/, '');
-		
+
 		// If the absolute path is within the vault, return relative path
 		if (absoluteNormalized.startsWith(vaultNormalized)) {
 			const relative = absoluteNormalized.slice(vaultNormalized.length);
@@ -555,19 +549,19 @@ export class ProjectDetectionStep extends BaseWizardStep {
 			const trimmedRelative = relative.startsWith('/') ? relative.slice(1) : relative;
 			return trimmedRelative || '.';
 		}
-		
+
 		// If path is outside vault, calculate relative path manually
 		try {
 			// Split paths into parts
 			const vaultParts = vaultNormalized.split('/').filter(p => p);
 			const absoluteParts = absoluteNormalized.split('/').filter(p => p);
-			
+
 			// Find common prefix
 			let commonLength = 0;
 			while (commonLength < vaultParts.length && commonLength < absoluteParts.length && vaultParts[commonLength] === absoluteParts[commonLength]) {
 				commonLength++;
 			}
-			
+
 			// Calculate relative path
 			const upLevels = vaultParts.length - commonLength;
 			const relativeParts = absoluteParts.slice(commonLength);
@@ -597,7 +591,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 			const vaultPath = this.getVaultPath();
 			const resolvedProjectRoot = path.isAbsolute(projectRoot) ? projectRoot : path.join(vaultPath, projectRoot);
 			const resolvedConfigFilePath = path.isAbsolute(configFilePath) ? configFilePath : path.join(vaultPath, configFilePath);
-			
+
 			if (!fs.existsSync(resolvedProjectRoot) || !fs.statSync(resolvedProjectRoot).isDirectory()) {
 				return false;
 			}

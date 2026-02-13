@@ -321,23 +321,22 @@ export class HealthCheckModal extends Modal {
 
 			if (isRepo) {
 				// 2. Check Remote / Config
-				// If they have a remote, we consider it "configured" even if gitConfig.enabled is false (manual setup)
 				const isConfigured = gitConfig.enabled || !!remoteUrl;
 
 				checks.push({
 					name: 'Git integration status',
 					status: isConfigured ? 'pass' : 'warning',
-					message: isConfigured
-						? (remoteUrl ? `Connected to ${remoteUrl}` : 'Integration active')
-						: 'Git integration disabled in settings'
+					message: remoteUrl
+						? `Connected to ${remoteUrl}`
+						: (gitConfig.enabled ? 'Integration active' : 'Not configured (Optional)')
 				});
 
-				// 3. Check GitHub PAT - only warn if not enabled AND no remote (i.e. truly not set up)
-				// If they have a remote, they might not NEED a PAT in our settings if they handle Git manually
+				// 3. Check GitHub PAT
 				const savedSecret = (this.app as any).secretStorage?.getSecret('vault-cms-github-pat');
 				const hasPat = !!(gitConfig.pat || savedSecret);
 
-				if (gitConfig.enabled || !remoteUrl) {
+				// Only show PAT check if they've explicitly enabled integration OR if it's missing but they started the setup
+				if (gitConfig.enabled) {
 					checks.push({
 						name: 'GitHub PAT configured',
 						status: hasPat ? 'pass' : 'warning',

@@ -117,6 +117,69 @@ export class SettingsTab extends PluginSettingTab {
 				});
 		});
 
+		// Git Configuration group
+		const gitGroup = createSettingsGroup(this.contentEl, 'Git configuration', 'vault-cms-git');
+		let isFullyConfigured = false;
+
+		// Display Git status if project root is set
+		if (this.plugin.settings.projectRoot && this.plugin.settings.projectRoot.trim() !== '') {
+			try {
+				const { GitManager } = await import('../utils/GitManager');
+				const projectRoot = this.plugin.settings.projectRoot;
+				const isRepo = await GitManager.isRepo(projectRoot);
+				const remoteUrl = isRepo ? await GitManager.getRemoteUrl(projectRoot) : null;
+				isFullyConfigured = isRepo && !!remoteUrl;
+
+				gitGroup.addSetting((setting) => {
+					setting.setName('Local repository status')
+						.setDesc(isRepo ? 'Git is initialized at project root.' : 'Git is NOT initialized at project root.');
+
+					const statusIcon = setting.controlEl.createSpan({
+						cls: isRepo ? 'git-status-icon-ok' : 'git-status-icon-warn',
+						attr: { style: `margin-left: 10px; color: ${isRepo ? 'var(--text-success)' : 'var(--text-warning)'};` }
+					});
+					statusIcon.setText(isRepo ? '✓ Detected' : '⚠ Missing');
+				});
+
+				gitGroup.addSetting((setting) => {
+					setting.setName('Project root path')
+						.setDesc('Direct path being checked for Git')
+						.addText(text => {
+							text.setValue(projectRoot)
+								.setDisabled(true);
+						});
+				});
+
+				if (remoteUrl) {
+					gitGroup.addSetting((setting) => {
+						setting.setName('Remote URL')
+							.setDesc('Connected GitHub repository')
+							.addText(text => {
+								text.setValue(remoteUrl)
+									.setDisabled(true);
+							});
+					});
+				}
+			} catch (error) {
+				console.warn('SettingsTab: Failed to check Git status:', error);
+			}
+		}
+
+		// Only show management/setup button if NOT fully configured
+		if (!isFullyConfigured) {
+			gitGroup.addSetting((setting) => {
+				setting.setName('Manage Git integration')
+					.setDesc('Initialize repository, connect to GitHub, or update credentials.')
+					.addButton(button => {
+						button.setButtonText('Setup / Update Git...')
+							.onClick(() => {
+								const modal = new SetupWizardModal(this.app, { currentStep: 11 }, this.plugin);
+								modal.open();
+							});
+					});
+			});
+		}
+
 		// Project optimization group
 		const optimizationGroup = createSettingsGroup(this.contentEl, 'Project optimization (optional)', 'vault-cms-optimization');
 
@@ -151,113 +214,6 @@ export class SettingsTab extends PluginSettingTab {
 		optimizationGroup.addSetting((setting) => {
 			this.viteSetting = setting;
 			this.updateViteSetting(status.viteIgnoreStatus);
-		});
-
-		// Git Configuration group
-		const gitGroup = createSettingsGroup(this.contentEl, 'Git configuration', 'vault-cms-git');
-
-		// Display Git status if project root is set
-		if (this.plugin.settings.projectRoot) {
-			try {
-				const { GitManager } = await import('../utils/GitManager');
-				const projectRoot = this.plugin.settings.projectRoot;
-				const isRepo = await GitManager.isRepo(projectRoot);
-
-				gitGroup.addSetting((setting) => {
-					setting.setName('Local repository status')
-						.setDesc(isRepo ? 'Git is initialized at project root.' : 'Git is NOT initialized at project root.');
-
-					const statusIcon = setting.controlEl.createSpan({
-						cls: isRepo ? 'git-status-icon-ok' : 'git-status-icon-warn',
-						attr: { style: `margin-left: 10px; color: ${isRepo ? 'var(--text-success)' : 'var(--text-warning)'};` }
-					});
-					statusIcon.setText(isRepo ? '✓ Detected' : '⚠ Missing');
-				});
-			} catch (error) {
-				console.warn('SettingsTab: Failed to check Git status:', error);
-			}
-		}
-
-		gitGroup.addSetting((setting) => {
-			setting.setName('Enable Git integration')
-				.setDesc('Enable Git features in Vault CMS')
-				.addToggle(toggle => {
-					toggle.setValue(this.plugin.settings.gitConfig.enabled)
-						.onChange(async (value) => {
-							this.plugin.settings.gitConfig.enabled = value;
-							await this.plugin.saveSettings();
-
-							// Toggle visibility of additional settings without full re-render
-							if (patContainer) {
-								if (value) patContainer.show();
-								else patContainer.hide();
-							}
-						});
-				});
-		});
-
-		// Container for settings that depend on Git being enabled
-		const patContainer = this.contentEl.createDiv();
-		if (!this.plugin.settings.gitConfig.enabled) {
-			patContainer.hide();
-		}
-
-		patContainer.addClass('vault-cms-pat-settings');
-
-		gitGroup.addSetting((setting) => {
-			// Move the actual setting element into the container
-			patContainer.appendChild(setting.settingEl);
-
-			setting.setName('GitHub Personal Access Token')
-				.setDesc('Token used for Git operations (stored securely)')
-				.addText(async text => {
-					const savedSecret = (this.app as any).secretStorage?.getSecret('vault-cms-github-pat');
-					text.setPlaceholder('ghp_xxxxxxxxxxxx')
-						.setValue(this.plugin.settings.gitConfig.pat || savedSecret || '')
-						.onChange(async (value) => {
-							const trimmedValue = value.trim();
-							this.plugin.settings.gitConfig.pat = trimmedValue;
-							if (trimmedValue && (this.app as any).secretStorage) {
-								(this.app as any).secretStorage.setSecret('vault-cms-github-pat', trimmedValue);
-							}
-							await this.plugin.saveSettings();
-						});
-					text.inputEl.type = 'password';
-				})
-				.addButton(button => {
-					button.setButtonText('Verify Token')
-						.onClick(async () => {
-							const token = this.plugin.settings.gitConfig.pat || (this.app as any).secretStorage?.getSecret('vault-cms-github-pat');
-							if (!token) {
-								new Notice('Please enter a token first.');
-								return;
-							}
-							button.setDisabled(true);
-							button.setButtonText('Verifying...');
-
-							try {
-								const { GitManager } = await import('../utils/GitManager');
-								const username = await GitManager.verifyToken(token);
-								if (username) {
-									new Notice(`Token verified successfully as ${username}!`);
-									if ((this.app as any).secretStorage) {
-										(this.app as any).secretStorage.setSecret('vault-cms-github-pat', token);
-									}
-									button.setButtonText('Verified');
-									button.buttonEl.style.backgroundColor = 'var(--interactive-accent)';
-									button.buttonEl.style.color = 'var(--text-on-accent)';
-								} else {
-									new Notice('Invalid token or GitHub API error.');
-									button.setButtonText('Verify Token');
-									button.setDisabled(false);
-								}
-							} catch (e) {
-								new Notice('Verification failed. Check your connection.');
-								button.setButtonText('Verify Token');
-								button.setDisabled(false);
-							}
-						});
-				});
 		});
 	}
 

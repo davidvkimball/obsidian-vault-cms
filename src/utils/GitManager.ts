@@ -16,22 +16,27 @@ export class GitManager {
      * Checks if a directory is a Git repository.
      */
     static async isRepo(projectRoot: string): Promise<boolean> {
+        if (!projectRoot) return false;
+
         try {
-            // THE MOST FOOLPROOF WAY: Check if .git folder exists in the project root
-            const dotGitPath = path.join(projectRoot, '.git');
-            if (fs.existsSync(dotGitPath)) {
-                return true;
-            }
+            const absolutePath = path.resolve(projectRoot);
+            const dotGitPath = path.join(absolutePath, '.git');
+            const exists = fs.existsSync(dotGitPath);
 
-            // Fallback to git rev-parse but ensure it's THIS directory
-            const { stdout } = await execAsync('git rev-parse --show-toplevel', { cwd: projectRoot });
-            const gitRoot = stdout.trim();
+            console.debug('GitManager.isRepo check:', {
+                projectRoot,
+                absolutePath,
+                dotGitPath,
+                exists
+            });
 
-            const normalizedProjectRoot = path.normalize(projectRoot).toLowerCase();
-            const normalizedGitRoot = path.normalize(gitRoot).toLowerCase();
+            if (!fs.existsSync(absolutePath)) return false;
 
-            return normalizedProjectRoot === normalizedGitRoot;
-        } catch {
+            // STRICT CHECK: Only consider it a repo if .git exists EXACTLY in this folder.
+            // This prevents "ghost" detection from parent repositories.
+            return exists;
+        } catch (error) {
+            console.error('GitManager.isRepo error:', error);
             return false;
         }
     }

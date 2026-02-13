@@ -3,6 +3,7 @@ import { VaultCMSSettings, DEFAULT_SETTINGS } from './settings';
 import { SettingsTab } from './ui/SettingsTab';
 import { SetupWizardModal } from './ui/SetupWizardModal';
 import { registerCommands } from './commands';
+import * as path from 'path';
 
 export default class VaultCMSPlugin extends Plugin {
 	settings: VaultCMSSettings;
@@ -11,13 +12,20 @@ export default class VaultCMSPlugin extends Plugin {
 	async onload() {
 		await this.loadSettings();
 
+		// Repair relative projectRoot to absolute for reliability
+		if (this.settings.projectRoot && !path.isAbsolute(this.settings.projectRoot)) {
+			const adapter = this.app.vault.adapter as { basePath?: string; path?: string };
+			const vaultPath = adapter.basePath || adapter.path;
+			if (vaultPath) {
+				const absolutePath = path.resolve(vaultPath, this.settings.projectRoot);
+				console.debug(`[Vault CMS] Repairing relative projectRoot: ${this.settings.projectRoot} -> ${absolutePath}`);
+				this.settings.projectRoot = absolutePath;
+				await this.saveSettings();
+			}
+		}
+
 		// Register commands
 		registerCommands(this);
-
-		// Git health check
-		if (this.settings.gitConfig?.enabled) {
-			this.checkGitStatus();
-		}
 
 		// Add settings tab
 		this.addSettingTab(new SettingsTab(this.app, this));
@@ -52,14 +60,6 @@ export default class VaultCMSPlugin extends Plugin {
 
 	async saveSettings() {
 		await this.saveData(this.settings);
-	}
-
-	async checkGitStatus() {
-		const { GitManager } = await import('./utils/GitManager');
-		const isRepo = await GitManager.isRepo(this.settings.projectRoot);
-		if (!isRepo && this.settings.gitConfig.enabled) {
-			new Notice('Vault CMS: Git integration is enabled but no repository was found at project root.');
-		}
 	}
 }
 

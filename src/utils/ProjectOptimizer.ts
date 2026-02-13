@@ -1,6 +1,8 @@
 import { App, setIcon } from 'obsidian';
 // eslint-disable-next-line import/no-nodejs-modules -- Node.js module needed for path operations
 import * as path from 'path';
+// eslint-disable-next-line import/no-nodejs-modules -- Node.js module needed for file operations
+import * as fs from 'fs';
 import { WizardState } from '../types';
 
 export interface OptimizationStatus {
@@ -33,19 +35,25 @@ export class ProjectOptimizer {
 		};
 
 		const projectRoot = this.state.projectDetection?.projectRoot;
-		if (!projectRoot) return status;
+		if (!projectRoot) {
+			console.debug('[Vault CMS] ProjectOptimizer: No projectRoot in state');
+			return status;
+		}
 
 		const configDir = this.app.vault.configDir;
-		const adapter = this.app.vault.adapter;
+		console.debug('[Vault CMS] ProjectOptimizer: Checking status for root:', projectRoot, 'configDir:', configDir);
 
 		// Check .gitignore
-		const gitIgnorePath = path.join(projectRoot, '.gitignore').replace(/\\/g, '/');
-		if (await adapter.exists(gitIgnorePath)) {
-			const content = await adapter.read(gitIgnorePath);
-			// Check for both the new pattern and any variant that includes the configDir
-			if (content.includes(`${configDir}/workspace.json`) || content.includes(`**/${configDir}/workspace.json`)) {
+		const gitIgnorePath = path.join(projectRoot, '.gitignore');
+		if (fs.existsSync(gitIgnorePath)) {
+			const content = fs.readFileSync(gitIgnorePath, 'utf8');
+			const isConfigured = content.includes(`${configDir}/workspace.json`) || content.includes(`**/${configDir}/workspace.json`);
+			console.debug('[Vault CMS] ProjectOptimizer: .gitignore exists, configured:', isConfigured);
+			if (isConfigured) {
 				status.gitIgnoreStatus = 'configured';
 			}
+		} else {
+			console.debug('[Vault CMS] ProjectOptimizer: .gitignore NOT found at:', gitIgnorePath);
 		}
 
 		// Check Vite config
@@ -53,8 +61,8 @@ export class ProjectOptimizer {
 		let resolvedViteConfigPath = '';
 
 		for (const name of astroConfigNames) {
-			const p = path.join(projectRoot, name).replace(/\\/g, '/');
-			if (await adapter.exists(p)) {
+			const p = path.join(projectRoot, name);
+			if (fs.existsSync(p)) {
 				resolvedViteConfigPath = p;
 				break;
 			}
@@ -64,13 +72,17 @@ export class ProjectOptimizer {
 			resolvedViteConfigPath = this.state.projectDetection.configFilePath;
 		}
 
-		if (resolvedViteConfigPath && await adapter.exists(resolvedViteConfigPath)) {
-			const content = await adapter.read(resolvedViteConfigPath);
-			if (content.includes('server.watch.ignored') || content.includes('ignored:')) {
-				if (content.includes(configDir)) {
-					status.viteIgnoreStatus = 'configured';
-				}
+		if (resolvedViteConfigPath && fs.existsSync(resolvedViteConfigPath)) {
+			console.debug('[Vault CMS] ProjectOptimizer: Checking Vite config at:', resolvedViteConfigPath);
+			const content = fs.readFileSync(resolvedViteConfigPath, 'utf8');
+			const hasWatchIgnored = content.includes('server.watch.ignored') || content.includes('ignored:');
+			const hasConfigDir = content.includes(configDir);
+			console.debug('[Vault CMS] ProjectOptimizer: Vite config has patterns:', { hasWatchIgnored, hasConfigDir });
+			if (hasWatchIgnored && hasConfigDir) {
+				status.viteIgnoreStatus = 'configured';
 			}
+		} else {
+			console.debug('[Vault CMS] ProjectOptimizer: No valid Astro config found to check');
 		}
 
 		return status;
@@ -78,35 +90,44 @@ export class ProjectOptimizer {
 
 	public async configureGitIgnore(): Promise<boolean> {
 		const projectRoot = this.state.projectDetection?.projectRoot;
-		if (!projectRoot) return false;
+		if (!projectRoot) {
+			console.error('[Vault CMS] ProjectOptimizer: No projectRoot for Git configuration');
+			return false;
+		}
 
 		const configDir = this.app.vault.configDir;
-		const gitIgnorePath = path.join(projectRoot, '.gitignore').replace(/\\/g, '/');
+		const gitIgnorePath = path.join(projectRoot, '.gitignore');
 		const rules = `\n# Obsidian workspace files\n**/${configDir}/workspace.json\n**/${configDir}/workspace-mobile.json\n`;
-		const adapter = this.app.vault.adapter;
+
+		console.debug('[Vault CMS] ProjectOptimizer: Configuring Git ignore at:', gitIgnorePath);
 
 		try {
-			if (await adapter.exists(gitIgnorePath)) {
-				let content = await adapter.read(gitIgnorePath);
+			if (fs.existsSync(gitIgnorePath)) {
+				let content = fs.readFileSync(gitIgnorePath, 'utf8');
 				const hasNewPattern = content.includes(`**/${configDir}/workspace.json`);
 				const hasOldPattern = content.includes(`*/${configDir}/workspace.json`) || content.includes(`${configDir}/workspace.json`);
 
 				if (hasOldPattern && !hasNewPattern) {
+					console.debug('[Vault CMS] ProjectOptimizer: Updating old Git patterns');
 					// Replace old patterns if they exist
 					content = content.replace(new RegExp(`\\*?/?${configDir}/workspace\\.json`, 'g'), `**/${configDir}/workspace.json`);
 					content = content.replace(new RegExp(`\\*?/?${configDir}/workspace-mobile\\.json`, 'g'), `**/${configDir}/workspace-mobile.json`);
-					await adapter.write(gitIgnorePath, content);
+					fs.writeFileSync(gitIgnorePath, content, 'utf8');
 				} else if (!hasNewPattern) {
+					console.debug('[Vault CMS] ProjectOptimizer: Adding new Git patterns');
 					// Add new rules if neither pattern exists
 					content += rules;
-					await adapter.write(gitIgnorePath, content);
+					fs.writeFileSync(gitIgnorePath, content, 'utf8');
+				} else {
+					console.debug('[Vault CMS] ProjectOptimizer: Git patterns already present');
 				}
 			} else {
-				await adapter.write(gitIgnorePath, rules);
+				console.debug('[Vault CMS] ProjectOptimizer: Creating new .gitignore');
+				fs.writeFileSync(gitIgnorePath, rules, 'utf8');
 			}
 			return true;
 		} catch (error) {
-			console.error('Failed to update .gitignore:', error);
+			console.error('[Vault CMS] Failed to update .gitignore:', error);
 			throw error;
 		}
 	}
@@ -116,15 +137,14 @@ export class ProjectOptimizer {
 		if (!projectRoot) return false;
 
 		const configDir = this.app.vault.configDir;
-		const adapter = this.app.vault.adapter;
 
 		const astroConfigNames = ['astro.config.ts', 'astro.config.mjs', 'astro.config.js', 'astro.config.mts', 'astro.config.cjs'];
 		let resolvedConfigPath = '';
 		let configFileName = '';
 
 		for (const name of astroConfigNames) {
-			const p = path.join(projectRoot, name).replace(/\\/g, '/');
-			if (await adapter.exists(p)) {
+			const p = path.join(projectRoot, name);
+			if (fs.existsSync(p)) {
 				resolvedConfigPath = p;
 				configFileName = name;
 				break;
@@ -136,12 +156,15 @@ export class ProjectOptimizer {
 			configFileName = path.basename(resolvedConfigPath);
 		}
 
-		if (!resolvedConfigPath || !(await adapter.exists(resolvedConfigPath))) {
+		if (!resolvedConfigPath || !fs.existsSync(resolvedConfigPath)) {
+			console.error('[Vault CMS] ProjectOptimizer: Vite config NOT found in:', projectRoot);
 			throw new Error(`Astro config file not found in: ${projectRoot}`);
 		}
 
+		console.debug('[Vault CMS] ProjectOptimizer: Configuring Vite ignore at:', resolvedConfigPath);
+
 		try {
-			const content = await adapter.read(resolvedConfigPath);
+			const content = fs.readFileSync(resolvedConfigPath, 'utf8');
 
 			if (content.includes('server.watch.ignored') && content.includes(configDir)) {
 				return true;
@@ -212,7 +235,7 @@ export class ProjectOptimizer {
 				}
 
 				const updatedContent = isWholeFile ? configBody : (content.substring(0, startIndex + 1) + configBody + content.substring(endIndex));
-				await adapter.write(resolvedConfigPath, updatedContent);
+				fs.writeFileSync(resolvedConfigPath, updatedContent, 'utf8');
 				return true;
 			} else {
 				throw new Error(`Could not parse configuration in ${configFileName}.`);

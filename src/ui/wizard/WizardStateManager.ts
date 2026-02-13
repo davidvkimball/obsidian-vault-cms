@@ -257,6 +257,7 @@ export class WizardStateManager {
 		}
 
 		this.state.gitConfig = settings.gitConfig || { enabled: false, autoConfigureObsidianGit: true };
+		this.state.ignoreConfig = settings.ignoreConfig || { gitIgnoreConfigured: false, viteIgnoreConfigured: false };
 	}
 
 	async buildFinalSettings(): Promise<void> {
