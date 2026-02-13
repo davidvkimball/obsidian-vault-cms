@@ -1,6 +1,6 @@
 # Vault CMS Plugin for Obsidian
 
-Obsidian plugin for setup and configuration management of Obsidian vaults as content management systems, particularly optimized for [Astro](https://astro.build) projects. Provides a setup wizard, automatic project detection, and plugin configuration management.
+Obsidian plugin for setup and configuration management of [Vault CMS](https://github.com/davidvkimball/vault-cms). Provides a setup wizard, automatic project detection, and plugin configuration management.
 
 > [!NOTE]
 > This plugin is designed to work with the [Vault CMS](https://github.com/davidvkimball/vault-cms) specifically and is not a general purpose Obsidian plugin.
@@ -11,16 +11,18 @@ Part of the [Vault CMS](https://github.com/davidvkimball/vault-cms) project.
 
 ## Features
 
-- **Setup Wizard**: Multi-step onboarding with project detection, content type identification, frontmatter mapping, and automatic plugin configuration
-- **Auto-detection**: Automatically detects Astro project structure, content types, and frontmatter properties
-- **Plugin Integration**: Configures Astro Composer, Bases CMS, SEO, Property Over File Name, Image Manager, and more
-- **Content Type Management**: Identifies and configures content types (posts, pages, docs, etc.) from your project structure
-- **MDX Support**: Optional MDX file support with auto-detection
-- **Plugin Presets**: Choose from vanilla, opinionated, or custom plugin configurations
+- **Setup Wizard**: Multi-step onboarding with project detection, content type identification, frontmatter mapping, and automatic plugin configuration.
+- **Git Integration**: Securely connect to GitHub, initialize repositories, and perform initial pushes directly from Obsidian. Seamless handoff to the Git plugin.
+- **Project Optimization**: Automatically identifies and applies `.gitignore` and Vite ignore patterns to optimize your Astro project for Obsidian.
+- **Auto-detection**: Automatically detects Astro project structure, content types, and frontmatter properties.
+- **Plugin Integration**: Configures Astro Composer, Bases CMS, SEO, Property Over File Name, Image Manager, and more.
+- **Content Type Management**: Identifies and configures content types (posts, pages, docs, etc.) from your project structure.
+- **MDX Support**: Optional MDX file support with auto-detection.
+- **Plugin Presets**: Choose from vanilla, opinionated, or custom plugin configurations.
 
 ## Installation
 
-The Vault CMS plugin will not be available in the Community plugins section. Install using [BRAT](https://github.com/TfTHacker/obsidian42-brat) or manually:
+The Vault CMS plugin is intended to be used with Vault CMS, but can is also can be instaslled manually or via BRAT:
 
 ### BRAT
 
@@ -29,68 +31,67 @@ The Vault CMS plugin will not be available in the Community plugins section. Ins
 3. Paste the following: `https://github.com/davidvkimball/obsidian-vault-cms` and select `Add plugin`.
 
 ### Manual Installation
-1. Download latest release from [GitHub](https://github.com/davidvkimball/obsidian-vault-cms/releases)
-2. Extract to `.obsidian/plugins/vault-cms/`
-3. Reload Obsidian and enable in **Settings → Community plugins**
+1. Download the latest release from [GitHub](https://github.com/davidvkimball/obsidian-vault-cms/releases).
+2. Extract the files to `.obsidian/plugins/vault-cms/`.
+3. Reload Obsidian and enable in **Settings → Community plugins**.
 
 ## Quick Start
 
-1. Enable plugin in **Settings → Community plugins**
-2. The setup wizard will automatically open on first launch (if enabled)
-3. Follow wizard: project detection, content types, frontmatter properties, and plugin configuration
-4. Access settings: **Settings → Plugin Options → Vault CMS**
+1. Enable the plugin in **Settings → Community plugins**.
+2. The setup wizard will automatically open on first launch (if enabled). 
+3. Follow the wizard steps to detect your project, identify content types, and configure plugins.
+4. Access settings anytime: **Settings → Plugin Options → Vault CMS**.
 
 ## Commands
 
 Via Command Palette (`Ctrl/Cmd + P`):
-- **Open setup wizard** - Launch the configuration wizard
+- **Open setup wizard**: Launch the multi-step configuration wizard.
+- **Check Vault CMS setup**: Run a comprehensive health check on your installation and configuration.
+- **Download and apply preset**: Sync your local configuration with a remote preset repository.
 
 ## Configuration
 
-### Wizard Steps
+### Wizard Steps (13-Step Process)
 
-1. **Welcome** - Introduction to setup process
-2. **Project Detection** - Automatically finds Astro project by locating config files
-3. **Content Types** - Scans content folders and identifies them as content types
-4. **Default Content Type** - Choose which content type to use for new notes
-5. **Frontmatter Properties** - Analyzes existing content to detect frontmatter properties
-6. **WYSIWYG Preference** - Enable or disable the editing toolbar
-7. **Bases CMS Configuration** - Set up CMS views for your content types
-8. **Astro Composer Configuration** - Configure Astro Composer plugin settings
-9. **SEO Configuration** - Set up SEO plugin scanning directories and properties
-10. **Optional Plugins** - Enable or disable additional plugins
-11. **Finalize** - Review and apply all configuration
+1. **Welcome**: Overview of the setup process.
+2. **Project Detection**: Locates your Astro project by identifying config files (`astro.config.mjs`, etc.).
+3. **Content Types**: Scans your project to identify and categorize content folders.
+4. **Default Content Type**: Select the primary content type for new notes.
+5. **Frontmatter Properties**: Analyzes your data to map existing frontmatter structures.
+6. **WYSIWYG Preference**: Toggles the editing toolbar based on your workflow.
+7. **Bases CMS Configuration**: Dynamically creates CMS views for your content types.
+8. **Astro Composer Configuration**: Bridges Obsidian with Astro's content management.
+9. **SEO Configuration**: Sets up scanning directories and property mappings for SEO audits.
+10. **Optional Plugins**: Enable or disable recommended ecosystem plugins.
+11. **Ignore Files**: Automatically optimizes `.gitignore` and Vite configurations.
+12. **Git Integration**: Securely links your project to GitHub (PAT stored in Obsidian Secrets).
+13. **Finalize**: Review summaries and apply the final configuration.
+
+### Git Integration & Security
+
+Vault CMS handles your GitHub credentials with priority on security:
+- **Obsidian Secrets**: Your GitHub Personal Access Token (PAT) is stored in Obsidian's secure local vault storage, never in your public settings files.
+- **Automated Setup**: Can automatically initialize Git, create a GitHub repository, and perform the initial push for you.
+- **Plugin Sync**: Optionally auto-configures the [Git](https://github.com/Vinzent03/obsidian-git) Obsidian plugin to match your project settings.
 
 ### Bases CMS Configuration
 
-The plugin dynamically detects your Bases CMS configuration folder. It prefers `_bases` as the default location for new setups, but will continue to work with the legacy `bases` folder for backwards compatibility.
-
-- **New Installations**: Will create `_bases/Home.base` by default.
-- **Existing Installations**: If `bases/Home.base` exists, it will be used and updated.
+The plugin dynamically detects your Bases CMS configuration folder. It prefers `_bases` as the default location for new setups but maintains compatibility with `bases` folders as well.
 
 ### Auto-Detection
 
 The wizard automatically detects:
-- **Project Structure**: Finds Astro project by locating `astro.config.mjs`, `astro.config.ts`, or other config files
-- **Content Types**: Scans content folders (posts, pages, docs, etc.) and identifies them as content types
-- **Frontmatter Properties**: Analyzes existing content files to detect properties (title, date, description, etc.)
+- **Project Structure**: Finds Astro project by locating `astro.config.mjs`, `astro.config.ts`, or other config files.
+- **Content Types**: Scans content folders (posts, pages, docs, etc.) and identifies them as content types.
+- **Frontmatter Properties**: Analyzes existing content files to detect properties (title, date, description, etc.).
 
-### Plugin Integration
+### Astro Theme Presets
 
-Automatically configures:
-- **Astro Composer**: Custom content types, default templates, and MDX support
-- **Bases CMS**: Creates CMS views for each content type with property mappings
-- **SEO**: Sets up scan directories and property mappings for SEO audits
-- **Property Over File Name**: Configures title property display instead of filenames
-- **Image Manager**: Image management configuration
-- **Home Base**: Optional homepage configuration
-- **Editing Toolbar**: Toggles toolbar visibility based on WYSIWYG preference
+Vault CMS supports curated configuration presets for popular Astro themes. These presets allow you to sync your Obsidian setup with your project's theme requirements automatically.
 
-### Plugin Presets
-
-- **Vanilla**: Minimal plugin setup with core functionality
-- **Opinionated**: Full-featured setup with additional plugins and optimizations
-- **Custom**: Manual selection of plugins to enable/disable
+- **Theme Support**: Includes optimized configurations for **Starlight**, **Slate**, and **Chiri** Astro themes.
+- **Instant Setup**: Automatically maps content types, properties, and folder structures to match your theme's expectations.
+- **Remote Sync**: Fetch the latest curated configurations from the [Vault CMS Presets](https://github.com/davidvkimball/vault-cms-presets) repository.
 
 ## Troubleshooting
 
