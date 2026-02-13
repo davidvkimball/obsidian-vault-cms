@@ -169,7 +169,7 @@ export class SettingsTab extends PluginSettingTab {
 
 					const statusIcon = setting.controlEl.createSpan({
 						cls: isRepo ? 'git-status-icon-ok' : 'git-status-icon-warn',
-						attr: { style: `margin-left: 10px; color: ${isRepo ? 'var(--interactive-accent)' : 'var(--text-warning)'};` }
+						attr: { style: `margin-left: 10px; color: ${isRepo ? 'var(--text-success)' : 'var(--text-warning)'};` }
 					});
 					statusIcon.setText(isRepo ? '✓ Detected' : '⚠ Missing');
 				});

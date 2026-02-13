@@ -90,10 +90,8 @@ export class GitSetupStep extends BaseWizardStep {
             tokenHelp.createEl('li', { text: 'Check the "repo" box (so all top options are selected)' });
             tokenHelp.createEl('li', { text: 'Click "Generate token" at the bottom, copy it, and paste it below.' });
 
-            if (isRepo && !remoteUrl) {
-                configContainer.createEl('h3', { text: 'Connect to GitHub' });
-            } else if (!isRepo) {
-                configContainer.createEl('h3', { text: 'Create New Repository' });
+            if (!remoteUrl) {
+                configContainer.createEl('h3', { text: isRepo ? 'Connect to GitHub' : 'Create New Repository' });
             }
 
             // GitHub PAT Setting
@@ -128,7 +126,12 @@ export class GitSetupStep extends BaseWizardStep {
                                 if ((this.app as any).secretStorage) {
                                     (this.app as any).secretStorage.setSecret('vault-cms-github-pat', token);
                                 }
-                                this.app.saveLocalStorage('obsidian-git:username', username);
+                                // Use standard localStorage directly if this.app.saveLocalStorage is missing/broken
+                                try {
+                                    (this.app as any).saveLocalStorage('obsidian-git:username', username);
+                                } catch (e) {
+                                    localStorage.setItem('obsidian-git:username', username);
+                                }
                                 this.state.gitConfig.enabled = true;
                                 button.setButtonText('Verified');
                                 button.buttonEl.style.backgroundColor = 'var(--interactive-accent)';
@@ -146,15 +149,22 @@ export class GitSetupStep extends BaseWizardStep {
                     });
             });
 
-            // Repo creation settings (only if not already a repo)
-            if (!isRepo) {
+            // Repo creation settings (if no remote yet)
+            if (!remoteUrl) {
                 new Setting(configContainer)
                     .setName('Repository Name')
-                    .setDesc('The name of your new GitHub repository.')
+                    .setDesc('The name of your GitHub repository.')
                     .addText(text => {
                         const defaultName = projectRoot ? projectRoot.split(/[\\/]/).pop() : '';
+                        const initialValue = this.state.gitConfig.repoName || defaultName || '';
+
+                        // Proactively set the state so it's not empty if the user doesn't change it
+                        if (!this.state.gitConfig.repoName) {
+                            this.state.gitConfig.repoName = initialValue;
+                        }
+
                         text.setPlaceholder('my-blog')
-                            .setValue(this.state.gitConfig.repoName || defaultName || '')
+                            .setValue(initialValue)
                             .onChange(value => {
                                 this.state.gitConfig.repoName = value.trim();
                             });
@@ -187,8 +197,12 @@ export class GitSetupStep extends BaseWizardStep {
                 .setName('Default Branch')
                 .setDesc('The name of the initial branch (e.g., "main" or "master").')
                 .addText(text => {
+                    const initialBranch = this.state.gitConfig.branchName || 'main';
+                    if (!this.state.gitConfig.branchName) {
+                        this.state.gitConfig.branchName = initialBranch;
+                    }
                     text.setPlaceholder('main')
-                        .setValue(this.state.gitConfig.branchName || 'main')
+                        .setValue(initialBranch)
                         .onChange(value => {
                             this.state.gitConfig.branchName = value.trim() || 'main';
                         });
@@ -238,11 +252,13 @@ export class GitSetupStep extends BaseWizardStep {
 
         if (!token || !projectRoot) {
             new Notice('Please provide a Token and ensure project root is detected.');
+            button.setDisabled(false);
             return;
         }
 
         if (!alreadyHasRemote && !repoName) {
             new Notice('Please provide a Repository Name.');
+            button.setDisabled(false);
             return;
         }
 
@@ -303,8 +319,12 @@ export class GitSetupStep extends BaseWizardStep {
     }
 
     private async configureObsidianGit(pat: string, projectRoot: string) {
-        // Set PAT in localStorage
-        this.app.saveLocalStorage('obsidian-git:password', pat);
+        // Set PAT in localStorage (with fallback)
+        try {
+            (this.app as any).saveLocalStorage('obsidian-git:password', pat);
+        } catch (e) {
+            localStorage.setItem('obsidian-git:password', pat);
+        }
 
         const adapter = this.app.vault.adapter as any;
         const vaultRoot = adapter.getBasePath ? adapter.getBasePath() : '';

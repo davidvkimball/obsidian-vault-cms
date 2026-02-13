@@ -448,11 +448,15 @@ export class HealthCheckModal extends Modal {
 			}
 
 			.health-check-pass {
-				color: var(--interactive-accent);
+				color: var(--text-success);
 			}
 
-			.health-check-fail, .health-check-warning {
-				color: var(--text-muted);
+			.health-check-fail {
+				color: var(--text-error);
+			}
+
+			.health-check-warning {
+				color: var(--text-warning);
 			}
 
 			.health-check-icon svg {
