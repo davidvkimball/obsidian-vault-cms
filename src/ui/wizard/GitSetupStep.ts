@@ -1,4 +1,5 @@
 import { App, Setting, Notice, ButtonComponent } from 'obsidian';
+import * as obsidian from 'obsidian';
 import { BaseWizardStep } from './BaseWizardStep';
 import { WizardState } from '../../types';
 import { GitManager } from '../../utils/GitManager';
@@ -99,15 +100,37 @@ export class GitSetupStep extends BaseWizardStep {
         const patSetting = new Setting(configContainer)
             .setName('GitHub Personal Access Token')
             .setDesc('Stored securely in Obsidian Secrets.')
-            .addText(text => {
-                const savedSecret = (this.app as any).secretStorage?.getSecret('vault-cms-github-pat');
+            .addExtraButton(btn => {
+                btn.setIcon('link')
+                    .setTooltip('Generate a new Personal Access Token on GitHub')
+                    .onClick(() => {
+                        window.open('https://github.com/settings/tokens/new?scopes=repo&description=Vault%20CMS%20Plugin');
+                    });
+            });
+
+        const savedSecret = (this.app as any).secretStorage?.getSecret('vault-cms-github-pat');
+        const initialPat = this.state.gitConfig.pat || savedSecret || '';
+
+        // Safely add the secret component (or fallback to password text field if API is version < 1.11.4)
+        if (typeof (obsidian as any).SecretComponent === 'function') {
+            patSetting.addComponent(el => {
+                const secret = new (obsidian as any).SecretComponent(this.app, el);
+                secret.setValue(initialPat)
+                    .onChange((value: string) => {
+                        this.state.gitConfig.pat = value.trim();
+                    });
+                return secret;
+            });
+        } else {
+            patSetting.addText(text => {
                 text.setPlaceholder('ghp_xxxxxxxxxxxx')
-                    .setValue(this.state.gitConfig.pat || savedSecret || '')
+                    .setValue(initialPat)
                     .onChange(value => {
                         this.state.gitConfig.pat = value.trim();
                     });
                 text.inputEl.type = 'password';
             });
+        }
 
         patSetting.addButton(button => {
             button.setButtonText('Verify Token')
@@ -125,7 +148,9 @@ export class GitSetupStep extends BaseWizardStep {
                         if (username) {
                             new Notice(`Token verified successfully as ${username}!`);
                             if ((this.app as any).secretStorage) {
-                                (this.app as any).secretStorage.setSecret('vault-cms-github-pat', token);
+                                await (this.app as any).secretStorage.setSecret('vault-cms-github-pat', token);
+                                // Wipe from in-memory state immediately so it's not persisted to data.json
+                                this.state.gitConfig.pat = undefined;
                             }
                             // Use standard localStorage directly if this.app.saveLocalStorage is missing/broken
                             try {
@@ -295,7 +320,9 @@ export class GitSetupStep extends BaseWizardStep {
 
             // 5. Securely save token if it was just entered
             if (pat && (this.app as any).secretStorage) {
-                (this.app as any).secretStorage.setSecret('vault-cms-github-pat', pat);
+                await (this.app as any).secretStorage.setSecret('vault-cms-github-pat', pat);
+                // Wipe from in-memory state immediately so it's not persisted to data.json
+                this.state.gitConfig.pat = undefined;
             }
 
             // Clear plain-text PAT from state before finishing

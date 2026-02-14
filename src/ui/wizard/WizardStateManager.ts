@@ -309,7 +309,9 @@ export class WizardStateManager {
 		settings.homeBase = this.state.homeBase;
 		settings.explorerFocus = this.state.explorerFocus;
 		settings.ignoreConfig = this.state.ignoreConfig;
-		settings.gitConfig = this.state.gitConfig;
+		settings.gitConfig = { ...this.state.gitConfig };
+		// CAUTION: Never persist the PAT to data.json!
+		delete settings.gitConfig.pat;
 
 		// Sync image property with Image Manager
 		try {
