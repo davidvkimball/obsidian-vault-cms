@@ -16,14 +16,14 @@ export class ProjectDetector {
 		const vault = this.app.vault;
 		const adapter = vault.adapter as { basePath?: string; path?: string };
 		const vaultPath = adapter.basePath || adapter.path;
-		
+
 		if (!vaultPath) {
 			return null;
 		}
 
 		// Search upward from vault path for astro.config files
 		const configResult = this.searchUpwardForConfig(vaultPath);
-		
+
 		if (!configResult) {
 			return null;
 		}
@@ -49,7 +49,9 @@ export class ProjectDetector {
 			'astro.config.ts',
 			'astro.config.js',
 			'astro.config.mts',
-			'astro.config.cjs'
+			'astro.config.cjs',
+			'astro.config.yml',
+			'astro.config.yaml'
 		];
 		const srcConfigFileName = 'src/config.ts';
 
@@ -74,7 +76,7 @@ export class ProjectDetector {
 			// 2. Check for root-level config files (prioritizing .mjs)
 			for (const fileName of rootConfigFileNames) {
 				const configPath = path.join(currentDir, fileName);
-				
+
 				try {
 					if (fs.existsSync(configPath) && fs.statSync(configPath).isFile()) {
 						return {
@@ -104,7 +106,7 @@ export class ProjectDetector {
 	private detectVaultLocation(vaultPath: string, projectRoot: string): 'content' | 'nested-content' | 'root' {
 		const normalizedVaultPath = path.normalize(vaultPath);
 		const normalizedProjectRoot = path.normalize(projectRoot);
-		
+
 		// Check if vault is within project root
 		if (!normalizedVaultPath.startsWith(normalizedProjectRoot)) {
 			return 'root';
@@ -113,7 +115,7 @@ export class ProjectDetector {
 		// Get relative path from project root to vault
 		const relativePath = path.relative(normalizedProjectRoot, normalizedVaultPath);
 		const pathParts = relativePath.split(path.sep).filter(part => part.length > 0);
-		
+
 		// Check if vault is in a folder named "content" with parent "src"
 		const contentIndex = pathParts.findIndex(part => part.toLowerCase() === 'content');
 		if (contentIndex > 0) {
@@ -122,7 +124,7 @@ export class ProjectDetector {
 				return 'content';
 			}
 		}
-		
+
 		// Check for nested content folders (src/content/posts, etc.)
 		const srcIndex = pathParts.findIndex(part => part.toLowerCase() === 'src');
 		if (srcIndex >= 0 && srcIndex < pathParts.length - 1) {
@@ -131,7 +133,7 @@ export class ProjectDetector {
 				return 'nested-content';
 			}
 		}
-		
+
 		return 'root';
 	}
 }

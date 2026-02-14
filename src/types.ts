@@ -40,6 +40,7 @@ export interface WizardState {
 	presetsRepo: string;
 	enableEditingToolbar: boolean;
 	enableMdxSupport?: boolean; // MDX file support flag (optional to allow auto-detection)
+	enableExtendedFileTypes?: boolean; // Extended file types support flag (optional)
 	enabledPlugins: string[];
 	disabledPlugins: string[];
 	theme: string;

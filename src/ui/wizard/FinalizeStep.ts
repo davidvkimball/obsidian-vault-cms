@@ -13,6 +13,7 @@ import { UITweakerConfigurator } from '../../utils/UITweakerConfig';
 import { ImageManagerConfigurator } from '../../utils/ImageManagerConfig';
 import { HomeBaseConfigurator } from '../../utils/HomeBaseConfig';
 import { ExplorerFocusConfigurator } from '../../utils/ExplorerFocusConfig';
+import { DataFilesEditorConfigurator } from '../../utils/DataFilesEditorConfig';
 
 export class FinalizeStep extends BaseWizardStep {
 	private pluginManager: PluginManager;
@@ -25,6 +26,7 @@ export class FinalizeStep extends BaseWizardStep {
 	private imageManagerConfigurator: ImageManagerConfigurator;
 	private homeBaseConfigurator: HomeBaseConfigurator;
 	private explorerFocusConfigurator: ExplorerFocusConfigurator;
+	private dataFilesEditorConfigurator: DataFilesEditorConfigurator;
 	private applied: boolean = false;
 
 	isApplied(): boolean {
@@ -43,6 +45,7 @@ export class FinalizeStep extends BaseWizardStep {
 		this.imageManagerConfigurator = new ImageManagerConfigurator(app);
 		this.homeBaseConfigurator = new HomeBaseConfigurator(app);
 		this.explorerFocusConfigurator = new ExplorerFocusConfigurator(app);
+		this.dataFilesEditorConfigurator = new DataFilesEditorConfigurator(app);
 	}
 
 	display(): void {
@@ -90,6 +93,17 @@ export class FinalizeStep extends BaseWizardStep {
 
 			// Configure plugins
 			console.debug('FinalizeStep: Configuring plugin states');
+
+			// If Extended File Types is enabled, ensure Data Files Editor is in enabledPlugins
+			if (this.state.enableExtendedFileTypes) {
+				const pluginId = 'data-files-editor';
+				if (!this.state.enabledPlugins.includes(pluginId)) {
+					console.debug(`FinalizeStep: Enabling ${pluginId} because Extended File Types is toggle on`);
+					this.state.enabledPlugins.push(pluginId);
+				}
+				this.state.disabledPlugins = this.state.disabledPlugins.filter(p => p !== pluginId);
+			}
+
 			await this.pluginManager.setPluginStates(this.state.enabledPlugins, this.state.disabledPlugins);
 
 			// Configure Bases CMS
@@ -184,6 +198,10 @@ export class FinalizeStep extends BaseWizardStep {
 			if (this.state.enabledPlugins.includes('explorer-focus')) {
 				await this.explorerFocusConfigurator.saveConfig(this.state.explorerFocus);
 			}
+
+			// Configure Data Files Editor
+			console.debug('FinalizeStep: Configuring Data Files Editor');
+			await this.dataFilesEditorConfigurator.saveConfig(this.state.enableExtendedFileTypes === true);
 
 			// Configure default content type and Obsidian settings (following astro-modular-settings pattern)
 			if (this.state.defaultContentTypeId) {

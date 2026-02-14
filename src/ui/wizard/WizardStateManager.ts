@@ -62,6 +62,7 @@ export class WizardStateManager {
 			presetsRepo: settings.presetsRepo || 'davidvkimball/vault-cms-presets',
 			enableEditingToolbar: settings.enableEditingToolbar ?? (settings as any).enableWYSIWYG ?? false,
 			enableMdxSupport: settings.enableMdxSupport,
+			enableExtendedFileTypes: settings.enableExtendedFileTypes,
 			enabledPlugins: settings.enabledPlugins || [],
 			disabledPlugins: settings.disabledPlugins || [],
 			theme: settings.theme || '',
@@ -185,6 +186,7 @@ export class WizardStateManager {
 		}
 
 		this.state.enableMdxSupport = settings.enableMdxSupport;
+		this.state.enableExtendedFileTypes = settings.enableExtendedFileTypes;
 		this.state.enabledPlugins = settings.enabledPlugins || [];
 		this.state.disabledPlugins = settings.disabledPlugins || [];
 		this.state.theme = settings.theme || '';
@@ -281,6 +283,7 @@ export class WizardStateManager {
 			delete (settings as any).enableWYSIWYG;
 		}
 		settings.enableMdxSupport = this.state.enableMdxSupport ?? false;
+		settings.enableExtendedFileTypes = this.state.enableExtendedFileTypes ?? false;
 		settings.enabledPlugins = this.state.enabledPlugins;
 		settings.disabledPlugins = this.state.disabledPlugins;
 		settings.theme = this.state.theme;

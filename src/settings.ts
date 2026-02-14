@@ -13,6 +13,7 @@ export interface VaultCMSSettings {
 	presetsRepo: string;
 	enableEditingToolbar: boolean;
 	enableMdxSupport?: boolean;
+	enableExtendedFileTypes?: boolean;
 	enabledPlugins: string[];
 	disabledPlugins: string[];
 	theme: string;
@@ -40,6 +41,7 @@ export const DEFAULT_SETTINGS: VaultCMSSettings = {
 	presetName: '',
 	presetsRepo: 'davidvkimball/vault-cms-presets',
 	enableEditingToolbar: false,
+	enableExtendedFileTypes: false,
 	enabledPlugins: [],
 	disabledPlugins: [],
 	theme: '',

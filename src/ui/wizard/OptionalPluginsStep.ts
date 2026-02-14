@@ -29,8 +29,8 @@ export class OptionalPluginsStep extends BaseWizardStep {
 		containerEl.empty();
 
 		containerEl.createEl('h2', { text: 'Plugin configuration' });
-		containerEl.createEl('p', { 
-			text: 'Review and configure your installed plugins. Essential plugins are recommended for the core Vault CMS experience.' 
+		containerEl.createEl('p', {
+			text: 'Review and configure your installed plugins. Essential plugins are recommended for the core Vault CMS experience.'
 		});
 
 		// Define all plugins with their categories
@@ -51,6 +51,7 @@ export class OptionalPluginsStep extends BaseWizardStep {
 			{ id: 'statusbar-organizer', name: 'Status Bar Organizer', category: 'essential' },
 			// Nice to have plugins (alphabetically ordered)
 			{ id: 'alias-file-name-history', name: 'Alias File Name History', category: 'nice-to-have' },
+			{ id: 'data-files-editor', name: 'Data Files Editor', category: 'nice-to-have' },
 			{ id: 'iconic', name: 'Iconic', category: 'nice-to-have' },
 			{ id: 'paste-image-into-property', name: 'Paste Image Into Property', category: 'nice-to-have' },
 			{ id: 'settings-search', name: 'Settings Search', category: 'nice-to-have' },
@@ -72,16 +73,16 @@ export class OptionalPluginsStep extends BaseWizardStep {
 			'vault-cms' // Don't show Vault CMS plugin itself
 		];
 
-		const essentialPlugins = allPlugins.filter(p => 
-			p.category === 'essential' && 
-			installedPluginIds.includes(p.id) && 
+		const essentialPlugins = allPlugins.filter(p =>
+			p.category === 'essential' &&
+			installedPluginIds.includes(p.id) &&
 			!ignoredPlugins.includes(p.id)
 		);
 		// Filter nice-to-have plugins and sort alphabetically by name
 		const niceToHavePlugins = allPlugins
-			.filter(p => 
-				p.category === 'nice-to-have' && 
-				installedPluginIds.includes(p.id) && 
+			.filter(p =>
+				p.category === 'nice-to-have' &&
+				installedPluginIds.includes(p.id) &&
 				!ignoredPlugins.includes(p.id)
 			)
 			.sort((a, b) => a.name.localeCompare(b.name));
@@ -89,7 +90,7 @@ export class OptionalPluginsStep extends BaseWizardStep {
 		// Essential plugins section
 		if (essentialPlugins.length > 0) {
 			containerEl.createEl('h3', { text: 'Essential plugins', cls: 'vault-cms-section-header' });
-			containerEl.createEl('p', { 
+			containerEl.createEl('p', {
 				text: 'These plugins are recommended for the core Vault CMS experience.',
 				cls: 'vault-cms-section-desc'
 			});
@@ -100,9 +101,9 @@ export class OptionalPluginsStep extends BaseWizardStep {
 				// Check if plugin is enabled - use enabledPlugins Set (more reliable)
 				const pluginInstanceTyped = pluginInstance as { enabled?: boolean } | undefined;
 				const isCurrentlyEnabled = plugins?.enabledPlugins?.has?.(plugin.id) ?? pluginInstanceTyped?.enabled ?? false;
-				
+
 				console.debug(`Plugin ${plugin.id}: installed=${isInstalled}, enabled=${isCurrentlyEnabled}`);
-				
+
 				// Sync state with actual plugin state
 				if (isInstalled && isCurrentlyEnabled) {
 					if (!this.state.enabledPlugins.includes(plugin.id)) {
@@ -115,13 +116,13 @@ export class OptionalPluginsStep extends BaseWizardStep {
 						this.state.disabledPlugins.push(plugin.id);
 					}
 				}
-				
+
 				const setting = new Setting(containerEl)
 					.setName(plugin.name)
-					.setDesc(isInstalled ? 
-						(isCurrentlyEnabled ? 'Installed and enabled' : 'Installed but disabled') : 
+					.setDesc(isInstalled ?
+						(isCurrentlyEnabled ? 'Installed and enabled' : 'Installed but disabled') :
 						'Not installed');
-				
+
 				// Add icon instead of toggle
 				const iconContainer = setting.controlEl.createDiv({ cls: 'vault-cms-plugin-status' });
 				if (isInstalled && isCurrentlyEnabled) {
@@ -137,7 +138,7 @@ export class OptionalPluginsStep extends BaseWizardStep {
 		// Nice to have plugins section
 		if (niceToHavePlugins.length > 0) {
 			containerEl.createEl('h3', { text: 'Nice to have plugins', cls: 'vault-cms-section-header' });
-			containerEl.createEl('p', { 
+			containerEl.createEl('p', {
 				text: 'These plugins can be helpful depending on your theme\'s capabilities and workflow needs.',
 				cls: 'vault-cms-section-desc'
 			});
@@ -148,9 +149,9 @@ export class OptionalPluginsStep extends BaseWizardStep {
 				// Check if plugin is enabled - use enabledPlugins Set (more reliable)
 				const pluginInstanceTyped = pluginInstance as { enabled?: boolean } | undefined;
 				const isCurrentlyEnabled = plugins?.enabledPlugins?.has?.(plugin.id) ?? pluginInstanceTyped?.enabled ?? false;
-				
+
 				console.debug(`Plugin ${plugin.id}: installed=${isInstalled}, enabled=${isCurrentlyEnabled}`);
-				
+
 				// Sync state with actual plugin state
 				if (isInstalled && isCurrentlyEnabled) {
 					if (!this.state.enabledPlugins.includes(plugin.id)) {
@@ -163,13 +164,13 @@ export class OptionalPluginsStep extends BaseWizardStep {
 						this.state.disabledPlugins.push(plugin.id);
 					}
 				}
-				
+
 				const setting = new Setting(containerEl)
 					.setName(plugin.name)
-					.setDesc(isInstalled ? 
-						(isCurrentlyEnabled ? 'Installed and enabled' : 'Installed but disabled') : 
+					.setDesc(isInstalled ?
+						(isCurrentlyEnabled ? 'Installed and enabled' : 'Installed but disabled') :
 						'Not installed');
-				
+
 				// Add icon instead of toggle
 				const iconContainer = setting.controlEl.createDiv({ cls: 'vault-cms-plugin-status' });
 				if (isInstalled && isCurrentlyEnabled) {
@@ -184,8 +185,8 @@ export class OptionalPluginsStep extends BaseWizardStep {
 
 		// If no plugins found
 		if (essentialPlugins.length === 0 && niceToHavePlugins.length === 0) {
-			containerEl.createEl('p', { 
-				text: 'No Vault CMS plugins detected. Make sure you have installed the recommended plugins.' 
+			containerEl.createEl('p', {
+				text: 'No Vault CMS plugins detected. Make sure you have installed the recommended plugins.'
 			});
 		}
 	}

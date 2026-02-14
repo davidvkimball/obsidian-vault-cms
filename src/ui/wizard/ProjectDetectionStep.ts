@@ -87,7 +87,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 
 			// Display current selection
 			this.projectRootDisplay = projectRootSetting.descEl.createDiv({
-				text: this.state.projectDetection.projectRoot || 'No folder selected',
+				text: this.state.projectDetection.projectRoot ? this.toRelativePath(this.state.projectDetection.projectRoot) : 'No folder selected',
 				cls: 'vault-cms-path-display'
 			});
 			setCssProps(this.projectRootDisplay, { color: 'var(--text-normal)' });
@@ -101,7 +101,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 						if (selectedPath) {
 							this.state.projectDetection!.projectRoot = selectedPath;
 							if (this.projectRootDisplay) {
-								this.projectRootDisplay.textContent = selectedPath;
+								this.projectRootDisplay.textContent = this.toRelativePath(selectedPath);
 								setCssProps(this.projectRootDisplay, { color: 'var(--text-normal)' });
 							}
 							// Update detected flag if user changes
@@ -117,7 +117,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 
 			// Display current selection
 			this.configFileDisplay = configFileSetting.descEl.createDiv({
-				text: this.state.projectDetection.configFilePath || 'No file selected',
+				text: this.state.projectDetection.configFilePath ? this.toRelativePath(this.state.projectDetection.configFilePath) : 'No file selected',
 				cls: 'vault-cms-path-display'
 			});
 			setCssProps(this.configFileDisplay, { color: 'var(--text-normal)' });
@@ -132,7 +132,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 						if (selectedPath) {
 							this.state.projectDetection!.configFilePath = selectedPath;
 							if (this.configFileDisplay) {
-								this.configFileDisplay.textContent = selectedPath;
+								this.configFileDisplay.textContent = this.toRelativePath(selectedPath);
 								setCssProps(this.configFileDisplay, { color: 'var(--text-normal)' });
 							}
 							// Update detected flag if user changes
@@ -213,6 +213,19 @@ export class ProjectDetectionStep extends BaseWizardStep {
 					});
 				}
 			});
+
+			// Extended File Types support (JSON, Astro)
+			const extendedFileTypesSetting = new Setting(containerEl)
+				.setName('Extended file types')
+				.setDesc('Enable support to view, edit, and create .json and .astro files via the Data Files Editor plugin.');
+
+			extendedFileTypesSetting.addToggle(toggle => {
+				toggle
+					.setValue(this.state.enableExtendedFileTypes ?? false)
+					.onChange(value => {
+						this.state.enableExtendedFileTypes = value;
+					});
+			});
 		} else {
 			containerEl.empty();
 			containerEl.createEl('h2', { text: 'Project detection failed' });
@@ -236,7 +249,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 
 			// Display current selection
 			this.projectRootDisplay = projectRootSetting.descEl.createDiv({
-				text: this.state.projectDetection.projectRoot || 'No folder selected',
+				text: this.state.projectDetection.projectRoot ? this.toRelativePath(this.state.projectDetection.projectRoot) : 'No folder selected',
 				cls: 'vault-cms-path-display'
 			});
 			if (this.state.projectDetection.projectRoot) {
@@ -254,7 +267,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 						if (selectedPath) {
 							this.state.projectDetection!.projectRoot = selectedPath;
 							if (this.projectRootDisplay) {
-								this.projectRootDisplay.textContent = selectedPath;
+								this.projectRootDisplay.textContent = this.toRelativePath(selectedPath);
 								setCssProps(this.projectRootDisplay, { color: 'var(--text-normal)' });
 							}
 						}
@@ -268,7 +281,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 
 			// Display current selection
 			this.configFileDisplay = configFileSetting.descEl.createDiv({
-				text: this.state.projectDetection.configFilePath || 'No file selected',
+				text: this.state.projectDetection.configFilePath ? this.toRelativePath(this.state.projectDetection.configFilePath) : 'No file selected',
 				cls: 'vault-cms-path-display'
 			});
 			if (this.state.projectDetection.configFilePath) {
@@ -287,7 +300,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 						if (selectedPath) {
 							this.state.projectDetection!.configFilePath = selectedPath;
 							if (this.configFileDisplay) {
-								this.configFileDisplay.textContent = selectedPath;
+								this.configFileDisplay.textContent = this.toRelativePath(selectedPath);
 								setCssProps(this.configFileDisplay, { color: 'var(--text-normal)' });
 							}
 						}
@@ -345,6 +358,19 @@ export class ProjectDetectionStep extends BaseWizardStep {
 						marginTop: '4px'
 					});
 				}
+			});
+
+			// Extended File Types support (JSON, Astro)
+			const extendedFileTypesSetting = new Setting(containerEl)
+				.setName('Extended file types')
+				.setDesc('Enable support to view, edit, and create .json and .astro files via the Data Files Editor plugin.');
+
+			extendedFileTypesSetting.addToggle(toggle => {
+				toggle
+					.setValue(this.state.enableExtendedFileTypes ?? false)
+					.onChange(value => {
+						this.state.enableExtendedFileTypes = value;
+					});
 			});
 		}
 	}
@@ -492,7 +518,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 				title: 'Select Astro Config File',
 				defaultPath: startPath,
 				filters: [
-					{ name: 'Astro Config Files', extensions: ['ts', 'mjs', 'js', 'mts', 'cjs'] },
+					{ name: 'Astro Config Files', extensions: ['ts', 'mjs', 'js', 'mts', 'cjs', 'yml', 'yaml'] },
 					{ name: 'All Files', extensions: ['*'] }
 				],
 				properties: ['openFile']
@@ -529,49 +555,6 @@ export class ProjectDetectionStep extends BaseWizardStep {
 		return '/';
 	}
 
-	/**
-	 * Convert absolute path to relative path from vault root
-	 */
-	private toRelativePath(absolutePath: string): string {
-		const adapter = this.app.vault.adapter as { basePath?: string; path?: string };
-		const vaultPath = adapter.basePath || adapter.path;
-		if (!vaultPath) {
-			return absolutePath;
-		}
-
-		const vaultNormalized = vaultPath.replace(/\\/g, '/').replace(/\/$/, '');
-		const absoluteNormalized = absolutePath.replace(/\\/g, '/').replace(/\/$/, '');
-
-		// If the absolute path is within the vault, return relative path
-		if (absoluteNormalized.startsWith(vaultNormalized)) {
-			const relative = absoluteNormalized.slice(vaultNormalized.length);
-			// Remove leading path separator
-			const trimmedRelative = relative.startsWith('/') ? relative.slice(1) : relative;
-			return trimmedRelative || '.';
-		}
-
-		// If path is outside vault, calculate relative path manually
-		try {
-			// Split paths into parts
-			const vaultParts = vaultNormalized.split('/').filter(p => p);
-			const absoluteParts = absoluteNormalized.split('/').filter(p => p);
-
-			// Find common prefix
-			let commonLength = 0;
-			while (commonLength < vaultParts.length && commonLength < absoluteParts.length && vaultParts[commonLength] === absoluteParts[commonLength]) {
-				commonLength++;
-			}
-
-			// Calculate relative path
-			const upLevels = vaultParts.length - commonLength;
-			const relativeParts = absoluteParts.slice(commonLength);
-			const relative = (upLevels > 0 ? '../'.repeat(upLevels) : '') + relativeParts.join('/');
-			return relative || absolutePath;
-		} catch {
-			// If relative path calculation fails, return absolute path
-			return absolutePath;
-		}
-	}
 
 	validate(): boolean {
 		if (this.detected) {

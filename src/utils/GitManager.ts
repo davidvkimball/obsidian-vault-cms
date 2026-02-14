@@ -65,12 +65,19 @@ export class GitManager {
     }
 
     /**
-     * Gets the remote URL for the repository.
+     * Gets the remote URL for the repository, scrubbing any tokens for security.
      */
     static async getRemoteUrl(projectRoot: string, remoteName: string = 'origin'): Promise<string | null> {
         try {
             const { stdout } = await execAsync(`git remote get-url ${remoteName}`, { cwd: projectRoot });
-            return stdout.trim() || null;
+            let url = stdout.trim() || null;
+
+            if (url && url.includes('@github.com')) {
+                // Scrub token: https://ghp_xxx@github.com/... -> https://github.com/...
+                url = url.replace(/https:\/\/.*@github\.com/, 'https://github.com');
+            }
+
+            return url;
         } catch {
             return null;
         }
@@ -91,30 +98,62 @@ export class GitManager {
     /**
      * Creates an initial commit and pushes to the remote, setting the upstream.
      */
-    static async initialCommitAndPush(projectRoot: string, branch: string, remoteName: string = 'origin'): Promise<void> {
+    static async initialCommitAndPush(projectRoot: string, branch: string, remoteName: string = 'origin', token?: string): Promise<void> {
         try {
+            console.debug('GitManager.initialCommitAndPush: starting', { projectRoot, branch, remoteName, hasToken: !!token });
+
+            // 1. Ensure user identity is set (git commit fails without it)
+            try {
+                await execAsync('git config user.name', { cwd: projectRoot });
+            } catch {
+                console.debug('GitManager: Setting local git user.name');
+                await execAsync('git config user.name "Vault CMS User"', { cwd: projectRoot });
+                await execAsync('git config user.email "vault-cms@example.com"', { cwd: projectRoot });
+            }
+
+            // 2. Add all files
             await execAsync('git add .', { cwd: projectRoot });
 
-            // Check if there are changes to commit
+            // 3. Commit
             try {
                 await execAsync('git commit -m "Initial commit from Vault CMS"', { cwd: projectRoot });
             } catch (commitError) {
-                // If nothing to commit, it's NOT an error for us
                 const errorMessage = commitError instanceof Error ? commitError.message : String(commitError);
                 if (errorMessage.includes('nothing to commit') || errorMessage.includes('working tree clean')) {
-                    console.debug('GitManager: Nothing to commit, proceeding to push');
+                    console.debug('GitManager: Nothing to commit');
                 } else {
                     throw commitError;
                 }
             }
 
-            // Ensure branch name is set locally
+            // 4. Ensure branch name is set locally
             await execAsync(`git branch -M ${branch}`, { cwd: projectRoot });
 
-            // Push and set upstream
-            await execAsync(`git push -u ${remoteName} ${branch}`, { cwd: projectRoot });
+            // 5. Push and set upstream
+            // To ensure the push succeeds without a credential helper, we temporarily use the token in the URL
+            if (token) {
+                const remoteUrl = await this.getRemoteUrl(projectRoot, remoteName);
+                if (remoteUrl && remoteUrl.startsWith('https://')) {
+                    const authenticatedUrl = remoteUrl.replace('https://', `https://${token}@`);
+
+                    console.debug('GitManager: Pushing with temporary token auth');
+                    // We temporarily set the remote URL to include the token for the push
+                    await execAsync(`git remote set-url ${remoteName} ${authenticatedUrl}`, { cwd: projectRoot });
+
+                    try {
+                        await execAsync(`git push -u ${remoteName} ${branch}`, { cwd: projectRoot });
+                    } finally {
+                        // ALWAYS revert to the clean URL
+                        await execAsync(`git remote set-url ${remoteName} ${remoteUrl}`, { cwd: projectRoot });
+                    }
+                } else {
+                    await execAsync(`git push -u ${remoteName} ${branch}`, { cwd: projectRoot });
+                }
+            } else {
+                await execAsync(`git push -u ${remoteName} ${branch}`, { cwd: projectRoot });
+            }
         } catch (error) {
-            console.error('Initial push failed:', error);
+            console.error('GitManager.initialCommitAndPush failed:', error);
             throw error;
         }
     }
