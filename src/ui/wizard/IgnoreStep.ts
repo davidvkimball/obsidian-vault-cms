@@ -33,15 +33,15 @@ export class IgnoreStep extends BaseWizardStep {
 		// Vite Ignore Setting
 		this.viteSetting = new Setting(containerEl);
 		this.updateViteSetting(status.viteIgnoreStatus);
-		
+
 		return Promise.resolve();
 	}
 
 	private updateGitSetting(status: 'configured' | 'not-configured') {
-		this.gitSetting.setName('Ignore in Git')
+		this.gitSetting.setName('Ignore workspace files in Git')
 			.setDesc('Add Obsidian workspace files to .gitignore to prevent them from being tracked.')
 			.clear(); // Clear existing buttons and status
-			
+
 		this.gitSetting.addButton(button => {
 			button.setButtonText(status === 'configured' ? 'Re-configure' : 'Configure')
 				.onClick(async () => {
@@ -61,10 +61,10 @@ export class IgnoreStep extends BaseWizardStep {
 	}
 
 	private updateViteSetting(status: 'configured' | 'not-configured') {
-		this.viteSetting.setName('Ignore in Vite')
+		this.viteSetting.setName('Ignore workspace and bases folders in Vite')
 			.setDesc('Configure Vite to ignore Obsidian and bases folders.')
 			.clear(); // Clear existing buttons and status
-			
+
 		this.viteSetting.addButton(button => {
 			button.setButtonText(status === 'configured' ? 'Re-configure' : 'Configure')
 				.onClick(async () => {

@@ -8,6 +8,7 @@ export abstract class BaseWizardStep {
 	protected onNext: () => void;
 	protected onBack: () => void;
 	protected onCancel: () => void;
+	public showNextButton: boolean = true;
 
 	constructor(
 		app: App,

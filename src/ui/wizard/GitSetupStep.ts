@@ -17,6 +17,7 @@ export class GitSetupStep extends BaseWizardStep {
         this.gitManager = GitManager;
         this.configFlushService = new ConfigFlushService(app);
         this.safeConfigWriter = new SafeConfigWriter(app);
+        this.showNextButton = false;
     }
 
     private getAbsoluteProjectRoot(): string {
@@ -34,7 +35,7 @@ export class GitSetupStep extends BaseWizardStep {
         const { containerEl } = this;
         containerEl.empty();
 
-        containerEl.createEl('h2', { text: 'Git Integration (Optional)' });
+        containerEl.createEl('h2', { text: 'Git Integration' });
 
         const projectRoot = this.getAbsoluteProjectRoot();
         let isRepo = false;
@@ -54,7 +55,10 @@ export class GitSetupStep extends BaseWizardStep {
                     attr: { style: 'margin-bottom: 2rem; padding: 1rem; border: 1px solid var(--background-modifier-border); border-radius: 4px;' }
                 });
                 statusEl.createEl('b', { text: 'Status: ' });
-                statusEl.createSpan({ text: 'Git is already initialized.' });
+                statusEl.createSpan({
+                    text: 'Git is already initialized.',
+                    attr: { style: 'color: var(--text-success); font-weight: bold;' }
+                });
 
                 if (remoteUrl) {
                     const remoteEl = statusEl.createDiv({ attr: { style: 'margin-top: 0.5rem;' } });
@@ -67,28 +71,20 @@ export class GitSetupStep extends BaseWizardStep {
         // Configuration Container
         const configContainer = containerEl.createDiv({ cls: 'git-config-container' });
 
-        if (isRepo && remoteUrl) {
-            containerEl.createEl('p', {
-                cls: 'git-info-note',
-                attr: { style: 'font-size: 0.9em; margin-bottom: 1.5rem; padding: 0.5rem; background: var(--background-modifier-error-hover); border-left: 3px solid var(--interactive-accent); border-radius: 4px;' },
-                text: 'Note: An existing Git remote was detected. You can update it below to point to your own repository.'
-            });
-        }
 
         const instructions = configContainer.createDiv({ cls: 'git-instructions' });
         instructions.createEl('p', {
-            text: 'Connect your project to GitHub to publish your site. You can skip this and set it up later or if you already set it up.'
+            text: 'Connect your project to GitHub to publish your site. Click "Skip" to skip Git setup now and set it up later.'
         });
 
         const tokenLink = instructions.createEl('p');
-        tokenLink.createSpan({ text: '1. ' });
         tokenLink.createEl('a', {
-            text: 'Generate a new GitHub Personal Access Token',
-            href: 'https://github.com/settings/tokens/new'
+            text: 'Generate a new GitHub Personal access token',
+            href: `https://github.com/settings/tokens/new?scopes=repo&description=${encodeURIComponent((this.state.gitConfig.repoName || 'Project') + ' (Vault CMS)')}`
         });
 
         const tokenHelp = instructions.createEl('ul');
-        tokenHelp.createEl('li', { text: 'Set a Note (e.g., "My blog")' });
+        tokenHelp.createEl('li', { text: `Set a Note (e.g., "${this.state.gitConfig.repoName || 'Project'} (Vault CMS)")` });
         tokenHelp.createEl('li', { text: 'Set Expiration to "No expiration"' });
         tokenHelp.createEl('li', { text: 'Check the "repo" box (so all top options are selected)' });
         tokenHelp.createEl('li', { text: 'Click "Generate token" at the bottom, copy it, and paste it below.' });
@@ -105,9 +101,10 @@ export class GitSetupStep extends BaseWizardStep {
             .setDesc('Stored securely in Obsidian Secrets.')
             .addExtraButton(btn => {
                 btn.setIcon('link')
-                    .setTooltip('Generate a new Personal Access Token on GitHub')
+                    .setTooltip('Generate a new Personal access token on GitHub')
                     .onClick(() => {
-                        window.open('https://github.com/settings/tokens/new?scopes=repo&description=Vault%20CMS%20Plugin');
+                        const description = encodeURIComponent((this.state.gitConfig.repoName || 'Project') + ' (Vault CMS)');
+                        window.open(`https://github.com/settings/tokens/new?scopes=repo&description=${description}`);
                     });
             });
 
@@ -271,7 +268,7 @@ export class GitSetupStep extends BaseWizardStep {
         configContainer.createEl('p', {
             cls: 'git-skip-info',
             attr: { style: 'font-size: 0.8em; color: var(--text-muted); margin-top: 1rem; border-top: 1px solid var(--background-modifier-border); padding-top: 1rem;' },
-            text: 'Click "Next" to skip Git setup.'
+            text: 'Click "Skip" to skip Git setup.'
         });
     }
 

@@ -282,7 +282,8 @@ export class SetupWizardModal extends Modal {
 		// Next/Complete button
 		if (this.stateManager.canGoNext(this.steps.length)) {
 			// Don't show "Next" button on the first step (WelcomeStep)
-			if (this.stateManager.getState().currentStep !== 0) {
+			// OR if the step explicitly hides it (e.g. GitSetupStep)
+			if (this.stateManager.getState().currentStep !== 0 && this.currentStepInstance?.showNextButton !== false) {
 				const nextBtn = buttons.createEl('button', {
 					text: 'Next',
 					cls: 'mod-button mod-cta'
