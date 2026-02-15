@@ -108,49 +108,58 @@ export class GitSetupStep extends BaseWizardStep {
                     });
             });
 
-        const savedSecret = (this.app as any).secretStorage?.getSecret('vault-cms-github-pat');
-        const initialPat = this.state.gitConfig.pat || savedSecret || '';
+        const secretId = 'vault-cms-github-pat';
+        let secretValue = (this.app as any).secretStorage?.getSecret(secretId);
 
-        // Safely add the secret component (or fallback to password text field if API is version < 1.11.4)
-        if (typeof (obsidian as any).SecretComponent === 'function') {
-            patSetting.addComponent(el => {
-                const secret = new (obsidian as any).SecretComponent(this.app, el);
-                secret.setValue(initialPat)
-                    .onChange((value: string) => {
-                        this.state.gitConfig.pat = value.trim();
-                    });
-                return secret;
-            });
-        } else {
-            patSetting.addText(text => {
-                text.setPlaceholder('ghp_xxxxxxxxxxxx')
-                    .setValue(initialPat)
-                    .onChange(value => {
-                        this.state.gitConfig.pat = value.trim();
-                    });
-                text.inputEl.type = 'password';
-            });
+        // Ensure state is synced with secret storage on mount
+        if (secretValue && !this.state.gitConfig.pat) {
+            // We don't want to "ghost" davidvkimball if it's stale
+            // But if it's there, we keep it for the Sync button.
+        }
+
+        patSetting.addText(text => {
+            text.setPlaceholder('ghp_xxxxxxxxxxxx')
+                .setValue(secretValue ? '********' : '') // Show dots if we have a saved secret
+                .onChange(value => {
+                    this.state.gitConfig.pat = value.trim();
+                });
+            text.inputEl.type = 'password';
+        });
+
+        const patStatus = configContainer.createDiv({ cls: 'pat-status-info', attr: { style: 'margin-bottom: 1rem; font-size: 0.9em; color: var(--text-muted);' } });
+        if (secretValue) {
+            patStatus.createSpan({ text: '✓ Linked to Obsidian Secret: ', attr: { style: 'color: var(--text-success); font-weight: bold;' } });
+            patStatus.createSpan({ text: secretId });
         }
 
         patSetting.addButton(button => {
             button.setButtonText('Verify Token')
                 .onClick(async () => {
-                    const token = this.state.gitConfig.pat || (this.app as any).secretStorage?.getSecret('vault-cms-github-pat');
+                    // 1. Resolve Token
+                    let token = this.state.gitConfig.pat;
+
+                    // If the field is blank, contains dots, or the ID string, pull from storage
+                    if (!token || token === '********' || token === 'vault-cms-github-pat') {
+                        token = (this.app as any).secretStorage?.getSecret('vault-cms-github-pat');
+                    }
+
                     if (!token) {
-                        new Notice('Please enter a token first.');
+                        new Notice('Please enter or paste your GitHub Personal Access Token.');
                         return;
                     }
                     button.setDisabled(true);
                     button.setButtonText('Verifying...');
 
+                    patStatus.empty();
                     try {
                         const username = await this.gitManager.verifyToken(token);
                         if (username) {
                             new Notice(`Token verified successfully as ${username}!`);
+                            patStatus.createSpan({ text: `✓ Verified as `, attr: { style: 'color: var(--text-success);' } });
+                            patStatus.createEl('b', { text: username });
+
                             if ((this.app as any).secretStorage) {
                                 await (this.app as any).secretStorage.setSecret('vault-cms-github-pat', token);
-                                // Wipe from in-memory state immediately so it's not persisted to data.json
-                                this.state.gitConfig.pat = undefined;
                             }
                             // Use standard localStorage directly if this.app.saveLocalStorage is missing/broken
                             try {
@@ -164,11 +173,13 @@ export class GitSetupStep extends BaseWizardStep {
                             button.buttonEl.style.color = 'var(--text-on-accent)';
                         } else {
                             new Notice('Invalid token or GitHub API error.');
+                            patStatus.createSpan({ text: '✗ Invalid token or GitHub API error.', attr: { style: 'color: var(--text-error);' } });
                             button.setButtonText('Verify Token');
                             button.setDisabled(false);
                         }
                     } catch (e) {
                         new Notice('Verification failed. Check your connection.');
+                        patStatus.createSpan({ text: '✗ Verification failed. Check your connection.', attr: { style: 'color: var(--text-error);' } });
                         button.setButtonText('Verify Token');
                         button.setDisabled(false);
                     }
@@ -267,15 +278,20 @@ export class GitSetupStep extends BaseWizardStep {
     private async handleGitSetup(button: ButtonComponent, alreadyRepo: boolean, alreadyHasRemote: boolean) {
         if (this.hasAdvanced) return;
 
-        const { pat, repoName, repoDescription, isPrivate, branchName } = this.state.gitConfig;
+        let { pat } = this.state.gitConfig;
+        const { repoName, repoDescription, isPrivate, branchName } = this.state.gitConfig;
         const projectRoot = this.getAbsoluteProjectRoot();
         const branch = branchName || 'main';
 
-        // Try to get token from secret storage if not provided for this run
-        const token = pat || (this.app as any).secretStorage?.getSecret('vault-cms-github-pat');
+        // 1. Resolve Token: State (fresh entry) -> Secret Storage (mask/ID check) -> Null
+        if (!pat || pat === '********' || pat === 'vault-cms-github-pat') {
+            pat = (this.app as any).secretStorage?.getSecret('vault-cms-github-pat') || pat;
+        }
 
-        if (!token || !projectRoot) {
-            new Notice('Please provide a Token and ensure project root is detected.');
+        const token = pat;
+
+        if (!token || token === '********' || token === 'vault-cms-github-pat' || !projectRoot) {
+            new Notice('Please provide a valid Token and ensure project root is detected.');
             button.setDisabled(false);
             return;
         }
@@ -321,8 +337,6 @@ export class GitSetupStep extends BaseWizardStep {
             // 5. Securely save token if it was just entered
             if (pat && (this.app as any).secretStorage) {
                 await (this.app as any).secretStorage.setSecret('vault-cms-github-pat', pat);
-                // Wipe from in-memory state immediately so it's not persisted to data.json
-                this.state.gitConfig.pat = undefined;
             }
 
             // Clear plain-text PAT from state before finishing
