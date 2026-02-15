@@ -1,32 +1,15 @@
 import { App, Notice, WorkspaceLeaf } from 'obsidian';
 
-// Helper function for setCssProps (may not be in types yet)
+import { ConfigFlushService } from '../../utils/ConfigFlushService';
 import { BaseWizardStep } from './BaseWizardStep';
 import { WizardState } from '../../types';
 import { PluginManager } from '../../utils/PluginManager';
 import { BasesCMSConfigurator } from '../../utils/BasesCMSConfig';
-import { AstroComposerConfigurator } from '../../utils/AstroComposerConfig';
-import { SEOConfigurator } from '../../utils/SEOConfig';
-import { EditingToolbarConfigurator } from '../../utils/EditingToolbarConfig';
-import { PropertyOverFileNameConfigurator } from '../../utils/PropertyOverFileNameConfig';
-import { UITweakerConfigurator } from '../../utils/UITweakerConfig';
-import { ImageManagerConfigurator } from '../../utils/ImageManagerConfig';
-import { HomeBaseConfigurator } from '../../utils/HomeBaseConfig';
-import { ExplorerFocusConfigurator } from '../../utils/ExplorerFocusConfig';
-import { DataFilesEditorConfigurator } from '../../utils/DataFilesEditorConfig';
 
 export class FinalizeStep extends BaseWizardStep {
 	private pluginManager: PluginManager;
 	private basesCMSConfigurator: BasesCMSConfigurator;
-	private astroComposerConfigurator: AstroComposerConfigurator;
-	private seoConfigurator: SEOConfigurator;
-	private editingToolbarConfigurator: EditingToolbarConfigurator;
-	private propertyOverFileNameConfigurator: PropertyOverFileNameConfigurator;
-	private uiTweakerConfigurator: UITweakerConfigurator;
-	private imageManagerConfigurator: ImageManagerConfigurator;
-	private homeBaseConfigurator: HomeBaseConfigurator;
-	private explorerFocusConfigurator: ExplorerFocusConfigurator;
-	private dataFilesEditorConfigurator: DataFilesEditorConfigurator;
+	private configFlushService: ConfigFlushService;
 	private applied: boolean = false;
 
 	isApplied(): boolean {
@@ -37,15 +20,7 @@ export class FinalizeStep extends BaseWizardStep {
 		super(app, containerEl, state, onNext, onBack, onCancel);
 		this.pluginManager = new PluginManager(app);
 		this.basesCMSConfigurator = new BasesCMSConfigurator(app);
-		this.astroComposerConfigurator = new AstroComposerConfigurator(app);
-		this.seoConfigurator = new SEOConfigurator(app);
-		this.editingToolbarConfigurator = new EditingToolbarConfigurator(app);
-		this.propertyOverFileNameConfigurator = new PropertyOverFileNameConfigurator(app);
-		this.uiTweakerConfigurator = new UITweakerConfigurator(app);
-		this.imageManagerConfigurator = new ImageManagerConfigurator(app);
-		this.homeBaseConfigurator = new HomeBaseConfigurator(app);
-		this.explorerFocusConfigurator = new ExplorerFocusConfigurator(app);
-		this.dataFilesEditorConfigurator = new DataFilesEditorConfigurator(app);
+		this.configFlushService = new ConfigFlushService(app);
 	}
 
 	display(): void {
@@ -106,102 +81,8 @@ export class FinalizeStep extends BaseWizardStep {
 
 			await this.pluginManager.setPluginStates(this.state.enabledPlugins, this.state.disabledPlugins);
 
-			// Configure Bases CMS
-			console.debug('FinalizeStep: Configuring Bases CMS');
-			await this.basesCMSConfigurator.createOrUpdateBaseFile(
-				this.state.contentTypes,
-				this.state.frontmatterProperties,
-				this.state.defaultContentTypeId,
-				this.state.projectDetection,
-				this.state.enableMdxSupport === true
-			);
-			console.debug('FinalizeStep: Bases CMS configuration complete');
-
-			// Switch active Bases views to the new default view
-			if (this.state.defaultContentTypeId) {
-				const defaultType = this.state.contentTypes.find(ct => ct.id === this.state.defaultContentTypeId);
-				if (defaultType) {
-					console.debug('FinalizeStep: Updating active Bases views to:', defaultType.name);
-					await this.updateActiveBasesViews(defaultType.name, shouldRestart);
-				}
-			}
-
-			// Configure Astro Composer
-			if (this.state.projectDetection) {
-				console.debug('FinalizeStep: Configuring Astro Composer, enableMdxSupport =', this.state.enableMdxSupport);
-				const astroConfig = await this.astroComposerConfigurator.configureAstroComposer(
-					this.state.contentTypes,
-					this.state.frontmatterProperties,
-					this.state.projectDetection.projectRoot,
-					this.state.projectDetection.configFilePath,
-					this.state.defaultContentTypeId,
-					this.state.projectDetection,
-					this.state.enableMdxSupport
-				);
-				console.debug('FinalizeStep: Astro Composer config.showMdxFilesInExplorer =', astroConfig.showMdxFilesInExplorer);
-				this.state.astroComposerConfig = astroConfig;
-				await this.astroComposerConfigurator.saveConfig(astroConfig);
-			}
-
-			// Configure SEO
-			const seoConfig = this.seoConfigurator.generateSEOConfig(
-				this.state.contentTypes,
-				this.state.frontmatterProperties,
-				this.state.projectDetection,
-				this.state.enableMdxSupport
-			);
-			this.state.seoConfig = seoConfig;
-			await this.seoConfigurator.saveConfig(seoConfig);
-
-			// Configure WYSIWYG Toolbar (toggle visibility directly)
-			// Always call this to ensure cMenuVisibility is set correctly, even if disabled
-			console.debug(`FinalizeStep: Configuring editing toolbar, enableEditingToolbar=${this.state.enableEditingToolbar}`);
-			await this.editingToolbarConfigurator.toggleVisibility(this.app, this.state.enableEditingToolbar);
-
-			// Configure Property Over File Name
-			const firstType = this.state.contentTypes.find(ct => ct.enabled);
-			const firstProps = firstType ? this.state.frontmatterProperties[firstType.id] : undefined;
-			if (firstProps && firstProps.titleProperty) {
-				this.state.propertyOverFileName.propertyKey = firstProps.titleProperty;
-			}
-			// Set MDX support based on state (ALWAYS set explicitly, even if false)
-			console.debug('FinalizeStep: Configuring Property Over File Name');
-			console.debug('FinalizeStep: this.state.enableMdxSupport =', this.state.enableMdxSupport);
-			console.debug('FinalizeStep: this.state.propertyOverFileName before =', JSON.stringify(this.state.propertyOverFileName));
-
-			// Ensure enableMdxSupport is ALWAYS set (never undefined)
-			const mdxSupportValue = this.state.enableMdxSupport === true;
-			this.state.propertyOverFileName.enableMdxSupport = mdxSupportValue;
-
-			console.debug('FinalizeStep: Set enableMdxSupport to', mdxSupportValue);
-			console.debug('FinalizeStep: this.state.propertyOverFileName after =', JSON.stringify(this.state.propertyOverFileName));
-			console.debug('FinalizeStep: About to call saveConfig with:', JSON.stringify(this.state.propertyOverFileName));
-
-			await this.propertyOverFileNameConfigurator.saveConfig(this.state.propertyOverFileName);
-
-			// Configure UI Tweaker
-			console.debug('FinalizeStep: Configuring UI Tweaker');
-			await this.uiTweakerConfigurator.saveConfig(this.state.enableMdxSupport === true);
-
-			// Configure Image Manager (if enabled)
-			if (this.state.enabledPlugins.includes('image-manager')) {
-				await this.imageManagerConfigurator.resolveAndSyncImageProperty(this.state);
-				await this.imageManagerConfigurator.saveConfig(this.state.imageManager);
-			}
-
-			// Configure Home Base (if enabled)
-			if (this.state.enabledPlugins.includes('home-base')) {
-				await this.homeBaseConfigurator.saveConfig(this.state.homeBase);
-			}
-
-			// Configure Explorer Focus (if enabled)
-			if (this.state.enabledPlugins.includes('explorer-focus')) {
-				await this.explorerFocusConfigurator.saveConfig(this.state.explorerFocus);
-			}
-
-			// Configure Data Files Editor
-			console.debug('FinalizeStep: Configuring Data Files Editor');
-			await this.dataFilesEditorConfigurator.saveConfig(this.state.enableExtendedFileTypes === true);
+			// Flush all configurations using the centralized service
+			await this.configFlushService.flush(this.state);
 
 			// Configure default content type and Obsidian settings (following astro-modular-settings pattern)
 			if (this.state.defaultContentTypeId) {

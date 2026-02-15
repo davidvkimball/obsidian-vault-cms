@@ -3,16 +3,19 @@ import * as obsidian from 'obsidian';
 import { BaseWizardStep } from './BaseWizardStep';
 import { WizardState } from '../../types';
 import { GitManager } from '../../utils/GitManager';
+import { ConfigFlushService } from '../../utils/ConfigFlushService';
 import { SafeConfigWriter } from '../../utils/SafeConfigWriter';
 import * as path from 'path';
 
 export class GitSetupStep extends BaseWizardStep {
     private gitManager: typeof GitManager;
+    private configFlushService: ConfigFlushService;
     private safeConfigWriter: SafeConfigWriter;
 
     constructor(app: App, containerEl: HTMLElement, state: WizardState, onNext: () => void, onBack: () => void, onCancel: () => void) {
         super(app, containerEl, state, onNext, onBack, onCancel);
         this.gitManager = GitManager;
+        this.configFlushService = new ConfigFlushService(app);
         this.safeConfigWriter = new SafeConfigWriter(app);
     }
 
@@ -319,6 +322,15 @@ export class GitSetupStep extends BaseWizardStep {
 
             await this.gitManager.setRemote(projectRoot, repoInfo.clone_url);
             new Notice(`Successfully ${alreadyHasRemote ? 'updated' : 'connected'} to ${repoInfo.html_url}`);
+
+            // 3. Early Flush: Save configurations to disk BEFORE committing
+            // This ensures the initial commit contains the user's wizard settings
+            try {
+                await this.configFlushService.flush(this.state);
+                console.debug('GitSetupStep: Early configuration flush successful');
+            } catch (flushError) {
+                console.warn('GitSetupStep: Early configuration flush failed, but continuing with sync:', flushError);
+            }
 
             try {
                 await this.gitManager.initialCommitAndPush(projectRoot, branch, 'origin', token);
