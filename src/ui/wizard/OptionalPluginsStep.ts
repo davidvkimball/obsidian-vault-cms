@@ -1,14 +1,14 @@
 import { App, Setting, setIcon } from 'obsidian';
+import { BaseWizardStep } from './BaseWizardStep';
+import { WizardState } from '../../types';
+import { PluginManager } from '../../utils/PluginManager';
 
-// Helper function for setCssProps (may not be in types yet)
+// Helper function for setCssProps
 function setCssProps(element: HTMLElement, props: Record<string, string>): void {
 	for (const [key, value] of Object.entries(props)) {
 		element.style.setProperty(key.replace(/([A-Z])/g, '-$1').toLowerCase(), value);
 	}
 }
-import { BaseWizardStep } from './BaseWizardStep';
-import { WizardState } from '../../types';
-import { PluginManager } from '../../utils/PluginManager';
 
 interface PluginInfo {
 	id: string;
@@ -28,14 +28,13 @@ export class OptionalPluginsStep extends BaseWizardStep {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		containerEl.createEl('h2', { text: 'Plugin configuration' });
+		containerEl.createEl('h2', { text: 'Plugin detection' });
 		containerEl.createEl('p', {
 			text: 'Review and configure your installed plugins. Essential plugins are recommended for the core Vault CMS experience.'
 		});
 
 		// Define all plugins with their categories
 		const allPlugins: PluginInfo[] = [
-			// Essential plugins (alphabetically ordered)
 			{ id: 'astro-composer', name: 'Astro Composer', category: 'essential' },
 			{ id: 'bases-cms', name: 'Bases CMS', category: 'essential' },
 			{ id: 'new-tab-default-page', name: 'Default New Tab Page', category: 'essential' },
@@ -49,7 +48,6 @@ export class OptionalPluginsStep extends BaseWizardStep {
 			{ id: 'ui-tweaker', name: 'UI Tweaker', category: 'essential' },
 			{ id: 'simple-focus', name: 'Simple Focus', category: 'essential' },
 			{ id: 'statusbar-organizer', name: 'Status Bar Organizer', category: 'essential' },
-			// Nice to have plugins (alphabetically ordered)
 			{ id: 'alias-file-name-history', name: 'Alias File Name History', category: 'nice-to-have' },
 			{ id: 'data-files-editor', name: 'Data Files Editor', category: 'nice-to-have' },
 			{ id: 'iconic', name: 'Iconic', category: 'nice-to-have' },
@@ -60,134 +58,97 @@ export class OptionalPluginsStep extends BaseWizardStep {
 			{ id: 'explorer-focus', name: 'Explorer Focus', category: 'nice-to-have' }
 		];
 
-		// Get installed plugins
 		const plugins = (this.app as { plugins?: { plugins?: Record<string, unknown>; enabledPlugins?: Set<string> } }).plugins;
 		const installedPluginIds = plugins?.plugins ? Object.keys(plugins.plugins) : [];
-
-		// Filter to only show installed plugins (excluding ignored ones)
-		const ignoredPlugins = [
-			'obsidian42-brat',
-			'astro-modular-settings',
-			'folder-notes',
-			'disable-tabs',
-			'vault-cms' // Don't show Vault CMS plugin itself
-		];
+		const ignoredPlugins = ['obsidian42-brat', 'astro-modular-settings', 'folder-notes', 'disable-tabs', 'vault-cms'];
 
 		const essentialPlugins = allPlugins.filter(p =>
-			p.category === 'essential' &&
-			installedPluginIds.includes(p.id) &&
-			!ignoredPlugins.includes(p.id)
+			p.category === 'essential' && installedPluginIds.includes(p.id) && !ignoredPlugins.includes(p.id)
 		);
-		// Filter nice-to-have plugins and sort alphabetically by name
-		const niceToHavePlugins = allPlugins
-			.filter(p =>
-				p.category === 'nice-to-have' &&
-				installedPluginIds.includes(p.id) &&
-				!ignoredPlugins.includes(p.id)
-			)
-			.sort((a, b) => a.name.localeCompare(b.name));
+		const niceToHavePlugins = allPlugins.filter(p =>
+			p.category === 'nice-to-have' && installedPluginIds.includes(p.id) && !ignoredPlugins.includes(p.id)
+		).sort((a, b) => a.name.localeCompare(b.name));
 
-		// Essential plugins section
+		// Essential Plugins Details
 		if (essentialPlugins.length > 0) {
-			containerEl.createEl('h3', { text: 'Essential plugins', cls: 'vault-cms-section-header' });
-			containerEl.createEl('p', {
-				text: 'These plugins are recommended for the core Vault CMS experience.',
-				cls: 'vault-cms-section-desc'
+			const details = containerEl.createEl('details', { attr: { style: 'margin-bottom: 1rem;' } });
+			details.createEl('summary', {
+				text: `Essential plugins (${essentialPlugins.length} found)`,
+				attr: { style: 'font-weight: bold; cursor: pointer; padding: 0.5rem 0;' }
 			});
 
+			const content = details.createDiv({ attr: { style: 'padding: 0.5rem 0.5rem 0.5rem 1.5rem; border-left: 2px solid var(--background-modifier-border);' } });
 			for (const plugin of essentialPlugins) {
-				const pluginInstance = plugins?.plugins?.[plugin.id];
-				const isInstalled = !!pluginInstance;
-				// Check if plugin is enabled - use enabledPlugins Set (more reliable)
-				const pluginInstanceTyped = pluginInstance as { enabled?: boolean } | undefined;
-				const isCurrentlyEnabled = plugins?.enabledPlugins?.has?.(plugin.id) ?? pluginInstanceTyped?.enabled ?? false;
-
-				console.debug(`Plugin ${plugin.id}: installed=${isInstalled}, enabled=${isCurrentlyEnabled}`);
-
-				// Sync state with actual plugin state
-				if (isInstalled && isCurrentlyEnabled) {
-					if (!this.state.enabledPlugins.includes(plugin.id)) {
-						this.state.enabledPlugins.push(plugin.id);
-					}
-					this.state.disabledPlugins = this.state.disabledPlugins.filter(p => p !== plugin.id);
-				} else if (isInstalled && !isCurrentlyEnabled) {
-					this.state.enabledPlugins = this.state.enabledPlugins.filter(p => p !== plugin.id);
-					if (!this.state.disabledPlugins.includes(plugin.id)) {
-						this.state.disabledPlugins.push(plugin.id);
-					}
-				}
-
-				const setting = new Setting(containerEl)
-					.setName(plugin.name)
-					.setDesc(isInstalled ?
-						(isCurrentlyEnabled ? 'Installed and enabled' : 'Installed but disabled') :
-						'Not installed');
-
-				// Add icon instead of toggle
-				const iconContainer = setting.controlEl.createDiv({ cls: 'vault-cms-plugin-status' });
-				if (isInstalled && isCurrentlyEnabled) {
-					setIcon(iconContainer, 'lucide-check-circle-2');
-					setCssProps(iconContainer, { color: 'var(--text-success)' });
-				} else {
-					setIcon(iconContainer, 'lucide-x-circle');
-					setCssProps(iconContainer, { color: 'var(--text-error)' });
-				}
+				this.renderPluginStatus(content, plugin, plugins);
 			}
 		}
 
-		// Nice to have plugins section
+		// Nice to Have Plugins Details
 		if (niceToHavePlugins.length > 0) {
-			containerEl.createEl('h3', { text: 'Nice to have plugins', cls: 'vault-cms-section-header' });
-			containerEl.createEl('p', {
-				text: 'These plugins can be helpful depending on your theme\'s capabilities and workflow needs.',
-				cls: 'vault-cms-section-desc'
+			const details = containerEl.createEl('details', { attr: { style: 'margin-bottom: 2rem;' } });
+			details.createEl('summary', {
+				text: `Nice to have plugins (${niceToHavePlugins.length} found)`,
+				attr: { style: 'font-weight: bold; cursor: pointer; padding: 0.5rem 0;' }
 			});
 
+			const content = details.createDiv({ attr: { style: 'padding: 0.5rem 0.5rem 0.5rem 1.5rem; border-left: 2px solid var(--background-modifier-border);' } });
 			for (const plugin of niceToHavePlugins) {
-				const pluginInstance = plugins?.plugins?.[plugin.id];
-				const isInstalled = !!pluginInstance;
-				// Check if plugin is enabled - use enabledPlugins Set (more reliable)
-				const pluginInstanceTyped = pluginInstance as { enabled?: boolean } | undefined;
-				const isCurrentlyEnabled = plugins?.enabledPlugins?.has?.(plugin.id) ?? pluginInstanceTyped?.enabled ?? false;
-
-				console.debug(`Plugin ${plugin.id}: installed=${isInstalled}, enabled=${isCurrentlyEnabled}`);
-
-				// Sync state with actual plugin state
-				if (isInstalled && isCurrentlyEnabled) {
-					if (!this.state.enabledPlugins.includes(plugin.id)) {
-						this.state.enabledPlugins.push(plugin.id);
-					}
-					this.state.disabledPlugins = this.state.disabledPlugins.filter(p => p !== plugin.id);
-				} else if (isInstalled && !isCurrentlyEnabled) {
-					this.state.enabledPlugins = this.state.enabledPlugins.filter(p => p !== plugin.id);
-					if (!this.state.disabledPlugins.includes(plugin.id)) {
-						this.state.disabledPlugins.push(plugin.id);
-					}
-				}
-
-				const setting = new Setting(containerEl)
-					.setName(plugin.name)
-					.setDesc(isInstalled ?
-						(isCurrentlyEnabled ? 'Installed and enabled' : 'Installed but disabled') :
-						'Not installed');
-
-				// Add icon instead of toggle
-				const iconContainer = setting.controlEl.createDiv({ cls: 'vault-cms-plugin-status' });
-				if (isInstalled && isCurrentlyEnabled) {
-					setIcon(iconContainer, 'lucide-check-circle-2');
-					setCssProps(iconContainer, { color: 'var(--text-success)' });
-				} else {
-					setIcon(iconContainer, 'lucide-x-circle');
-					setCssProps(iconContainer, { color: 'var(--text-error)' });
-				}
+				this.renderPluginStatus(content, plugin, plugins);
 			}
 		}
 
-		// If no plugins found
 		if (essentialPlugins.length === 0 && niceToHavePlugins.length === 0) {
-			containerEl.createEl('p', {
-				text: 'No Vault CMS plugins detected. Make sure you have installed the recommended plugins.'
-			});
+			containerEl.createEl('p', { text: 'No Vault CMS plugins detected.' });
+		}
+
+		// --- Merged Editing Toolbar Section ---
+		const toolbarDiv = containerEl.createDiv({
+			attr: { style: 'margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--background-modifier-border);' }
+		});
+
+		new Setting(toolbarDiv)
+			.setName('Enable Editing Toolbar')
+			.setDesc('Show the visual editing toolbar for formatting text')
+			.addToggle(toggle => toggle
+				.setValue(this.state.enableEditingToolbar)
+				.onChange(value => {
+					this.state.enableEditingToolbar = value;
+				}));
+	}
+
+	private renderPluginStatus(container: HTMLElement, plugin: PluginInfo, plugins: any) {
+		const pluginInstance = plugins?.plugins?.[plugin.id];
+		const isInstalled = !!pluginInstance;
+		const pluginInstanceTyped = pluginInstance as { enabled?: boolean } | undefined;
+		const isCurrentlyEnabled = plugins?.enabledPlugins?.has?.(plugin.id) ?? pluginInstanceTyped?.enabled ?? false;
+
+		// Sync state with actual plugin state
+		if (isInstalled && isCurrentlyEnabled) {
+			if (!this.state.enabledPlugins.includes(plugin.id)) {
+				this.state.enabledPlugins.push(plugin.id);
+			}
+			this.state.disabledPlugins = this.state.disabledPlugins.filter(p => p !== plugin.id);
+		} else if (isInstalled && !isCurrentlyEnabled) {
+			this.state.enabledPlugins = this.state.enabledPlugins.filter(p => p !== plugin.id);
+			if (!this.state.disabledPlugins.includes(plugin.id)) {
+				this.state.disabledPlugins.push(plugin.id);
+			}
+		}
+
+		const setting = new Setting(container)
+			.setName(plugin.name)
+			.setDesc(isCurrentlyEnabled ? 'Installed and enabled' : 'Installed but disabled');
+
+		setting.nameEl.style.fontSize = '0.9em';
+		setting.descEl.style.fontSize = '0.8em';
+
+		const iconContainer = setting.controlEl.createDiv({ cls: 'vault-cms-plugin-status' });
+		if (isCurrentlyEnabled) {
+			setIcon(iconContainer, 'lucide-check-circle-2');
+			setCssProps(iconContainer, { color: 'var(--text-success)' });
+		} else {
+			setIcon(iconContainer, 'lucide-x-circle');
+			setCssProps(iconContainer, { color: 'var(--text-error)' });
 		}
 	}
 
@@ -200,7 +161,6 @@ export class OptionalPluginsStep extends BaseWizardStep {
 	}
 
 	getDescription(): string {
-		return 'Configure optional plugins';
+		return 'Configure optional plugins and detection';
 	}
 }
-

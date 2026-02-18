@@ -4,15 +4,12 @@ import { BaseWizardStep } from './BaseWizardStep';
 import { WelcomeStep } from './WelcomeStep';
 import { ProjectDetectionStep } from './ProjectDetectionStep';
 import { ContentTypeStep } from './ContentTypeStep';
-import { DefaultContentTypeStep } from './DefaultContentTypeStep';
 import { FrontmatterPropertiesStep } from './FrontmatterPropertiesStep';
-import { EditingToolbarStep } from './EditingToolbarStep';
-import { BasesCMSConfigStep } from './BasesCMSConfigStep';
-import { AstroComposerStep } from './AstroComposerStep';
-import { SEOConfigStep } from './SEOConfigStep';
+import { PluginConfigurationStep } from './PluginConfigurationStep';
 import { OptionalPluginsStep } from './OptionalPluginsStep';
 import { IgnoreStep } from './IgnoreStep';
 import { GitSetupStep } from './GitSetupStep';
+import { DeploymentStep } from './DeploymentStep';
 import { FinalizeStep } from './FinalizeStep';
 
 /**
@@ -53,9 +50,9 @@ export class WizardStateMachine {
 		['welcome', 0],
 		['detect', 1],
 		['content-types', 2],
-		['frontmatter', 4],
-		['plugins', 9],
-		['complete', 12]
+		['frontmatter', 3],
+		['plugins', 4],
+		['complete', 9]
 	]);
 
 	// Reverse mapping: step index to state
@@ -63,16 +60,13 @@ export class WizardStateMachine {
 		[0, 'welcome'],
 		[1, 'detect'],
 		[2, 'content-types'],
-		[3, 'content-types'], // DefaultContentTypeStep is part of content-types
-		[4, 'frontmatter'],
-		[5, 'plugins'], // EditingToolbarStep starts plugin configuration
-		[6, 'plugins'], // BasesCMSConfigStep
-		[7, 'plugins'], // AstroComposerStep
-		[8, 'plugins'], // SEOConfigStep
-		[9, 'plugins'], // OptionalPluginsStep
-		[10, 'plugins'], // IgnoreStep
-		[11, 'plugins'], // GitSetupStep
-		[12, 'complete'] // FinalizeStep
+		[3, 'frontmatter'],
+		[4, 'plugins'], // PluginConfigurationStep
+		[5, 'plugins'], // OptionalPluginsStep
+		[6, 'plugins'], // IgnoreStep
+		[7, 'plugins'], // GitSetupStep
+		[8, 'plugins'], // DeploymentStep
+		[9, 'complete'] // FinalizeStep
 	]);
 
 	// State transition rules
@@ -92,15 +86,12 @@ export class WizardStateMachine {
 			WelcomeStep,
 			ProjectDetectionStep,
 			ContentTypeStep,
-			DefaultContentTypeStep,
 			FrontmatterPropertiesStep,
-			EditingToolbarStep,
-			BasesCMSConfigStep,
-			AstroComposerStep,
-			SEOConfigStep,
+			PluginConfigurationStep,
 			OptionalPluginsStep,
 			IgnoreStep,
 			GitSetupStep,
+			DeploymentStep,
 			FinalizeStep
 		];
 	}

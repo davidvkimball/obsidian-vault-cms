@@ -7,15 +7,12 @@ import VaultCMSPlugin from '../main';
 import { WelcomeStep } from './wizard/WelcomeStep';
 import { ProjectDetectionStep } from './wizard/ProjectDetectionStep';
 import { ContentTypeStep } from './wizard/ContentTypeStep';
-import { DefaultContentTypeStep } from './wizard/DefaultContentTypeStep';
 import { FrontmatterPropertiesStep } from './wizard/FrontmatterPropertiesStep';
-import { EditingToolbarStep } from './wizard/EditingToolbarStep';
-import { BasesCMSConfigStep } from './wizard/BasesCMSConfigStep';
-import { AstroComposerStep } from './wizard/AstroComposerStep';
-import { SEOConfigStep } from './wizard/SEOConfigStep';
+import { PluginConfigurationStep } from './wizard/PluginConfigurationStep';
 import { OptionalPluginsStep } from './wizard/OptionalPluginsStep';
 import { IgnoreStep } from './wizard/IgnoreStep';
 import { GitSetupStep } from './wizard/GitSetupStep';
+import { DeploymentStep } from './wizard/DeploymentStep';
 import { FinalizeStep } from './wizard/FinalizeStep';
 
 /**
@@ -56,15 +53,12 @@ export class SetupWizardModal extends Modal {
 			WelcomeStep,
 			ProjectDetectionStep,
 			ContentTypeStep,
-			DefaultContentTypeStep,
 			FrontmatterPropertiesStep,
-			EditingToolbarStep,
-			BasesCMSConfigStep,
-			AstroComposerStep,
-			SEOConfigStep,
+			PluginConfigurationStep,
 			OptionalPluginsStep,
 			IgnoreStep,
 			GitSetupStep,
+			DeploymentStep,
 			FinalizeStep
 		];
 
@@ -131,8 +125,31 @@ export class SetupWizardModal extends Modal {
 		contentEl.scrollTop = 0;
 	}
 
-	private async renderCurrentStep() {
+	private async renderCurrentStep(): Promise<void> {
 		const { contentEl } = this;
+		const state = this.stateManager.getState();
+		const stepIndex = state.currentStep;
+
+		// Check for skipping BEFORE clearing any content to prevent visual flicker
+		if (stepIndex >= 0 && stepIndex < this.steps.length) {
+			const StepClass = this.steps[stepIndex];
+			const tempDiv = document.createElement('div');
+			const stepInstance = new StepClass(
+				this.app,
+				tempDiv,
+				state,
+				() => { }, // Temporary handlers
+				() => { },
+				() => { }
+			);
+
+			if (await stepInstance.shouldSkip()) {
+				console.debug(`SetupWizardModal: Step ${StepClass.name} requested skip. Advancing...`);
+				this.stateManager.nextStep(this.steps.length);
+				this.stateMachine.next();
+				return this.renderCurrentStep();
+			}
+		}
 
 		// Scroll to top IMMEDIATELY before clearing content to prevent visual jump
 		this.scrollToTop();
@@ -149,6 +166,7 @@ export class SetupWizardModal extends Modal {
 
 		// Render step content (may be async, but we don't await it)
 		const stepContent = contentEl.createDiv('wizard-content');
+		setCssProps(stepContent, { minHeight: '400px' });
 		await this.renderStepContent(stepContent);
 
 		// Render footer

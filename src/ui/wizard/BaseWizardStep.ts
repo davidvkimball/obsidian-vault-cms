@@ -32,6 +32,13 @@ export abstract class BaseWizardStep {
 	abstract getDescription(): string;
 
 	/**
+	 * Check if this step should be automatically skipped
+	 */
+	async shouldSkip(): Promise<boolean> {
+		return false;
+	}
+
+	/**
 	 * Convert absolute path to relative path from vault root
 	 */
 	protected toRelativePath(absolutePath: string): string {

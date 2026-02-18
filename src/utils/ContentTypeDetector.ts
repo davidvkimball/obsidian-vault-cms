@@ -15,22 +15,53 @@ export class ContentTypeDetector {
 	detectContentTypes(projectDetection?: ProjectDetectionResult): ContentTypeConfig[] {
 		// Find the correct src/content directory
 		const contentFolder = this.findContentDirectory(projectDetection);
-		
+
 		if (!contentFolder) {
 			// Fallback to old behavior if we can't find src/content
-			return this.detectContentTypesFromVaultRoot();
+			return this.detectContentTypesFromFolder(this.app.vault.getRoot() as TFolder);
 		}
 
+		return this.detectContentTypesFromFolder(contentFolder);
+	}
+
+	/**
+	 * Recursively find leaf folders (folders with no valid subfolders).
+	 * These are treated as content types.
+	 */
+	private detectContentTypesFromFolder(rootFolder: TFolder): ContentTypeConfig[] {
 		const contentTypes: ContentTypeConfig[] = [];
-		const folders = this.getTopLevelFolders(contentFolder);
-		
-		for (const folder of folders) {
+		const result: TFolder[] = [];
+
+		const findLeafFolders = (folder: TFolder) => {
+			const subfolders = this.getTopLevelFolders(folder);
+
+			if (subfolders.length === 0) {
+				// This is a leaf folder (or at least has no relevant subfolders)
+				// We only suggest it if it's not the root content folder itself (unless it's empty)
+				result.push(folder);
+			} else {
+				// Not a leaf, recurse into subfolders
+				for (const sub of subfolders) {
+					findLeafFolders(sub);
+				}
+			}
+		};
+
+		findLeafFolders(rootFolder);
+
+		for (const folder of result) {
+			// Skip the root folder itself if it was the only thing found and it's empty
+			// (unless the user specifically pointed the vault at an empty folder)
+			if (folder === rootFolder && rootFolder.children.length === 0 && rootFolder.name === '/') {
+				continue;
+			}
+
 			const contentType = this.detectContentType(folder);
 			if (contentType) {
 				contentTypes.push(contentType);
 			}
 		}
-		
+
 		return contentTypes;
 	}
 
@@ -49,7 +80,7 @@ export class ContentTypeDetector {
 		const vault = this.app.vault;
 		const adapter = vault.adapter as { basePath?: string; path?: string };
 		const vaultPath = adapter.basePath || adapter.path;
-		
+
 		if (!vaultPath) {
 			return null;
 		}
@@ -66,7 +97,7 @@ export class ContentTypeDetector {
 
 		// Calculate the expected src/content path
 		const expectedContentPath = path.join(projectRoot, 'src', 'content');
-		
+
 		// Check if src/content exists in the file system
 		if (!fs.existsSync(expectedContentPath) || !fs.statSync(expectedContentPath).isDirectory()) {
 			// src/content doesn't exist, can't find it
@@ -83,34 +114,34 @@ export class ContentTypeDetector {
 		// Calculate relative path from vault to src/content
 		const vaultNormalized = path.resolve(vaultPath).toLowerCase();
 		const contentNormalized = path.resolve(expectedContentPath).toLowerCase();
-		
+
 		// If src/content is within the vault, find it by path
 		if (contentNormalized.startsWith(vaultNormalized)) {
 			const relativePath = path.relative(path.resolve(vaultPath), path.resolve(expectedContentPath));
 			// Normalize to use forward slashes for Obsidian
 			const normalizedRelativePath = relativePath.split(path.sep).join('/');
 			const pathParts = normalizedRelativePath.split('/').filter(part => part.length > 0);
-			
+
 			// If relative path is empty, vault root IS src/content
 			if (pathParts.length === 0) {
 				return vaultRoot;
 			}
-			
+
 			// Navigate from vault root to src/content
 			let currentFolder: TFolder = vaultRoot;
 			for (const part of pathParts) {
 				if (!currentFolder.children) {
 					return null;
 				}
-				
+
 				const child = currentFolder.children.find(c => c instanceof TFolder && c.name === part);
 				if (!(child instanceof TFolder)) {
 					return null;
 				}
-				
+
 				currentFolder = child;
 			}
-			
+
 			return currentFolder;
 		}
 
@@ -120,52 +151,19 @@ export class ContentTypeDetector {
 		return null;
 	}
 
-	/**
-	 * Fallback: detect content types from vault root (old behavior)
-	 * This is used when we can't find src/content, e.g., when vault is inside a content type folder
-	 */
-	private detectContentTypesFromVaultRoot(): ContentTypeConfig[] {
-		const vault = this.app.vault;
-		const root = vault.getRoot();
-		
-		if (!(root instanceof TFolder)) {
-			return [];
-		}
-
-		const contentTypes: ContentTypeConfig[] = [];
-		const folders = this.getTopLevelFolders(root);
-		
-		// If vault root has folders, treat them as content types
-		// (This handles the case where vault is at src/content/post and post has subfolders)
-		for (const folder of folders) {
-			const contentType = this.detectContentType(folder);
-			if (contentType) {
-				contentTypes.push(contentType);
-			}
-		}
-		
-		// If no folders found but we have a vault root with a meaningful name,
-		// and it's likely a content type folder (e.g., vault is at src/content/post),
-		// we could treat the vault root itself as a content type.
-		// However, this is tricky because we don't know the vault root's name in relation to the project.
-		// For now, we'll only detect folders within the vault root.
-		
-		return contentTypes;
-	}
-
 	private getTopLevelFolders(folder: TFolder): TFolder[] {
 		const folders: TFolder[] = [];
-		
+
 		if (!folder.children) {
 			return folders;
 		}
-		
+
 		for (const child of folder.children) {
 			if (child instanceof TFolder) {
 				// Skip special folders
 				const configDir = this.app.vault.configDir;
-				if (!child.name.startsWith('.') && 
-					child.name !== 'bases' && 
+				if (!child.name.startsWith('.') &&
+					child.name !== 'bases' &&
 					child.name !== '_bases' &&
 					child.name !== 'node_modules' &&
 					child.name !== configDir) {
@@ -173,13 +171,13 @@ export class ContentTypeDetector {
 				}
 			}
 		}
-		
+
 		return folders;
 	}
 
 	private detectContentType(folder: TFolder): ContentTypeConfig | null {
 		const name = this.capitalizeFirst(folder.name);
-		
+
 		// All discovered content folders are enabled by default
 		return {
 			id: `content-type-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,

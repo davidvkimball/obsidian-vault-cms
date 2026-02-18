@@ -36,48 +36,83 @@ export class GitSetupStep extends BaseWizardStep {
         containerEl.empty();
 
         containerEl.createEl('h2', { text: 'Git Integration' });
+        containerEl.createEl('p', {
+            text: "Connect your project to GitHub to enable sync and deployment. Note: if you skip this step, the Deployment step will also be skipped.",
+            attr: { style: 'font-style: italic; opacity: 0.8; margin-bottom: 2rem;' }
+        });
 
         const projectRoot = this.getAbsoluteProjectRoot();
+
+        // 1. Static Layout Elements (Rendered Immediately)
+        const rootInfo = containerEl.createDiv({ cls: 'git-root-info', attr: { style: 'margin-bottom: 1rem;' } });
+        rootInfo.createEl('b', { text: 'Project Root: ' });
+        rootInfo.createSpan({ text: projectRoot });
+
+        // Placeholder for dynamic status
+        const statusEl = containerEl.createDiv({
+            cls: 'git-status-message',
+            attr: { style: 'margin-bottom: 2rem; padding: 1rem; border: 1px solid var(--background-modifier-border); border-radius: 4px; min-height: 50px;' }
+        });
+        statusEl.createEl('i', { text: 'Checking Git status...', attr: { style: 'opacity: 0.5;' } });
+
+        // 2. Fetch data (Async)
         let isRepo = false;
         let remoteUrl: string | null = null;
-
         if (projectRoot) {
             isRepo = await this.gitManager.isRepo(projectRoot);
             if (isRepo) {
                 remoteUrl = await this.gitManager.getRemoteUrl(projectRoot);
-
-                const rootInfo = containerEl.createDiv({ cls: 'git-root-info', attr: { style: 'margin-bottom: 1rem;' } });
-                rootInfo.createEl('b', { text: 'Project Root: ' });
-                rootInfo.createSpan({ text: this.toRelativePath(projectRoot) });
-
-                const statusEl = containerEl.createDiv({
-                    cls: 'git-status-message',
-                    attr: { style: 'margin-bottom: 2rem; padding: 1rem; border: 1px solid var(--background-modifier-border); border-radius: 4px;' }
-                });
-                statusEl.createEl('b', { text: 'Status: ' });
-                statusEl.createSpan({
-                    text: 'Git is already initialized.',
-                    attr: { style: 'color: var(--text-success); font-weight: bold;' }
-                });
-
-                if (remoteUrl) {
-                    const remoteEl = statusEl.createDiv({ attr: { style: 'margin-top: 0.5rem;' } });
-                    remoteEl.createEl('b', { text: 'Remote: ' });
-                    remoteEl.createSpan({ text: remoteUrl });
-                }
             }
+        }
+
+        // 3. Update Dynamic Layout
+        statusEl.empty();
+        if (isRepo) {
+            statusEl.createEl('b', { text: 'Status: ' });
+            statusEl.createSpan({
+                text: 'Git is already initialized.',
+                attr: { style: 'color: var(--text-success); font-weight: bold;' }
+            });
+
+            if (remoteUrl) {
+                const remoteEl = statusEl.createDiv({ attr: { style: 'margin-top: 0.5rem;' } });
+                remoteEl.createEl('b', { text: 'Remote: ' });
+                remoteEl.createSpan({ text: remoteUrl });
+            }
+        } else {
+            statusEl.createEl('b', { text: 'Status: ' });
+            statusEl.createSpan({ text: 'Not a Git repository.' });
         }
 
         // Configuration Container
         const configContainer = containerEl.createDiv({ cls: 'git-config-container' });
 
+        let setupContent: HTMLElement = configContainer;
 
-        const instructions = configContainer.createDiv({ cls: 'git-instructions' });
+        if (isRepo) {
+            const details = configContainer.createEl('details', { attr: { style: 'margin-bottom: 2rem;' } });
+            details.createEl('summary', {
+                text: 'Update Settings',
+                attr: { style: 'font-weight: bold; cursor: pointer; padding: 0.5rem 0; opacity: 0.8;' }
+            });
+            setupContent = details.createDiv({ attr: { style: 'padding: 1rem; border-left: 2px solid var(--background-modifier-border);' } });
+        }
+
+
+        const instructions = setupContent.createDiv({ cls: 'git-instructions' });
         instructions.createEl('p', {
             text: 'Connect your project to GitHub to publish your site. Click "Skip" to skip Git setup now and set it up later.'
         });
 
+        const gitDownload = instructions.createEl('p');
+        gitDownload.createSpan({ text: '1. ' });
+        gitDownload.createEl('a', {
+            text: 'Download and install Git',
+            href: 'https://git-scm.com/'
+        });
+
         const tokenLink = instructions.createEl('p');
+        tokenLink.createSpan({ text: '2. ' });
         tokenLink.createEl('a', {
             text: 'Generate a new GitHub Personal access token',
             href: `https://github.com/settings/tokens/new?scopes=repo&description=${encodeURIComponent((this.state.gitConfig.repoName || 'Project') + ' (Vault CMS)')}`
@@ -90,13 +125,13 @@ export class GitSetupStep extends BaseWizardStep {
         tokenHelp.createEl('li', { text: 'Click "Generate token" at the bottom, copy it, and paste it below.' });
 
         if (!remoteUrl) {
-            configContainer.createEl('h3', { text: isRepo ? 'Connect to GitHub' : 'Create New Repository' });
+            setupContent.createEl('h3', { text: isRepo ? 'Connect to GitHub' : 'Create New Repository' });
         } else {
-            configContainer.createEl('h3', { text: 'Update GitHub Connection' });
+            setupContent.createEl('h3', { text: 'Update GitHub Connection' });
         }
 
         // GitHub PAT Setting
-        const patSetting = new Setting(configContainer)
+        const patSetting = new Setting(setupContent)
             .setName('GitHub Personal Access Token')
             .setDesc('Stored securely in Obsidian Secrets.')
             .addExtraButton(btn => {
@@ -126,7 +161,7 @@ export class GitSetupStep extends BaseWizardStep {
             text.inputEl.type = 'password';
         });
 
-        const patStatus = configContainer.createDiv({ cls: 'pat-status-info', attr: { style: 'margin-bottom: 1rem; font-size: 0.9em; color: var(--text-muted);' } });
+        const patStatus = setupContent.createDiv({ cls: 'pat-status-info', attr: { style: 'margin-bottom: 1rem; font-size: 0.9em; color: var(--text-muted);' } });
         if (secretValue) {
             patStatus.createSpan({ text: '✓ Linked to Obsidian Secret: ', attr: { style: 'color: var(--text-success); font-weight: bold;' } });
             patStatus.createSpan({ text: secretId });
@@ -187,7 +222,7 @@ export class GitSetupStep extends BaseWizardStep {
         });
 
         // Repo creation settings
-        new Setting(configContainer)
+        new Setting(setupContent)
             .setName(remoteUrl ? 'New Repository Name' : 'Repository Name')
             .setDesc('The name of your GitHub repository.')
             .addText(text => {
@@ -206,7 +241,7 @@ export class GitSetupStep extends BaseWizardStep {
                     });
             });
 
-        new Setting(configContainer)
+        new Setting(setupContent)
             .setName('Description')
             .setDesc('A short description for your repository.')
             .addText(text => {
@@ -217,7 +252,7 @@ export class GitSetupStep extends BaseWizardStep {
                     });
             });
 
-        new Setting(configContainer)
+        new Setting(setupContent)
             .setName('Private Repository')
             .setDesc('Keep this repository private and hidden from the public.')
             .addToggle(toggle => {
@@ -228,7 +263,7 @@ export class GitSetupStep extends BaseWizardStep {
             });
 
         // Branch Name
-        new Setting(configContainer)
+        new Setting(setupContent)
             .setName('Default Branch')
             .setDesc('The name of the initial branch (e.g., "main" or "master").')
             .addText(text => {
@@ -244,7 +279,7 @@ export class GitSetupStep extends BaseWizardStep {
             });
 
         // Auto-configure obsidian-git
-        new Setting(configContainer)
+        new Setting(setupContent)
             .setName('Auto-configure Git plugin')
             .setDesc('Automatically set up the "Git" plugin to work with this project.')
             .addToggle(toggle => {
@@ -255,7 +290,7 @@ export class GitSetupStep extends BaseWizardStep {
             });
 
         // Action Button
-        const actionContainer = configContainer.createDiv({ cls: 'git-action-container', attr: { style: 'margin-top: 2rem;' } });
+        const actionContainer = setupContent.createDiv({ cls: 'git-action-container', attr: { style: 'margin-top: 2rem;' } });
         let buttonText = isRepo ? (remoteUrl ? 'Update Remote & Push' : 'Connect to GitHub') : 'Initialize & Push to GitHub';
 
         const createBtn = new ButtonComponent(actionContainer)
