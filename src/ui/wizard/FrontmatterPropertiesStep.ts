@@ -91,7 +91,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 				const detectedTags = this.frontmatterAnalyzer.autoDetectTagsProperty(dummyFrontmatter);
 				const detectedImage = this.frontmatterAnalyzer.autoDetectImageProperty(dummyFrontmatter);
 				const detectedDesc = this.frontmatterAnalyzer.autoDetectDescriptionProperty(dummyFrontmatter);
-				const detectedTitle = dummyFrontmatter.hasOwnProperty('title') ? 'title' : null;
+				const detectedTitle = this.frontmatterAnalyzer.autoDetectTitleProperty(dummyFrontmatter);
 				const detectedDate = this.frontmatterAnalyzer.autoDetectDateProperty(dummyFrontmatter);
 
 				// Check for underscore-prefixed files
@@ -529,7 +529,31 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 				}
 			}
 
-			// Then process other lines in order
+			// 2. Add date property if it's detected/enabled (ALWAYS include it)
+			let dateAdded = false;
+			if (props.dateProperty) {
+				for (const line of lines) {
+					const trimmed = line.trim();
+					if (!trimmed || trimmed.startsWith('#')) continue;
+
+					const colonIndex = trimmed.indexOf(':');
+					if (colonIndex > 0) {
+						const prop = trimmed.substring(0, colonIndex).trim();
+						if (prop === props.dateProperty && !processedProps.has(prop)) {
+							template += `${props.dateProperty}: {{date}}\n`;
+							dateAdded = true;
+							processedProps.add(prop);
+							continue;
+						}
+					}
+				}
+				if (!dateAdded && !processedProps.has(props.dateProperty)) {
+					template += `${props.dateProperty}: {{date}}\n`;
+					processedProps.add(props.dateProperty);
+				}
+			}
+
+			// 3. Then process other lines in order
 			for (const line of lines) {
 				const trimmed = line.trim();
 				if (!trimmed || trimmed.startsWith('#')) continue;
@@ -538,26 +562,14 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 				if (colonIndex > 0) {
 					const prop = trimmed.substring(0, colonIndex).trim();
 
-					// Skip if already processed
+					// Skip if already processed (title or primary date)
 					if (processedProps.has(prop)) {
-						continue;
-					}
-
-					// Skip title (already added)
-					if (prop === props.titleProperty) {
-						continue;
-					}
-
-					// Handle date property - ALWAYS include if detected/enabled
-					if (prop === props.dateProperty && props.dateProperty) {
-						template += `${props.dateProperty}: {{date}}\n`;
-						processedProps.add(prop);
 						continue;
 					}
 
 					// Handle description property
 					if (prop === props.descriptionProperty) {
-						template += `${props.descriptionProperty}: ""\n`;
+						template += `${prop}: ""\n`;
 						processedProps.add(prop);
 						continue;
 					}
@@ -571,28 +583,20 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 					} else if (typeof value === 'boolean') {
 						template += `${prop}: ${value}\n`;
 					} else if (typeof value === 'number') {
-						// Mirror the actual numeric value from the scanned document
 						template += `${prop}: ${value}\n`;
 					} else if (typeof value === 'string') {
-						// Check if it looks like a date (YYYY-MM-DD format)
-						if (/^\d{4}-\d{2}-\d{2}/.test(value) && prop.toLowerCase().includes('date')) {
-							template += `${prop}: {{date}}\n`;
-						} else {
-							template += `${prop}: ""\n`;
-						}
-					} else if (typeof value === 'object') {
-						if (Array.isArray(value)) {
-							template += `${prop}: []\n`;
-						} else {
-							template += `${prop}:\n`;
-						}
+						// DO NOT auto-add {{date}} to secondary properties anymore to avoid "updated: {{date}}" spam
+						// Just use an empty string as a placeholder for unknown strings
+						template += `${prop}: ""\n`;
+					} else {
+						template += `${prop}: ""\n`;
 					}
 
 					processedProps.add(prop);
 				}
 			}
 
-			// Finally, add any missing properties that were found in the folder but weren't in the example
+			// 4. Finally, add any missing properties that were found in the folder but weren't in the example
 			for (const prop of aggregateProps) {
 				if (processedProps.has(prop)) continue;
 
@@ -610,7 +614,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 					const draftValue = props.draftLogic === 'false-draft' ? 'false' : 'true';
 					template += `${prop}: ${draftValue}\n`;
 				} else {
-					// Generic fallback for other properties
+					// Generic fallback
 					template += `${prop}: ""\n`;
 				}
 				processedProps.add(prop);

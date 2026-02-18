@@ -1,6 +1,7 @@
 import { App, Modal, TFile, setIcon } from 'obsidian';
 import VaultCMSPlugin from '../main';
 import { ProjectDetector } from '../utils/ProjectDetector';
+import { BasesCMSConfigurator } from '../utils/BasesCMSConfig';
 
 interface HealthCheckResult {
 	category: string;
@@ -225,12 +226,11 @@ export class HealthCheckModal extends Modal {
 		let basesConfigured = false;
 		let basesMessage = 'No base file found';
 		try {
-			// Check for _bases/Home.base or bases/Home.base
-			const basesFile1 = this.app.vault.getAbstractFileByPath('_bases/Home.base');
-			const basesFile2 = this.app.vault.getAbstractFileByPath('bases/Home.base');
-			if (basesFile1 || basesFile2) {
+			const configurator = new BasesCMSConfigurator(this.app);
+			const baseFilePath = await configurator.resolveBaseFilePath();
+			if (await this.app.vault.adapter.exists(baseFilePath)) {
 				basesConfigured = true;
-				basesMessage = basesFile1 ? '_bases/Home.base found' : 'bases/Home.base found';
+				basesMessage = `${baseFilePath} found`;
 			}
 		} catch {
 			// File doesn't exist

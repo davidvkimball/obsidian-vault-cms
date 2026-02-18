@@ -155,16 +155,52 @@ export class FrontmatterAnalyzer {
 		}
 	}
 
-	autoDetectDateProperty(frontmatter: Record<string, unknown>): string | null {
-		const dateProperties = ['date', 'pubDate', 'publishedDate', 'publishDate'];
+	autoDetectTitleProperty(frontmatter: Record<string, unknown>): string | null {
+		const titleProperties = ['title', 'name', 'headline', 'heading', 'subject'];
 
-		for (const prop of dateProperties) {
+		for (const prop of titleProperties) {
 			if (frontmatter.hasOwnProperty(prop)) {
 				return prop;
 			}
 		}
 
-		return null; // Return null when not found, don't default to 'date'
+		return null;
+	}
+
+	autoDetectDateProperty(frontmatter: Record<string, unknown>): string | null {
+		const dateProperties = ['date', 'pubDate', 'publishedDate', 'publishDate', 'created', 'updated', 'modified'];
+
+		// First pass: Check for exact property names with valid date values
+		for (const prop of dateProperties) {
+			if (frontmatter.hasOwnProperty(prop)) {
+				const value = frontmatter[prop];
+				if (this.looksLikeDate(value)) {
+					return prop;
+				}
+			}
+		}
+
+		// Second pass: Catch anything with "date" in the name that looks like a date
+		for (const prop in frontmatter) {
+			if (prop.toLowerCase().includes('date') && this.looksLikeDate(frontmatter[prop])) {
+				return prop;
+			}
+		}
+
+		return null;
+	}
+
+	private looksLikeDate(value: unknown): boolean {
+		if (value instanceof Date) return true;
+		if (typeof value === 'string') {
+			// YYYY-MM-DD or ISO 8601
+			return /^\d{4}-\d{2}-\d{2}/.test(value);
+		}
+		if (typeof value === 'number') {
+			// Simple timestamp check (10+ digits)
+			return value > 1000000000;
+		}
+		return false;
 	}
 
 	autoDetectDescriptionProperty(frontmatter: Record<string, unknown>): string | null {
@@ -190,13 +226,26 @@ export class FrontmatterAnalyzer {
 
 	autoDetectDraftProperty(frontmatter: Record<string, unknown>): { property: string; logic: 'true-draft' | 'false-draft' } | null {
 		if (frontmatter.hasOwnProperty('draft')) {
-			// If property is "draft", logic should be "true-draft"
-			return { property: 'draft', logic: 'true-draft' };
+			const val = frontmatter['draft'];
+			if (typeof val === 'boolean') {
+				return { property: 'draft', logic: 'true-draft' };
+			}
 		}
 
 		if (frontmatter.hasOwnProperty('published')) {
-			// If property is "published", logic should be "false-draft"
-			return { property: 'published', logic: 'false-draft' };
+			const val = frontmatter['published'];
+			// If published is a boolean, it's draft logic
+			if (typeof val === 'boolean') {
+				return { property: 'published', logic: 'false-draft' };
+			}
+			// If published is a date (checked in autoDetectDateProperty), we skip it here
+		}
+
+		if (frontmatter.hasOwnProperty('visible')) {
+			const val = frontmatter['visible'];
+			if (typeof val === 'boolean') {
+				return { property: 'visible', logic: 'false-draft' };
+			}
 		}
 
 		return null;

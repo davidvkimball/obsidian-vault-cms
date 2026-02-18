@@ -25,38 +25,29 @@ export class ContentTypeDetector {
 	}
 
 	/**
-	 * Recursively find leaf folders (folders with no valid subfolders).
-	 * These are treated as content types.
+	 * Detect content types based on immediate subfolders of the given root.
 	 */
 	private detectContentTypesFromFolder(rootFolder: TFolder): ContentTypeConfig[] {
 		const contentTypes: ContentTypeConfig[] = [];
-		const result: TFolder[] = [];
+		const subfolders = this.getTopLevelFolders(rootFolder);
 
-		const findLeafFolders = (folder: TFolder) => {
-			const subfolders = this.getTopLevelFolders(folder);
-
-			if (subfolders.length === 0) {
-				// This is a leaf folder (or at least has no relevant subfolders)
-				// We only suggest it if it's not the root content folder itself (unless it's empty)
-				result.push(folder);
-			} else {
-				// Not a leaf, recurse into subfolders
-				for (const sub of subfolders) {
-					findLeafFolders(sub);
+		if (subfolders.length > 0) {
+			// Traditional behavior: detect immediate subfolders as content types
+			for (const folder of subfolders) {
+				const contentType = this.detectContentType(folder);
+				if (contentType) {
+					contentTypes.push(contentType);
 				}
 			}
-		};
-
-		findLeafFolders(rootFolder);
-
-		for (const folder of result) {
-			// Skip the root folder itself if it was the only thing found and it's empty
-			// (unless the user specifically pointed the vault at an empty folder)
-			if (folder === rootFolder && rootFolder.children.length === 0 && rootFolder.name === '/') {
-				continue;
+		} else {
+			// Fallback: If no subfolders are found, treat the root folder itself as a content type
+			// (handles cases where the vault is pointed directly at a content folder)
+			// Skip if it's strictly the vault root with no children
+			if (rootFolder.name === '/' && rootFolder.children.length === 0) {
+				return [];
 			}
 
-			const contentType = this.detectContentType(folder);
+			const contentType = this.detectContentType(rootFolder);
 			if (contentType) {
 				contentTypes.push(contentType);
 			}
@@ -165,6 +156,10 @@ export class ContentTypeDetector {
 				if (!child.name.startsWith('.') &&
 					child.name !== 'bases' &&
 					child.name !== '_bases' &&
+					child.name !== 'home' &&
+					child.name !== '_home' &&
+					child.name !== 'base' &&
+					child.name !== '_base' &&
 					child.name !== 'node_modules' &&
 					child.name !== configDir) {
 					folders.push(child);

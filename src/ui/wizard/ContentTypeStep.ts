@@ -25,18 +25,18 @@ class FolderNameSuggest extends AbstractInputSuggest<string> {
 	getSuggestions(inputStr: string): string[] {
 		const suggestions: string[] = [];
 		const lowerInput = inputStr.toLowerCase();
-		
+
 		if (this.mode === 'subfolder') {
 			// For subfolder mode, suggest folder names only
 			// Always suggest "attachments" if it matches
 			if ('attachments'.toLowerCase().includes(lowerInput)) {
 				suggestions.push('attachments');
 			}
-			
+
 			// Get folder names from vault
 			const allFiles = this.app.vault.getAllLoadedFiles();
 			const folderNames = new Set<string>();
-			
+
 			for (const file of allFiles) {
 				if (file instanceof TFolder) {
 					const folderName = file.name;
@@ -45,13 +45,13 @@ class FolderNameSuggest extends AbstractInputSuggest<string> {
 					}
 				}
 			}
-			
+
 			suggestions.push(...Array.from(folderNames).slice(0, 10));
 		} else {
 			// For specified-folder mode, suggest full paths
 			const allFiles = this.app.vault.getAllLoadedFiles();
 			const paths = new Set<string>();
-			
+
 			for (const file of allFiles) {
 				if (file instanceof TFolder) {
 					const path = file.path;
@@ -60,10 +60,10 @@ class FolderNameSuggest extends AbstractInputSuggest<string> {
 					}
 				}
 			}
-			
+
 			suggestions.push(...Array.from(paths).slice(0, 10));
 		}
-		
+
 		return suggestions;
 	}
 
@@ -98,22 +98,22 @@ export class ContentTypeStep extends BaseWizardStep {
 			// First try to use plugin API (like how we save)
 			const plugins = (this.app as { plugins?: { plugins?: Record<string, { settings?: { contentTypes?: unknown[] } }> } }).plugins;
 			console.debug('ContentTypeStep: Checking plugins API:', !!plugins);
-			
+
 			if (plugins) {
 				const astroComposerPlugin = plugins.plugins?.['astro-composer'];
 				console.debug('ContentTypeStep: Astro Composer plugin found:', !!astroComposerPlugin);
-				
+
 				if (astroComposerPlugin) {
 					console.debug('ContentTypeStep: Plugin settings available:', !!astroComposerPlugin.settings);
 					console.debug('ContentTypeStep: Plugin settings keys:', astroComposerPlugin.settings ? Object.keys(astroComposerPlugin.settings) : 'none');
-					
+
 					if (astroComposerPlugin.settings) {
 						const contentTypes = astroComposerPlugin.settings.contentTypes;
 						console.debug('ContentTypeStep: contentTypes from plugin:', contentTypes ? `Array with ${contentTypes.length} items` : 'not found');
-						
+
 						if (Array.isArray(contentTypes) && contentTypes.length > 0) {
 							console.debug('ContentTypeStep: Importing', contentTypes.length, 'content types from Astro Composer (via plugin API)');
-							
+
 							// Convert Astro Composer content types to our format
 							const importedTypes: ContentTypeConfig[] = contentTypes.map((ct: { id?: string; name?: string; folder: string; creationMode?: string; indexFileName?: string; linkBasePath?: string; enabled?: boolean }) => ({
 								id: ct.id || `content-type-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
@@ -130,31 +130,31 @@ export class ContentTypeStep extends BaseWizardStep {
 					}
 				}
 			}
-			
+
 			// Fallback to file reading
 			const configDir = this.app.vault.configDir;
 			const pluginDataPath = `${configDir}/plugins/astro-composer/data.json`;
 			console.debug('ContentTypeStep: Trying to read file:', pluginDataPath);
 			const dataFile = this.app.vault.getAbstractFileByPath(pluginDataPath);
 			console.debug('ContentTypeStep: File found:', !!dataFile, dataFile ? `Type: ${dataFile.constructor.name}` : 'not found');
-			
+
 			if (!dataFile || !(dataFile instanceof TFile)) {
 				// Try alternative paths
 				const altPaths = [
 					`${configDir}/plugins/astro-composer/data.json`,
 					`obsidian/plugins/astro-composer/data.json`
 				];
-				
+
 				for (const altPath of altPaths) {
 					const altFile = this.app.vault.getAbstractFileByPath(altPath);
 					if (altFile && altFile instanceof TFile) {
 						console.debug('ContentTypeStep: Found file at alternative path:', altPath);
 						const content = await this.app.vault.read(altFile);
 						const data = JSON.parse(content) as { contentTypes?: unknown[] };
-						
+
 						if (data.contentTypes && Array.isArray(data.contentTypes)) {
 							console.debug('ContentTypeStep: Importing', data.contentTypes.length, 'content types from Astro Composer (via file at', altPath, ')');
-							
+
 							const importedTypes: ContentTypeConfig[] = data.contentTypes.map((ct: { id?: string; name?: string; folder: string; creationMode?: string; indexFileName?: string; linkBasePath?: string; enabled?: boolean }) => ({
 								id: ct.id || `content-type-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
 								name: ct.name || this.capitalizeFirst(ct.folder),
@@ -164,26 +164,26 @@ export class ContentTypeStep extends BaseWizardStep {
 								linkBasePath: ct.linkBasePath,
 								enabled: ct.enabled !== false
 							}));
-							
+
 							return importedTypes;
 						}
 					}
 				}
-				
+
 				console.debug('ContentTypeStep: No Astro Composer data.json found, will scan folders');
 				return [];
 			}
 
 			const content = await this.app.vault.read(dataFile);
 			const data = JSON.parse(content) as { contentTypes?: unknown[] };
-			
+
 			if (!data.contentTypes || !Array.isArray(data.contentTypes)) {
 				console.debug('ContentTypeStep: Astro Composer data.json has no contentTypes array. Data keys:', Object.keys(data));
 				return [];
 			}
 
 			console.debug('ContentTypeStep: Importing', data.contentTypes.length, 'content types from Astro Composer (via file)');
-			
+
 			// Convert Astro Composer content types to our format
 			const importedTypes: ContentTypeConfig[] = data.contentTypes.map((ct: { id?: string; name?: string; folder: string; creationMode?: string; indexFileName?: string; linkBasePath?: string; enabled?: boolean }) => ({
 				id: ct.id || `content-type-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
@@ -204,10 +204,14 @@ export class ContentTypeStep extends BaseWizardStep {
 
 	async display(): Promise<void> {
 		const { containerEl } = this;
-		
+
+		// Preserve scroll position to prevent jumping
+		const scrollableParent = containerEl.closest('.modal-content') || containerEl.parentElement;
+		const currentScrollTop = scrollableParent ? scrollableParent.scrollTop : 0;
+
 		// Find or create content wrapper (preserve footer if it exists)
 		let stepContentWrapper = containerEl.querySelector('.content-type-step-content') as HTMLElement;
-		
+
 		if (!stepContentWrapper) {
 			// First time - clear everything and create wrapper
 			containerEl.empty();
@@ -217,38 +221,47 @@ export class ContentTypeStep extends BaseWizardStep {
 			stepContentWrapper.empty();
 		}
 
+		// Function to restore scroll after render
+		const restoreScroll = () => {
+			if (scrollableParent && currentScrollTop > 0) {
+				requestAnimationFrame(() => {
+					scrollableParent.scrollTop = currentScrollTop;
+				});
+			}
+		};
+
 		stepContentWrapper.createEl('h2', { text: 'Content types' });
-		stepContentWrapper.createEl('p', { 
-			text: 'Detecting content types in your vault...' 
+		stepContentWrapper.createEl('p', {
+			text: 'Detecting content types in your vault...'
 		});
 
 		if (!this.detected) {
 			// Get saved content types from state (preserves enabled state from previous wizard runs)
 			const savedContentTypes = this.state.contentTypes || [];
 			const savedContentTypesMap = new Map(savedContentTypes.map(ct => [ct.folder, ct]));
-			
+
 			// First, try to import from Astro Composer if it exists
 			const importedTypes = await this.importFromAstroComposer();
-			
+
 			// Then scan for new folders that aren't already mapped
 			// Pass project detection info so it can find src/content directory correctly
 			const scannedTypes = this.contentTypeDetector.detectContentTypes(this.state.projectDetection);
-			
+
 			// Combine imported and scanned types
 			// Reconcile: if we have both a short path and a long path that ends with it, prefer the long path
 			const allDetectedTypes: ContentTypeConfig[] = [];
-			
+
 			// 1. Start with all imported types
 			const imported = [...importedTypes];
-			
+
 			// 2. Check each scanned type
 			for (const scanned of scannedTypes) {
-				const matchingImportedIndex = imported.findIndex(it => 
-					scanned.folder === it.folder || 
+				const matchingImportedIndex = imported.findIndex(it =>
+					scanned.folder === it.folder ||
 					scanned.folder.endsWith(`/${it.folder}`) ||
 					it.folder.endsWith(`/${scanned.folder}`)
 				);
-				
+
 				if (matchingImportedIndex >= 0) {
 					// Reconcile: update the imported one with the longer folder path if it's a match
 					const importedType = imported[matchingImportedIndex];
@@ -264,36 +277,36 @@ export class ContentTypeStep extends BaseWizardStep {
 					allDetectedTypes.push(scanned);
 				}
 			}
-			
+
 			// Combine reconciled imported types with new detected types
 			allDetectedTypes.push(...imported);
-			
+
 			const detectedTypesMap = new Map(allDetectedTypes.map(ct => [ct.folder, ct]));
-			
+
 			// Merge with saved content types, preserving enabled state from saved settings
 			const mergedTypes: ContentTypeConfig[] = [];
 			const processedFolders = new Set<string>();
-			
+
 			// Process all folders (both saved and detected)
 			const allFolders = new Set([
 				...savedContentTypes.map(ct => ct.folder),
 				...allDetectedTypes.map(ct => ct.folder)
 			]);
-			
+
 			for (const folder of allFolders) {
 				if (processedFolders.has(folder)) continue;
-				
+
 				let savedType = savedContentTypesMap.get(folder);
 				const detectedType = detectedTypesMap.get(folder);
-				
+
 				// RECONCILIATION: If we have a saved type that wasn't detected, check if it's because
 				// it was saved with a short path (e.g. "posts") but now detected with a full path (e.g. "src/content/posts")
 				if (savedType && !detectedType) {
 					// Try to find if this saved type's folder name matches the end of any detected folder
-					const matchingDetected = allDetectedTypes.find(dt => 
+					const matchingDetected = allDetectedTypes.find(dt =>
 						dt.folder.endsWith(`/${folder}`) || dt.folder === folder
 					);
-					
+
 					if (matchingDetected && !processedFolders.has(matchingDetected.folder)) {
 						console.debug(`ContentTypeStep: Reconciling saved folder "${folder}" with detected folder "${matchingDetected.folder}"`);
 						// Migrate saved settings to the correct detected folder path
@@ -306,7 +319,7 @@ export class ContentTypeStep extends BaseWizardStep {
 						continue;
 					}
 				}
-				
+
 				if (savedType) {
 					// Use saved type to preserve enabled state, custom name, and all other settings
 					// If there's also a detected type, merge in any new info while preserving saved settings
@@ -326,26 +339,26 @@ export class ContentTypeStep extends BaseWizardStep {
 					// Use auto-detected name as starting point (user can customize it)
 					mergedTypes.push(detectedType);
 				}
-				
+
 				processedFolders.add(folder);
 			}
-			
+
 			// Sort alphabetically by name
 			mergedTypes.sort((a, b) => a.name.localeCompare(b.name));
-			
+
 			this.state.contentTypes = mergedTypes;
 			this.detected = true;
 		}
 
 		stepContentWrapper.empty();
 		stepContentWrapper.createEl('h2', { text: 'Content types' });
-		stepContentWrapper.createEl('p', { 
-			text: 'Select and configure your content types:' 
+		stepContentWrapper.createEl('p', {
+			text: 'Select and configure your content types:'
 		});
 
 		// Global attachment handling at the top
 		stepContentWrapper.createEl('h3', { text: 'Attachment handling', cls: 'vault-cms-section-header' });
-		stepContentWrapper.createEl('p', { 
+		stepContentWrapper.createEl('p', {
 			text: 'How should attachments be stored globally?',
 			cls: 'vault-cms-section-desc'
 		});
@@ -370,10 +383,10 @@ export class ContentTypeStep extends BaseWizardStep {
 
 		// Show folder name input for specified-folder or subfolder modes
 		if (this.state.attachmentHandlingMode === 'specified-folder' || this.state.attachmentHandlingMode === 'subfolder') {
-			const descText = this.state.attachmentHandlingMode === 'specified-folder' 
+			const descText = this.state.attachmentHandlingMode === 'specified-folder'
 				? 'Enter the exact path to the folder for attachments (e.g., "attachments" or "images/attachments"). Leave blank to use "attachments" as default.'
 				: 'Enter the name of the subfolder for attachments (e.g., "attachments"). Leave blank to use "attachments" as default.';
-			
+
 			const folderNameSetting = new Setting(stepContentWrapper)
 				.setName('Attachment folder')
 				.setDesc(descText);
@@ -384,7 +397,7 @@ export class ContentTypeStep extends BaseWizardStep {
 					.onChange(value => {
 						this.state.attachmentFolderName = value || undefined;
 					});
-				
+
 				// Add autocomplete suggester with mode (only if not same-folder)
 				if (this.state.attachmentHandlingMode !== 'same-folder') {
 					new FolderNameSuggest(this.app, text.inputEl, this.state.attachmentHandlingMode);
@@ -399,33 +412,33 @@ export class ContentTypeStep extends BaseWizardStep {
 
 		for (const contentType of this.state.contentTypes) {
 			const setting = new Setting(stepContentWrapper);
-			
+
 			// Create click-to-edit name element with icon
 			const nameContainer = setting.nameEl.createDiv({ cls: 'vault-cms-editable-name' });
 			setCssProps(nameContainer, { display: 'flex', alignItems: 'center', gap: '0.5rem' });
-			
+
 			// Function to create the display element with click handler
 			const createNameDisplay = (name: string) => {
 				// Clear container first
 				nameContainer.empty();
-				
-				const display = nameContainer.createSpan({ 
+
+				const display = nameContainer.createSpan({
 					text: name,
 					cls: 'vault-cms-name-display'
 				});
-				
+
 				// Add pencil icon
 				const iconContainer = nameContainer.createDiv({ cls: 'vault-cms-edit-icon' });
 				setCssProps(iconContainer, { opacity: '0.6' });
 				setIcon(iconContainer, 'lucide-pencil-line');
-				
+
 				// Make name and icon editable on click
 				const startEdit = () => {
 					const currentName = contentType.name;
-					
+
 					// Clear container
 					nameContainer.empty();
-					
+
 					// Create input using native Obsidian styling
 					const nameInput = nameContainer.createEl('input', {
 						type: 'text',
@@ -433,16 +446,16 @@ export class ContentTypeStep extends BaseWizardStep {
 					});
 					// Use native Obsidian input styling class (same as Setting.addText uses)
 					nameInput.addClass('mod-text-input');
-					
+
 					// Focus and select text
 					nameInput.focus();
 					nameInput.select();
-					
+
 					// Save on blur
 					const saveName = () => {
 						// Remove blur listener to prevent double execution
 						nameInput.removeEventListener('blur', saveName);
-						
+
 						let newName = nameInput.value.trim();
 						// Validate: ensure name is not empty
 						if (!newName) {
@@ -458,12 +471,12 @@ export class ContentTypeStep extends BaseWizardStep {
 							newName = newName.trim();
 						}
 						contentType.name = newName;
-						
+
 						// Re-render to update all references to the name
 						// Don't call createNameDisplay here as display() will recreate everything
 						void this.display();
 					};
-					
+
 					// Save on Enter
 					nameInput.addEventListener('keydown', (e) => {
 						if (e.key === 'Enter') {
@@ -475,15 +488,15 @@ export class ContentTypeStep extends BaseWizardStep {
 							createNameDisplay(currentName);
 						}
 					});
-					
+
 					// Save on blur
 					nameInput.addEventListener('blur', saveName);
 				};
-				
+
 				// Add click handlers to both name and icon
 				display.addEventListener('click', startEdit);
 				iconContainer.addEventListener('click', startEdit);
-				
+
 				// Add hover effect to icon
 				iconContainer.addEventListener('mouseenter', () => {
 					setCssProps(iconContainer, { opacity: '1' });
@@ -491,13 +504,13 @@ export class ContentTypeStep extends BaseWizardStep {
 				iconContainer.addEventListener('mouseleave', () => {
 					setCssProps(iconContainer, { opacity: '0.6' });
 				});
-				
+
 				return display;
 			};
-			
+
 			// Create initial display
 			createNameDisplay(contentType.name);
-			
+
 			setting.setDesc(`Folder: ${contentType.folder}`)
 				.addToggle(toggle => toggle
 					.setValue(contentType.enabled)
@@ -548,7 +561,7 @@ export class ContentTypeStep extends BaseWizardStep {
 		}
 
 		// Add Additional Content Type button
-		const addButton = stepContentWrapper.createEl('button', { 
+		const addButton = stepContentWrapper.createEl('button', {
 			text: 'Add additional content type',
 			cls: 'mod-cta'
 		});
@@ -560,7 +573,7 @@ export class ContentTypeStep extends BaseWizardStep {
 					// Calculate relative path from vault root
 					const vaultPath = this.getVaultPath();
 					let folderPath = selectedFolder;
-					
+
 					// If selected folder is inside the vault, make it relative
 					if (selectedFolder.startsWith(vaultPath)) {
 						folderPath = selectedFolder.substring(vaultPath.length).replace(/^[/\\]+/, '');
@@ -569,7 +582,7 @@ export class ContentTypeStep extends BaseWizardStep {
 					// Extract folder name from path (last segment) for the display name
 					const pathParts = folderPath.split(/[/\\]/).filter(p => p.length > 0);
 					const leafFolderName = pathParts[pathParts.length - 1] || folderPath;
-					
+
 					const newType: ContentTypeConfig = {
 						id: `content-type-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
 						name: this.capitalizeFirst(leafFolderName),
@@ -583,6 +596,9 @@ export class ContentTypeStep extends BaseWizardStep {
 				}
 			})();
 		});
+
+		// Restore scroll position after all rendering is complete
+		restoreScroll();
 	}
 
 	/**

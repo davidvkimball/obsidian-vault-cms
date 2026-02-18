@@ -13,25 +13,28 @@ export class BasesCMSConfigurator {
 	}
 
 	async resolveBaseFilePath(): Promise<string> {
-		const preferredPath = '_bases/Home.base';
-		const legacyPath = 'bases/Home.base';
+		const candidateFolders = ['_bases', 'bases', '_home', 'home', '_base', 'base'];
+		const candidateFiles = ['Home.base', 'home.base', 'index.base'];
 
-		if (await this.app.vault.adapter.exists(preferredPath)) {
-			return preferredPath;
-		}
-		if (await this.app.vault.adapter.exists(legacyPath)) {
-			return legacyPath;
-		}
-
-		// Check if folders exist even if file doesn't
-		if (await this.app.vault.adapter.exists('_bases')) {
-			return preferredPath;
-		}
-		if (await this.app.vault.adapter.exists('bases')) {
-			return legacyPath;
+		// 1. Check for existing files first (preferred combinations)
+		for (const folder of candidateFolders) {
+			for (const file of candidateFiles) {
+				const fullPath = `${folder}/${file}`;
+				if (await this.app.vault.adapter.exists(fullPath)) {
+					return fullPath;
+				}
+			}
 		}
 
-		return preferredPath;
+		// 2. Check for folders even if file doesn't exist (to decide where to create)
+		for (const folder of candidateFolders) {
+			if (await this.app.vault.adapter.exists(folder)) {
+				return `${folder}/Home.base`; // Default to Home.base in first existing folder found
+			}
+		}
+
+		// 3. Absolute default
+		return '_bases/Home.base';
 	}
 
 	async createOrUpdateBaseFile(
