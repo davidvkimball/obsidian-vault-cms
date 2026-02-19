@@ -11,10 +11,10 @@ Part of the [Vault CMS](https://github.com/davidvkimball/vault-cms) project.
 
 ## Features
 
-- **Setup Wizard**: Multi-step onboarding with project detection, content type identification, frontmatter mapping, and automatic plugin configuration.
+- **Setup Wizard**: Multi-step onboarding with project detection, content type identification, properties mapping, and automatic plugin configuration.
 - **Git Integration**: Securely connect to GitHub, initialize repositories, and perform initial pushes directly from Obsidian. Seamless handoff to the Git plugin.
 - **Project Optimization**: Automatically identifies and applies `.gitignore` and Vite ignore patterns to optimize your Astro project for Obsidian.
-- **Auto-detection**: Automatically detects Astro project structure, content types, and frontmatter properties.
+- **Auto-detection**: Automatically detects Astro project structure, content types, and properties.
 - **Plugin Integration**: Configures Astro Composer, Bases CMS, SEO, Property Over File Name, Image Manager, and more.
 - **Content Type Management**: Identifies and configures content types (posts, pages, docs, etc.) from your project structure.
 - **MDX Support**: Optional MDX file support with auto-detection.
@@ -22,7 +22,7 @@ Part of the [Vault CMS](https://github.com/davidvkimball/vault-cms) project.
 
 ## Installation
 
-The Vault CMS plugin is intended to be used with Vault CMS, but can is also can be instaslled manually or via BRAT:
+The Vault CMS plugin is intended to be used with Vault CMS, but can also be installed manually or via BRAT:
 
 ### BRAT
 
@@ -51,21 +51,18 @@ Via Command Palette (`Ctrl/Cmd + P`):
 
 ## Configuration
 
-### Wizard Steps (13-Step Process)
+### Wizard Steps (10-Step Process)
 
 1. **Welcome**: Overview of the setup process.
 2. **Project Detection**: Locates your Astro project by identifying config files (`astro.config.mjs`, etc.).
 3. **Content Types**: Scans your project to identify and categorize content folders.
-4. **Default Content Type**: Select the primary content type for new notes.
-5. **Frontmatter Properties**: Analyzes your data to map existing frontmatter structures.
-6. **Editing Toolbar Preference**: Toggles the editing toolbar based on your workflow.
-7. **Bases CMS Configuration**: Dynamically creates CMS views for your content types.
-8. **Astro Composer Configuration**: Bridges Obsidian with Astro's content management.
-9. **SEO Configuration**: Sets up scanning directories and property mappings for SEO audits.
-10. **Optional Plugins**: Enable or disable recommended ecosystem plugins.
-11. **Ignore Files**: Automatically optimizes `.gitignore` and Vite configurations.
-12. **Git Integration**: Securely links your project to GitHub (PAT stored in Obsidian Secrets).
-13. **Finalize**: Review summaries and apply the final configuration.
+4. **Properties**: Analyzes your data to map existing property structures.
+5. **Plugin Configuration**: Configures Astro Composer, Bases CMS, SEO, and other ecosystem plugins based on your project.
+6. **Optional Plugins**: Enable or disable recommended ecosystem plugins.
+7. **Project Optimization**: Automatically optimizes `.gitignore` and Vite configurations.
+8. **Git Integration**: Securely links your project to GitHub (PAT stored in Obsidian Secrets).
+9. **Deployment**: Configure deployment settings for your project.
+10. **Finalize**: Review summaries and apply the final configuration.
 
 ### Git Integration & Security
 
@@ -83,7 +80,7 @@ The plugin dynamically detects your Bases CMS configuration folder. It prefers `
 The wizard automatically detects:
 - **Project Structure**: Finds Astro project by locating `astro.config.mjs`, `astro.config.ts`, or other config files.
 - **Content Types**: Scans content folders (posts, pages, docs, etc.) and identifies them as content types.
-- **Frontmatter Properties**: Analyzes existing content files to detect properties (title, date, description, etc.).
+- **Properties**: Analyzes existing content files to detect properties (title, date, description, etc.).
 
 ### Astro Theme Presets
 
