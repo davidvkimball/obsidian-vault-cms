@@ -61,8 +61,8 @@ export class IgnoreStep extends BaseWizardStep {
 	}
 
 	private updateViteSetting(status: 'configured' | 'not-configured') {
-		this.viteSetting.setName('Ignore workspace and bases folders in Vite')
-			.setDesc('Configure Vite to ignore Obsidian and bases folders.')
+		this.viteSetting.setName('Ignore workspace and Home Base folders in Vite')
+			.setDesc('Configure Vite to ignore Obsidian and Home Base folders.')
 			.clear(); // Clear existing buttons and status
 
 		this.viteSetting.addButton(button => {

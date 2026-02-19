@@ -77,8 +77,9 @@ export class ProjectOptimizer {
 			const content = fs.readFileSync(resolvedViteConfigPath, 'utf8');
 			const hasWatchIgnored = content.includes('server.watch.ignored') || content.includes('ignored:');
 			const hasConfigDir = content.includes(configDir);
-			console.debug('[Vault CMS] ProjectOptimizer: Vite config has patterns:', { hasWatchIgnored, hasConfigDir });
-			if (hasWatchIgnored && hasConfigDir) {
+			const hasBasesPattern = content.includes('bases') || content.includes('home') || content.includes('base');
+			console.debug('[Vault CMS] ProjectOptimizer: Vite config has patterns:', { hasWatchIgnored, hasConfigDir, hasBasesPattern });
+			if (hasWatchIgnored && (hasConfigDir || hasBasesPattern)) {
 				status.viteIgnoreStatus = 'configured';
 			}
 		} else {
@@ -207,30 +208,31 @@ export class ProjectOptimizer {
 						if (configBody.includes('watch:')) {
 							if (configBody.includes('ignored:')) {
 								if (!configBody.includes(configDir)) {
+									const ignorePatterns = `'**/${configDir}/**', '**/_bases/**', '**/bases/**', '**/_home/**', '**/home/**', '**/_base/**', '**/base/**'`;
 									configBody = configBody.replace(/ignored:\s*\[([^\]]*)\]/, (_m, p1: string) => {
 										const existing = p1.trim();
 										const separator = existing ? ', ' : '';
-										return `ignored: [${existing}${separator}'**/${configDir}/**', '**/_bases/**', '**/bases/**']`;
+										return `ignored: [${existing}${separator}${ignorePatterns}]`;
 									});
 								}
 							} else {
-								configBody = configBody.replace(/watch:\s*\{/, `watch: {\n      ignored: ['**/${configDir}/**', '**/_bases/**', '**/bases/**'],`);
+								configBody = configBody.replace(/watch:\s*\{/, `watch: {\n      ignored: ['**/${configDir}/**', '**/_bases/**', '**/bases/**', '**/_home/**', '**/home/**', '**/_base/**', '**/base/**'],`);
 							}
 						} else {
-							configBody = configBody.replace(/server:\s*\{/, `server: {\n    watch: {\n      ignored: ['**/${configDir}/**', '**/_bases/**', '**/bases/**']\n    },`);
+							configBody = configBody.replace(/server:\s*\{/, `server: {\n    watch: {\n      ignored: ['**/${configDir}/**', '**/_bases/**', '**/bases/**', '**/_home/**', '**/home/**', '**/_base/**', '**/base/**']\n    },`);
 						}
 					} else {
-						configBody = configBody.replace(/vite:\s*\{/, `vite: {\n    server: {\n      watch: {\n        ignored: ['**/${configDir}/**', '**/_bases/**', '**/bases/**']\n      }\n    },`);
+						configBody = configBody.replace(/vite:\s*\{/, `vite: {\n    server: {\n      watch: {\n        ignored: ['**/${configDir}/**', '**/_bases/**', '**/bases/**', '**/_home/**', '**/home/**', '**/_base/**', '**/base/**']\n      }\n    },`);
 					}
 				} else {
 					if (isWholeFile) {
 						if (content.includes('defineConfig')) {
-							configBody = configBody.replace(/defineConfig\s*\(\s*\{/, `defineConfig({\n  vite: {\n    server: {\n      watch: {\n        ignored: ['**/${configDir}/**', '**/_bases/**', '**/bases/**']\n      }\n    }\n  },`);
+							configBody = configBody.replace(/defineConfig\s*\(\s*\{/, `defineConfig({\n  vite: {\n    server: {\n      watch: {\n        ignored: ['**/${configDir}/**', '**/_bases/**', '**/bases/**', '**/_home/**', '**/home/**', '**/_base/**', '**/base/**']\n      }\n    }\n  },`);
 						} else {
 							throw new Error(`Could not find a clear place to insert Vite config in ${configFileName}.`);
 						}
 					} else {
-						configBody = `\n  vite: {\n    server: {\n      watch: {\n        ignored: ['**/${configDir}/**', '**/_bases/**', '**/bases/**']\n      }\n    }\n  },` + configBody;
+						configBody = `\n  vite: {\n    server: {\n      watch: {\n        ignored: ['**/${configDir}/**', '**/_bases/**', '**/bases/**', '**/_home/**', '**/home/**', '**/_base/**', '**/base/**']\n      }\n    }\n  },` + configBody;
 					}
 				}
 

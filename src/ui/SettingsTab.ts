@@ -245,8 +245,8 @@ export class SettingsTab extends PluginSettingTab {
 	}
 
 	private updateViteSetting(status: 'configured' | 'not-configured') {
-		this.viteSetting.setName('Ignore in Vite')
-			.setDesc('Configure Vite to ignore internal folders')
+		this.viteSetting.setName('Ignore workspace and Home Base folders in Vite')
+			.setDesc('Configure Vite to ignore Obsidian and Home Base folders.')
 			.clear(); // Clear existing buttons and status
 
 		this.viteSetting.addButton(button => {
