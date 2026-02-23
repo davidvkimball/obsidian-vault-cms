@@ -76,10 +76,11 @@ export class ProjectOptimizer {
 			console.debug('[Vault CMS] ProjectOptimizer: Checking Vite config at:', resolvedViteConfigPath);
 			const content = fs.readFileSync(resolvedViteConfigPath, 'utf8');
 			const hasWatchIgnored = content.includes('server.watch.ignored') || content.includes('ignored:');
+			const hasAssetsInclude = content.includes('assetsInclude:');
 			const hasConfigDir = content.includes(configDir);
 			const hasBasesPattern = content.includes('bases') || content.includes('home') || content.includes('base');
-			console.debug('[Vault CMS] ProjectOptimizer: Vite config has patterns:', { hasWatchIgnored, hasConfigDir, hasBasesPattern });
-			if (hasWatchIgnored && (hasConfigDir || hasBasesPattern)) {
+			console.debug('[Vault CMS] ProjectOptimizer: Vite config has patterns:', { hasWatchIgnored, hasAssetsInclude, hasConfigDir, hasBasesPattern });
+			if (hasWatchIgnored && hasAssetsInclude && (hasConfigDir || hasBasesPattern)) {
 				status.viteIgnoreStatus = 'configured';
 			}
 		} else {
@@ -204,6 +205,12 @@ export class ProjectOptimizer {
 
 			if (configBody) {
 				if (configBody.includes('vite:')) {
+					// 1. Add assetsInclude if missing
+					if (!configBody.includes('assetsInclude:')) {
+						configBody = configBody.replace(/vite:\s*\{/, `vite: {\n    assetsInclude: ['**/*.base', '**/.obsidian/**', '**/_bases/**'],`);
+					}
+
+					// 2. Add or update server.watch.ignored
 					if (configBody.includes('server:')) {
 						if (configBody.includes('watch:')) {
 							if (configBody.includes('ignored:')) {
@@ -227,12 +234,12 @@ export class ProjectOptimizer {
 				} else {
 					if (isWholeFile) {
 						if (content.includes('defineConfig')) {
-							configBody = configBody.replace(/defineConfig\s*\(\s*\{/, `defineConfig({\n  vite: {\n    server: {\n      watch: {\n        ignored: ['**/${configDir}/**', '**/_bases/**', '**/bases/**', '**/_home/**', '**/home/**', '**/_base/**', '**/base/**']\n      }\n    }\n  },`);
+							configBody = configBody.replace(/defineConfig\s*\(\s*\{/, `defineConfig({\n  vite: {\n    assetsInclude: ['**/*.base', '**/.obsidian/**', '**/_bases/**'],\n    server: {\n      watch: {\n        ignored: ['**/${configDir}/**', '**/_bases/**', '**/bases/**', '**/_home/**', '**/home/**', '**/_base/**', '**/base/**']\n      }\n    }\n  },`);
 						} else {
 							throw new Error(`Could not find a clear place to insert Vite config in ${configFileName}.`);
 						}
 					} else {
-						configBody = `\n  vite: {\n    server: {\n      watch: {\n        ignored: ['**/${configDir}/**', '**/_bases/**', '**/bases/**', '**/_home/**', '**/home/**', '**/_base/**', '**/base/**']\n      }\n    }\n  },` + configBody;
+						configBody = `\n  vite: {\n    assetsInclude: ['**/*.base', '**/.obsidian/**', '**/_bases/**'],\n    server: {\n      watch: {\n        ignored: ['**/${configDir}/**', '**/_bases/**', '**/bases/**', '**/_home/**', '**/home/**', '**/_base/**', '**/base/**']\n      }\n    }\n  },` + configBody;
 					}
 				}
 
