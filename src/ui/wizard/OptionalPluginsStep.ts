@@ -48,7 +48,7 @@ export class OptionalPluginsStep extends BaseWizardStep {
 			{ id: 'ui-tweaker', name: 'UI Tweaker', category: 'essential' },
 			{ id: 'simple-focus', name: 'Simple Focus', category: 'essential' },
 			{ id: 'statusbar-organizer', name: 'Status Bar Organizer', category: 'essential' },
-			{ id: 'alias-file-name-history', name: 'Alias File Name History', category: 'nice-to-have' },
+			{ id: 'file-name-history', name: 'File Name History', category: 'nice-to-have' },
 			{ id: 'data-files-editor', name: 'Data Files Editor', category: 'nice-to-have' },
 			{ id: 'iconic', name: 'Iconic', category: 'nice-to-have' },
 			{ id: 'paste-image-into-property', name: 'Paste Image Into Property', category: 'nice-to-have' },
