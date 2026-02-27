@@ -180,7 +180,7 @@ export class FinalizeStep extends BaseWizardStep {
 		const leavesToUpdate: BasesLeafState[] = [];
 		this.app.workspace.iterateAllLeaves((leaf) => {
 			const viewType = leaf.view.getViewType();
-			if (viewType === 'bases' || viewType === 'bases-cms') {
+			if (viewType === 'bases' || viewType === 'bases-cms' || viewType === 'cms') {
 				const state = leaf.getViewState();
 				if (state.state?.file === baseFilePath) {
 					console.debug(`FinalizeStep: Found Bases leaf to update (type: ${viewType})`);
@@ -209,10 +209,10 @@ export class FinalizeStep extends BaseWizardStep {
 		if (!updated) {
 			console.debug('FinalizeStep: Opening new Bases leaf with fresh state');
 
-			// Use 'bases-cms' as the preferred type for new leaves
+			// Use 'cms' as the preferred type for new leaves
 			const leaf = this.app.workspace.getLeaf('tab');
 			await leaf.setViewState({
-				type: 'bases-cms',
+				type: 'cms',
 				active: true,
 				state: {
 					file: baseFilePath,
@@ -267,7 +267,7 @@ export class FinalizeStep extends BaseWizardStep {
 						if (!node) return;
 
 						if (node.type === 'leaf' && node.state) {
-							if ((node.state.type === 'bases' || node.state.type === 'bases-cms') &&
+							if ((node.state.type === 'bases' || node.state.type === 'bases-cms' || node.state.type === 'cms') &&
 								node.state.state?.file === baseFilePath) {
 								console.debug(`FinalizeStep: Found Bases leaf in workspace.json, updating to ${defaultViewName}`);
 								if (node.state.state) {

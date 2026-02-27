@@ -83,7 +83,7 @@ export class BasesCMSConfigurator {
 		const baseContent = this.generateBaseContent(contentTypes, frontmatterProperties, defaultContentTypeId, existingBase, projectDetection, enableMdxSupport);
 
 		// Count views in generated content to verify they're being created
-		const viewMatches = baseContent.match(/^\s*-\s+type:\s+bases-cms/gm);
+		const viewMatches = baseContent.match(/^\s*-\s+type:\s+(?:cms|bases-cms)/gm);
 		const viewCount = viewMatches ? viewMatches.length : 0;
 		console.debug('BasesCMSConfig: Generated', viewCount, 'views in base content');
 
@@ -325,7 +325,7 @@ export class BasesCMSConfigurator {
 		const folderPath = this.pathResolver.getBasesCMSFolderPath(contentType.folder, projectDetection);
 
 		const view: any = {
-			type: 'bases-cms',
+			type: 'cms',
 			name: contentType.name,
 			filters: {
 				and: [
@@ -397,7 +397,7 @@ export class BasesCMSConfigurator {
 	 */
 	private serializeView(view: { name?: string; filters?: { and?: Array<string | Record<string, unknown>> }; groupBy?: { property?: string; direction?: string } | string; order?: string[]; sort?: Array<{ property?: string; direction?: string }>;[key: string]: unknown }): string[] {
 		const viewLines: string[] = [];
-		viewLines.push('  - type: bases-cms');
+		viewLines.push('  - type: cms');
 		viewLines.push(`    name: "${view.name}"`);
 
 		if (view.filters) {

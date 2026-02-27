@@ -168,15 +168,12 @@ export class FrontmatterAnalyzer {
 	}
 
 	autoDetectDateProperty(frontmatter: Record<string, unknown>): string | null {
-		const dateProperties = ['date', 'pubDate', 'publishedDate', 'publishDate', 'created', 'updated', 'modified'];
+		const dateProperties = ['date', 'pubDate', 'publishedDate', 'publishDate', 'created', 'modified', 'updated'];
 
 		// First pass: Check for exact property names with valid date values
 		for (const prop of dateProperties) {
 			if (frontmatter.hasOwnProperty(prop)) {
-				const value = frontmatter[prop];
-				if (this.looksLikeDate(value)) {
-					return prop;
-				}
+				return prop;
 			}
 		}
 
@@ -252,7 +249,7 @@ export class FrontmatterAnalyzer {
 	}
 
 	autoDetectImageProperty(frontmatter: Record<string, unknown>): string | null {
-		const imageProperties = ['image', 'cover', 'coverImage', 'thumbnail', 'featuredImage'];
+		const imageProperties = ['image', 'cover', 'coverImage', 'thumbnail', 'featuredImage', 'heroImage'];
 
 		for (const prop of imageProperties) {
 			if (frontmatter.hasOwnProperty(prop)) {
