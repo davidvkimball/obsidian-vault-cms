@@ -109,9 +109,9 @@ export class OptionalPluginsStep extends BaseWizardStep {
 		new Setting(toolbarDiv)
 			.setName('Enable Editing Toolbar')
 			.setDesc('Show the visual editing toolbar for formatting text')
-			.addToggle((toggle: any) => toggle
+			.addToggle(toggle => toggle
 				.setValue(this.state.enableEditingToolbar)
-				.onChange((value: any) => {
+				.onChange(value => {
 					this.state.enableEditingToolbar = value;
 				}));
 	}

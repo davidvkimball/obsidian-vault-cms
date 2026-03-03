@@ -42,7 +42,7 @@ export class IgnoreStep extends BaseWizardStep {
 			.setDesc('Add Obsidian workspace files to .gitignore to prevent them from being tracked.')
 			.clear(); // Clear existing buttons and status
 
-		this.gitSetting.addButton((button: any) => {
+		this.gitSetting.addButton(button => {
 			button.setButtonText(status === 'configured' ? 'Re-configure' : 'Configure')
 				.onClick(async () => {
 					try {
@@ -65,7 +65,7 @@ export class IgnoreStep extends BaseWizardStep {
 			.setDesc('Configure Vite to ignore Obsidian and Home Base folders.')
 			.clear(); // Clear existing buttons and status
 
-		this.viteSetting.addButton((button: any) => {
+		this.viteSetting.addButton(button => {
 			button.setButtonText(status === 'configured' ? 'Re-configure' : 'Configure')
 				.onClick(async () => {
 					try {

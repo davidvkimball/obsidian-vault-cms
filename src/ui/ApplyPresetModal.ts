@@ -21,7 +21,7 @@ export class ApplyPresetModal extends Modal {
 		new Setting(contentEl)
 			.setName('Delete backup and reload')
 			.setDesc('Remove the backup folder and reload Obsidian. This is the recommended "clean" option.')
-			.addButton((button: any) => button
+			.addButton(button => button
 				.setButtonText('Delete and reload')
 				.setCta()
 				.onClick(() => {
@@ -32,7 +32,7 @@ export class ApplyPresetModal extends Modal {
 		new Setting(contentEl)
 			.setName('Keep backup and reload')
 			.setDesc('Keep the backup folder for safety and reload Obsidian.')
-			.addButton((button: any) => button
+			.addButton(button => button
 				.setButtonText('Keep and reload')
 				.onClick(() => {
 					this.close();

@@ -366,12 +366,12 @@ export class ContentTypeStep extends BaseWizardStep {
 		new Setting(stepContentWrapper)
 			.setName('How are attachments handled?')
 			.setDesc('Choose how attachments are stored for all content types')
-			.addDropdown((dropdown: any) => dropdown
+			.addDropdown(dropdown => dropdown
 				.addOption('same-folder', 'Same folder as current file')
 				.addOption('specified-folder', 'In the specified folder')
 				.addOption('subfolder', 'In subfolder under current folder')
 				.setValue(this.state.attachmentHandlingMode || 'subfolder')
-				.onChange((value: any) => {
+				.onChange(value => {
 					this.state.attachmentHandlingMode = value as 'specified-folder' | 'same-folder' | 'subfolder';
 					// Clear folder name if switching to same-folder
 					if (value === 'same-folder') {
@@ -391,10 +391,10 @@ export class ContentTypeStep extends BaseWizardStep {
 				.setName('Attachment folder')
 				.setDesc(descText);
 
-			folderNameSetting.addText((text: any) => {
+			folderNameSetting.addText(text => {
 				text.setPlaceholder('attachments')
 					.setValue(this.state.attachmentFolderName || '')
-					.onChange((value: any) => {
+					.onChange(value => {
 						this.state.attachmentFolderName = value || undefined;
 					});
 
@@ -512,9 +512,9 @@ export class ContentTypeStep extends BaseWizardStep {
 			createNameDisplay(contentType.name);
 
 			setting.setDesc(`Folder: ${contentType.folder}`)
-				.addToggle((toggle: any) => toggle
+				.addToggle(toggle => toggle
 					.setValue(contentType.enabled)
-					.onChange((value: any) => {
+					.onChange(value => {
 						contentType.enabled = value;
 					}));
 
@@ -522,11 +522,11 @@ export class ContentTypeStep extends BaseWizardStep {
 			new Setting(stepContentWrapper)
 				.setName(`${contentType.name} - File organization`)
 				.setDesc('Choose how content is organized for this content type')
-				.addDropdown((dropdown: any) => dropdown
+				.addDropdown(dropdown => dropdown
 					.addOption('file', 'File-based')
 					.addOption('folder', 'Folder-based')
 					.setValue(contentType.fileOrganization || 'file')
-					.onChange((value: any) => {
+					.onChange(value => {
 						contentType.fileOrganization = value as 'file' | 'folder';
 						// Re-render to show/hide index file name setting
 						void this.display();
@@ -537,9 +537,9 @@ export class ContentTypeStep extends BaseWizardStep {
 				new Setting(stepContentWrapper)
 					.setName(`${contentType.name} - Index file name`)
 					.setDesc('Name of the index file in folder-based organization')
-					.addText((text: any) => text
+					.addText(text => text
 						.setValue(contentType.indexFileName || 'index')
-						.onChange((value: any) => {
+						.onChange(value => {
 							contentType.indexFileName = value || 'index';
 						}));
 			}
@@ -552,10 +552,10 @@ export class ContentTypeStep extends BaseWizardStep {
 			new Setting(stepContentWrapper)
 				.setName(`${contentType.name} - Link base path`)
 				.setDesc(`URL path for this content type (e.g., "/posts/" or "/" for root). Leave blank to use default: ${defaultLinkBasePath}`)
-				.addText((text: any) => text
+				.addText(text => text
 					.setPlaceholder(defaultLinkBasePath)
 					.setValue(contentType.linkBasePath || '')
-					.onChange((value: any) => {
+					.onChange(value => {
 						contentType.linkBasePath = value || undefined;
 					}));
 		}

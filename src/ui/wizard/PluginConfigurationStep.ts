@@ -95,12 +95,12 @@ export class PluginConfigurationStep extends BaseWizardStep {
         new Setting(configDiv)
             .setName('Default content type')
             .setDesc('Choose the default content type for new notes and Home base')
-            .addDropdown((dropdown: any) => {
+            .addDropdown(dropdown => {
                 enabledTypes.forEach(ct => {
                     dropdown.addOption(ct.id, ct.name);
                 });
                 dropdown.setValue(this.state.defaultContentTypeId || (enabledTypes[0]?.id || ''));
-                dropdown.onChange((value: any) => {
+                dropdown.onChange(value => {
                     this.state.defaultContentTypeId = value;
                 });
             });
@@ -121,9 +121,9 @@ export class PluginConfigurationStep extends BaseWizardStep {
         new Setting(configDiv)
             .setName('SEO Scan directories')
             .setDesc('Comma-separated list of directories to scan')
-            .addText((text: any) => text
+            .addText(text => text
                 .setValue(initialScanDirs)
-                .onChange((value: any) => {
+                .onChange(value => {
                     if (this.state.seoConfig) {
                         this.state.seoConfig.scanDirectories = value;
                     }

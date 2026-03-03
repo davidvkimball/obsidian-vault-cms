@@ -92,7 +92,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 			});
 			setCssProps(this.projectRootDisplay, { color: 'var(--text-normal)' });
 
-			projectRootSetting.addButton((button: any) => button
+			projectRootSetting.addButton(button => button
 				.setButtonText('Browse...')
 				.setCta()
 				.onClick(() => {
@@ -122,7 +122,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 			});
 			setCssProps(this.configFileDisplay, { color: 'var(--text-normal)' });
 
-			configFileSetting.addButton((button: any) => button
+			configFileSetting.addButton(button => button
 				.setButtonText('Browse...')
 				.setCta()
 				.onClick(() => {
@@ -193,10 +193,10 @@ export class ProjectDetectionStep extends BaseWizardStep {
 				.setName('MDX file support')
 				.setDesc('Enable MDX file support for Astro Composer, Property Over File Name, SEO, and UI Tweaker plugins.');
 
-			mdxSetting.addToggle((toggle: any) => {
+			mdxSetting.addToggle(toggle => {
 				toggle
 					.setValue(this.state.enableMdxSupport ?? false)
-					.onChange((value: any) => {
+					.onChange(value => {
 						this.state.enableMdxSupport = value;
 					});
 
@@ -219,10 +219,10 @@ export class ProjectDetectionStep extends BaseWizardStep {
 				.setName('Extended file types')
 				.setDesc('Enable support to view, edit, and create .json and .astro files via the Data Files Editor plugin.');
 
-			extendedFileTypesSetting.addToggle((toggle: any) => {
+			extendedFileTypesSetting.addToggle(toggle => {
 				toggle
 					.setValue(this.state.enableExtendedFileTypes ?? false)
-					.onChange((value: any) => {
+					.onChange(value => {
 						this.state.enableExtendedFileTypes = value;
 					});
 			});
@@ -258,7 +258,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 				setCssProps(this.projectRootDisplay, { color: 'var(--text-muted)' });
 			}
 
-			projectRootSetting.addButton((button: any) => button
+			projectRootSetting.addButton(button => button
 				.setButtonText('Browse...')
 				.setCta()
 				.onClick(() => {
@@ -290,7 +290,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 				setCssProps(this.configFileDisplay, { color: 'var(--text-muted)' });
 			}
 
-			configFileSetting.addButton((button: any) => button
+			configFileSetting.addButton(button => button
 				.setButtonText('Browse...')
 				.setCta()
 				.onClick(() => {
@@ -339,10 +339,10 @@ export class ProjectDetectionStep extends BaseWizardStep {
 				.setName('MDX file support')
 				.setDesc('Enable MDX file support for Astro Composer, Property Over File Name, SEO, and UI Tweaker plugins.');
 
-			mdxSetting.addToggle((toggle: any) => {
+			mdxSetting.addToggle(toggle => {
 				toggle
 					.setValue(this.state.enableMdxSupport ?? false)
-					.onChange((value: any) => {
+					.onChange(value => {
 						this.state.enableMdxSupport = value;
 					});
 
@@ -365,10 +365,10 @@ export class ProjectDetectionStep extends BaseWizardStep {
 				.setName('Extended file types')
 				.setDesc('Enable support to view, edit, and create .json and .astro files via the Data Files Editor plugin.');
 
-			extendedFileTypesSetting.addToggle((toggle: any) => {
+			extendedFileTypesSetting.addToggle(toggle => {
 				toggle
 					.setValue(this.state.enableExtendedFileTypes ?? false)
-					.onChange((value: any) => {
+					.onChange(value => {
 						this.state.enableExtendedFileTypes = value;
 					});
 			});

@@ -35,10 +35,10 @@ export class SettingsTab extends PluginSettingTab {
 		// First group (no heading) - following UI Tweaker pattern
 		const generalGroup = new SettingGroup(this.contentEl);
 
-		generalGroup.addSetting((setting: any) => {
+		generalGroup.addSetting(setting => {
 			setting.setName('Open setup wizard')
 				.setDesc('Launch the setup wizard')
-				.addButton((button: any) => {
+				.addButton(button => {
 					button
 						.setButtonText('Open wizard')
 						.setCta()
@@ -48,23 +48,23 @@ export class SettingsTab extends PluginSettingTab {
 				});
 		});
 
-		generalGroup.addSetting((setting: any) => {
+		generalGroup.addSetting(setting => {
 			setting.setName('Run wizard on startup')
 				.setDesc('Automatically open the wizard when the plugin loads')
-				.addToggle((toggle: any) => {
+				.addToggle(toggle => {
 					toggle
 						.setValue(this.plugin.settings.runWizardOnStartup)
-						.onChange(async (value: any) => {
+						.onChange(async value => {
 							this.plugin.settings.runWizardOnStartup = value;
 							await this.plugin.saveSettings();
 						});
 				});
 		});
 
-		generalGroup.addSetting((setting: any) => {
+		generalGroup.addSetting(setting => {
 			setting.setName('Health check')
 				.setDesc('Check plugin installation and configuration status')
-				.addButton((button: any) => {
+				.addButton(button => {
 					button
 						.setButtonText('Run health check')
 						.onClick(() => {
@@ -76,38 +76,38 @@ export class SettingsTab extends PluginSettingTab {
 		// Preset configuration group
 		const presetGroup = new SettingGroup(this.contentEl).setHeading('Preset configuration');
 
-		presetGroup.addSetting((setting: any) => {
+		presetGroup.addSetting(setting => {
 			setting.setName('Preset folder name')
 				.setDesc('Folder name in the repository')
-				.addText((text: any) => {
+				.addText(text => {
 					text
 						.setPlaceholder('Example: starlight')
 						.setValue(this.plugin.settings.presetName)
-						.onChange(async (value: any) => {
+						.onChange(async value => {
 							this.plugin.settings.presetName = value;
 							await this.plugin.saveSettings();
 						});
 				});
 		});
 
-		presetGroup.addSetting((setting: any) => {
+		presetGroup.addSetting(setting => {
 			setting.setName('Presets repository')
 				.setDesc('GitHub repository containing the presets')
-				.addText((text: any) => {
+				.addText(text => {
 					text
 						.setPlaceholder('Example: owner/repo')
 						.setValue(this.plugin.settings.presetsRepo)
-						.onChange(async (value: any) => {
+						.onChange(async value => {
 							this.plugin.settings.presetsRepo = value;
 							await this.plugin.saveSettings();
 						});
 				});
 		});
 
-		presetGroup.addSetting((setting: any) => {
+		presetGroup.addSetting(setting => {
 			setting.setName('Download and apply preset')
 				.setDesc('Download the specified preset and apply it to your vault')
-				.addButton((button: any) => {
+				.addButton(button => {
 					button
 						.setButtonText('Apply preset')
 						.onClick(async () => {
@@ -130,7 +130,7 @@ export class SettingsTab extends PluginSettingTab {
 				const remoteUrl = isRepo ? await GitManager.getRemoteUrl(projectRoot) : null;
 				isFullyConfigured = isRepo && !!remoteUrl;
 
-				gitGroup.addSetting((setting: any) => {
+				gitGroup.addSetting(setting => {
 					setting.setName('Local repository status')
 						.setDesc(isRepo ? 'Git is initialized at project root.' : 'Git is NOT initialized at project root.');
 
@@ -141,20 +141,20 @@ export class SettingsTab extends PluginSettingTab {
 					statusIcon.setText(isRepo ? '✓ Detected' : '⚠ Missing');
 				});
 
-				gitGroup.addSetting((setting: any) => {
+				gitGroup.addSetting(setting => {
 					setting.setName('Project root path')
 						.setDesc('Direct path being checked for Git')
-						.addText((text: any) => {
+						.addText(text => {
 							text.setValue(projectRoot)
 								.setDisabled(true);
 						});
 				});
 
 				if (remoteUrl) {
-					gitGroup.addSetting((setting: any) => {
+					gitGroup.addSetting(setting => {
 						setting.setName('Remote URL')
 							.setDesc('Connected GitHub repository')
-							.addText((text: any) => {
+							.addText(text => {
 								text.setValue(remoteUrl)
 									.setDisabled(true);
 							});
@@ -167,10 +167,10 @@ export class SettingsTab extends PluginSettingTab {
 
 		// Only show management/setup button if NOT fully configured
 		if (!isFullyConfigured) {
-			gitGroup.addSetting((setting: any) => {
+			gitGroup.addSetting(setting => {
 				setting.setName('Manage Git integration')
 					.setDesc('Initialize repository, connect to GitHub, or update credentials.')
-					.addButton((button: any) => {
+					.addButton(button => {
 						button.setButtonText('Setup / Update Git...')
 							.onClick(() => {
 								const modal = new SetupWizardModal(this.app, { currentStep: 11 }, this.plugin);
@@ -185,7 +185,7 @@ export class SettingsTab extends PluginSettingTab {
 
 		// Check if project root is configured
 		if (!this.plugin.settings.projectRoot) {
-			optimizationGroup.addSetting((setting: any) => {
+			optimizationGroup.addSetting(setting => {
 				setting.setName('Project not detected')
 					.setDesc('Complete the setup wizard first to detect your Astro project before configuring optimizations.');
 			});
@@ -206,12 +206,12 @@ export class SettingsTab extends PluginSettingTab {
 		this.optimizer = new ProjectOptimizer(this.app, wizardState);
 		const status = await this.optimizer.getStatus();
 
-		optimizationGroup.addSetting((setting: any) => {
+		optimizationGroup.addSetting(setting => {
 			this.gitSetting = setting;
 			this.updateGitSetting(status.gitIgnoreStatus);
 		});
 
-		optimizationGroup.addSetting((setting: any) => {
+		optimizationGroup.addSetting(setting => {
 			this.viteSetting = setting;
 			this.updateViteSetting(status.viteIgnoreStatus);
 		});
@@ -222,7 +222,7 @@ export class SettingsTab extends PluginSettingTab {
 			.setDesc('Add workspace files to Git ignore')
 			.clear(); // Clear existing buttons and status
 
-		this.gitSetting.addButton((button: any) => {
+		this.gitSetting.addButton(button => {
 			button.setButtonText(status === 'configured' ? 'Re-configure' : 'Configure')
 				.onClick(async () => {
 					try {
@@ -249,7 +249,7 @@ export class SettingsTab extends PluginSettingTab {
 			.setDesc('Configure Vite to ignore Obsidian and Home Base folders.')
 			.clear(); // Clear existing buttons and status
 
-		this.viteSetting.addButton((button: any) => {
+		this.viteSetting.addButton(button => {
 			button.setButtonText(status === 'configured' ? 'Re-configure' : 'Configure')
 				.onClick(async () => {
 					try {
