@@ -152,10 +152,10 @@ export class GitSetupStep extends BaseWizardStep {
             // But if it's there, we keep it for the Sync button.
         }
 
-        patSetting.addText(text => {
+        patSetting.addText((text: any) => {
             text.setPlaceholder('ghp_xxxxxxxxxxxx')
                 .setValue(secretValue ? '********' : '') // Show dots if we have a saved secret
-                .onChange(value => {
+                .onChange((value: any) => {
                     this.state.gitConfig.pat = value.trim();
                 });
             text.inputEl.type = 'password';
@@ -167,7 +167,7 @@ export class GitSetupStep extends BaseWizardStep {
             patStatus.createSpan({ text: secretId });
         }
 
-        patSetting.addButton(button => {
+        patSetting.addButton((button: any) => {
             button.setButtonText('Verify Token')
                 .onClick(async () => {
                     // 1. Resolve Token
@@ -225,7 +225,7 @@ export class GitSetupStep extends BaseWizardStep {
         new Setting(setupContent)
             .setName(remoteUrl ? 'New Repository Name' : 'Repository Name')
             .setDesc('The name of your GitHub repository.')
-            .addText(text => {
+            .addText((text: any) => {
                 const defaultName = projectRoot ? projectRoot.split(/[\\/]/).pop() : '';
                 const initialValue = this.state.gitConfig.repoName || defaultName || '';
 
@@ -236,7 +236,7 @@ export class GitSetupStep extends BaseWizardStep {
 
                 text.setPlaceholder('my-blog')
                     .setValue(initialValue)
-                    .onChange(value => {
+                    .onChange((value: any) => {
                         this.state.gitConfig.repoName = value.trim();
                     });
             });
@@ -244,10 +244,10 @@ export class GitSetupStep extends BaseWizardStep {
         new Setting(setupContent)
             .setName('Description')
             .setDesc('A short description for your repository.')
-            .addText(text => {
+            .addText((text: any) => {
                 text.setPlaceholder('My personal blog')
                     .setValue(this.state.gitConfig.repoDescription || '')
-                    .onChange(value => {
+                    .onChange((value: any) => {
                         this.state.gitConfig.repoDescription = value.trim();
                     });
             });
@@ -255,9 +255,9 @@ export class GitSetupStep extends BaseWizardStep {
         new Setting(setupContent)
             .setName('Private Repository')
             .setDesc('Keep this repository private and hidden from the public.')
-            .addToggle(toggle => {
+            .addToggle((toggle: any) => {
                 toggle.setValue(this.state.gitConfig.isPrivate)
-                    .onChange(value => {
+                    .onChange((value: any) => {
                         this.state.gitConfig.isPrivate = value;
                     });
             });
@@ -266,14 +266,14 @@ export class GitSetupStep extends BaseWizardStep {
         new Setting(setupContent)
             .setName('Default Branch')
             .setDesc('The name of the initial branch (e.g., "main" or "master").')
-            .addText(text => {
+            .addText((text: any) => {
                 const initialBranch = this.state.gitConfig.branchName || 'main';
                 if (!this.state.gitConfig.branchName) {
                     this.state.gitConfig.branchName = initialBranch;
                 }
                 text.setPlaceholder('main')
                     .setValue(initialBranch)
-                    .onChange(value => {
+                    .onChange((value: any) => {
                         this.state.gitConfig.branchName = value.trim() || 'main';
                     });
             });
@@ -282,9 +282,9 @@ export class GitSetupStep extends BaseWizardStep {
         new Setting(setupContent)
             .setName('Auto-configure Git plugin')
             .setDesc('Automatically set up the "Git" plugin to work with this project.')
-            .addToggle(toggle => {
+            .addToggle((toggle: any) => {
                 toggle.setValue(this.state.gitConfig.autoConfigureObsidianGit)
-                    .onChange(value => {
+                    .onChange((value: any) => {
                         this.state.gitConfig.autoConfigureObsidianGit = value;
                     });
             });

@@ -14,12 +14,12 @@ export class PluginPresetStep extends BaseWizardStep {
 		new Setting(containerEl)
 			.setName('Preset')
 			.setDesc('Choose a preset configuration')
-			.addDropdown(dropdown => dropdown
+			.addDropdown((dropdown: any) => dropdown
 				.addOption('vanilla', 'Vanilla')
 				.addOption('opinionated', 'Opinionated')
 				.addOption('custom', 'Custom')
 				.setValue(this.state.preset)
-				.onChange(value => {
+				.onChange((value: any) => {
 					this.state.preset = value as 'vanilla' | 'opinionated' | 'custom';
 					
 					if (value === 'vanilla') {

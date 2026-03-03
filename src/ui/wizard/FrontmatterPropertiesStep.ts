@@ -114,11 +114,11 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 			new Setting(contentTypeWrapper)
 				.setName('Title property')
 				.setDesc('The frontmatter property that contains the title (e.g., title, name, heading). Leave blank to use full file name instead.')
-				.addText(text => {
+				.addText((text: any) => {
 					const detected = 'title';
 					text.setPlaceholder(detected)
 						.setValue(props.titleProperty || '')
-						.onChange(value => {
+						.onChange((value: any) => {
 							props.titleProperty = value.trim() || undefined;
 						});
 				});
@@ -126,11 +126,11 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 			new Setting(contentTypeWrapper)
 				.setName('Date property')
 				.setDesc('The frontmatter property that contains the date (e.g., date, pubDate, publishedDate, publishDate). Leave blank to use file created date instead.')
-				.addText(text => {
+				.addText((text: any) => {
 					const detected = example ? this.frontmatterAnalyzer.autoDetectDateProperty(example.frontmatter) : null;
 					text.setPlaceholder(detected || 'date')
 						.setValue(props.dateProperty || '')
-						.onChange(value => {
+						.onChange((value: any) => {
 							props.dateProperty = value.trim() || undefined;
 						});
 				});
@@ -141,9 +141,9 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 
 			let descTextSetting: Setting | null = null;
 
-			descSetting.addToggle(toggle => toggle
+			descSetting.addToggle((toggle: any) => toggle
 				.setValue(!!props.descriptionProperty)
-				.onChange(value => {
+				.onChange((value: any) => {
 					if (value && !props.descriptionProperty) {
 						props.descriptionProperty = example ?
 							this.frontmatterAnalyzer.autoDetectDescriptionProperty(example.frontmatter) || 'description' :
@@ -153,9 +153,9 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 							descTextSetting = new Setting(contentTypeWrapper)
 								.setName('Description property')
 								.setDesc('The frontmatter property that contains the description (e.g., description, summary, excerpt, intro, snippet, blurb)')
-								.addText(text => text
+								.addText((text: any) => text
 									.setValue(props.descriptionProperty || '')
-									.onChange(value => {
+									.onChange((value: any) => {
 										props.descriptionProperty = value.trim() || undefined;
 									}));
 							// Remove from current position and insert right after the toggle setting
@@ -176,9 +176,9 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 				descTextSetting = new Setting(contentTypeWrapper)
 					.setName('Description property')
 					.setDesc('The frontmatter property that contains the description (e.g., description, summary, excerpt, intro, snippet, blurb)')
-					.addText(text => text
+					.addText((text: any) => text
 						.setValue(props.descriptionProperty || '')
-						.onChange(value => {
+						.onChange((value: any) => {
 							props.descriptionProperty = value.trim() || undefined;
 						}));
 				// Remove from current position and insert right after the toggle setting
@@ -193,9 +193,9 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 
 			let tagsTextSetting: Setting | null = null;
 
-			tagsSetting.addToggle(toggle => toggle
+			tagsSetting.addToggle((toggle: any) => toggle
 				.setValue(!!props.tagsProperty)
-				.onChange(value => {
+				.onChange((value: any) => {
 					if (value && !props.tagsProperty) {
 						const detected = example ? this.frontmatterAnalyzer.autoDetectTagsProperty(example.frontmatter) : null;
 						props.tagsProperty = detected || 'tags';
@@ -204,11 +204,11 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 							tagsTextSetting = new Setting(contentTypeWrapper)
 								.setName('Tags property')
 								.setDesc('The frontmatter property that contains tags (e.g., tags, tag, categories, category). Leave blank if not applicable.')
-								.addText(text => {
+								.addText((text: any) => {
 									const detected = example ? this.frontmatterAnalyzer.autoDetectTagsProperty(example.frontmatter) : null;
 									text.setPlaceholder(detected || 'tags')
 										.setValue(props.tagsProperty || '')
-										.onChange(value => {
+										.onChange((value: any) => {
 											props.tagsProperty = value.trim() || undefined;
 										});
 								});
@@ -230,11 +230,11 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 				tagsTextSetting = new Setting(contentTypeWrapper)
 					.setName('Tags property')
 					.setDesc('The frontmatter property that contains tags (e.g., tags, tag, categories, category). Leave blank if not applicable.')
-					.addText(text => {
+					.addText((text: any) => {
 						const detected = example ? this.frontmatterAnalyzer.autoDetectTagsProperty(example.frontmatter) : null;
 						text.setPlaceholder(detected || 'tags')
 							.setValue(props.tagsProperty || '')
-							.onChange(value => {
+							.onChange((value: any) => {
 								props.tagsProperty = value.trim() || undefined;
 							});
 					});
@@ -256,9 +256,9 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 				props.hasDraftStatus = !!props.draftProperty;
 			}
 
-			draftSetting.addToggle(toggle => toggle
+			draftSetting.addToggle((toggle: any) => toggle
 				.setValue(props.hasDraftStatus ?? !!props.draftProperty)
-				.onChange(value => {
+				.onChange((value: any) => {
 					props.hasDraftStatus = value;
 					if (value && !props.draftProperty) {
 						const detectedDraft = example ? this.frontmatterAnalyzer.autoDetectDraftProperty(example.frontmatter) : null;
@@ -274,11 +274,11 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 							draftPropertySetting = new Setting(contentTypeWrapper)
 								.setName('Draft property')
 								.setDesc('The frontmatter property that contains draft status. Leave blank to use an underscore prefix instead.')
-								.addText(text => {
+								.addText((text: any) => {
 									const detected = example ? this.frontmatterAnalyzer.autoDetectDraftProperty(example.frontmatter) : null;
 									text.setPlaceholder(detected?.property || 'draft')
 										.setValue(props.draftProperty || '')
-										.onChange(value => {
+										.onChange((value: any) => {
 											props.draftProperty = value.trim() || undefined;
 											// Update logic based on property name
 											if (value === 'published') {
@@ -291,11 +291,11 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 												draftLogicSetting = new Setting(contentTypeWrapper)
 													.setName('Draft logic')
 													.setDesc('How draft status is represented')
-													.addDropdown(dropdown => dropdown
+													.addDropdown((dropdown: any) => dropdown
 														.addOption('true-draft', 'true = draft')
 														.addOption('false-draft', 'false = draft')
 														.setValue(props.draftLogic || 'true-draft')
-														.onChange(dropdownValue => {
+														.onChange((dropdownValue: any) => {
 															props.draftLogic = dropdownValue as 'true-draft' | 'false-draft';
 														}));
 												draftLogicSetting.settingEl.remove();
@@ -317,11 +317,11 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 							draftLogicSetting = new Setting(contentTypeWrapper)
 								.setName('Draft logic')
 								.setDesc('How draft status is represented')
-								.addDropdown(dropdown => dropdown
+								.addDropdown((dropdown: any) => dropdown
 									.addOption('true-draft', 'true = draft')
 									.addOption('false-draft', 'false = draft')
 									.setValue(props.draftLogic || 'true-draft')
-									.onChange(value => {
+									.onChange((value: any) => {
 										props.draftLogic = value as 'true-draft' | 'false-draft';
 									}));
 							// Remove from current position and insert right after the draft property setting
@@ -350,11 +350,11 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 				draftPropertySetting = new Setting(contentTypeWrapper)
 					.setName('Draft property')
 					.setDesc('The frontmatter property that contains draft status. Leave blank to use an underscore prefix instead.')
-					.addText(text => {
+					.addText((text: any) => {
 						const detected = example ? this.frontmatterAnalyzer.autoDetectDraftProperty(example.frontmatter) : null;
 						text.setPlaceholder(detected?.property || 'draft')
 							.setValue(props.draftProperty || '')
-							.onChange(value => {
+							.onChange((value: any) => {
 								props.draftProperty = value.trim() || undefined;
 								// Update logic based on property name
 								if (value === 'published') {
@@ -367,11 +367,11 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 									draftLogicSetting = new Setting(contentTypeWrapper)
 										.setName('Draft logic')
 										.setDesc('How draft status is represented')
-										.addDropdown(dropdown => dropdown
+										.addDropdown((dropdown: any) => dropdown
 											.addOption('true-draft', 'true = draft')
 											.addOption('false-draft', 'false = draft')
 											.setValue(props.draftLogic || 'true-draft')
-											.onChange(dropdownValue => {
+											.onChange((dropdownValue: any) => {
 												props.draftLogic = dropdownValue as 'true-draft' | 'false-draft';
 											}));
 									draftLogicSetting.settingEl.remove();
@@ -392,11 +392,11 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 					draftLogicSetting = new Setting(contentTypeWrapper)
 						.setName('Draft logic')
 						.setDesc('How draft status is represented')
-						.addDropdown(dropdown => dropdown
+						.addDropdown((dropdown: any) => dropdown
 							.addOption('true-draft', 'true = draft')
 							.addOption('false-draft', 'false = draft')
 							.setValue(props.draftLogic || 'true-draft')
-							.onChange(value => {
+							.onChange((value: any) => {
 								props.draftLogic = value as 'true-draft' | 'false-draft';
 							}));
 					// Remove from current position and insert right after the draft property setting
@@ -414,9 +414,9 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 
 			let imageTextSetting: Setting | null = null;
 
-			imageSetting.addToggle(toggle => toggle
+			imageSetting.addToggle((toggle: any) => toggle
 				.setValue(!!props.imageProperty)
-				.onChange(value => {
+				.onChange((value: any) => {
 					if (value && !props.imageProperty) {
 						const detected = example ? this.frontmatterAnalyzer.autoDetectImageProperty(example.frontmatter) : null;
 						props.imageProperty = detected || 'image';
@@ -425,11 +425,11 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 							imageTextSetting = new Setting(contentTypeWrapper)
 								.setName('Image property')
 								.setDesc('The frontmatter property that contains the image/cover (e.g., image, cover, coverImage, thumbnail, featuredImage). Leave blank if not applicable.')
-								.addText(text => {
+								.addText((text: any) => {
 									const detected = example ? this.frontmatterAnalyzer.autoDetectImageProperty(example.frontmatter) : null;
 									text.setPlaceholder(detected || 'image')
 										.setValue(props.imageProperty || '')
-										.onChange(value => {
+										.onChange((value: any) => {
 											props.imageProperty = value.trim() || undefined;
 										});
 								});
@@ -451,11 +451,11 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 				imageTextSetting = new Setting(contentTypeWrapper)
 					.setName('Image property')
 					.setDesc('The frontmatter property that contains the image/cover (e.g., image, cover, coverImage, thumbnail, featuredImage). Leave blank if not applicable.')
-					.addText(text => {
+					.addText((text: any) => {
 						const detected = example ? this.frontmatterAnalyzer.autoDetectImageProperty(example.frontmatter) : null;
 						text.setPlaceholder(detected || 'image')
 							.setValue(props.imageProperty || '')
-							.onChange(value => {
+							.onChange((value: any) => {
 								props.imageProperty = value.trim() || undefined;
 							});
 					});
