@@ -99,7 +99,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 					(() => {
 						const selectedPath = this.selectFolder();
 						if (selectedPath) {
-							this.state.projectDetection!.projectRoot = selectedPath;
+							this.state.projectDetection!.projectRoot = this.toRelativePath(selectedPath);
 							if (this.projectRootDisplay) {
 								this.projectRootDisplay.textContent = this.toRelativePath(selectedPath);
 								setCssProps(this.projectRootDisplay, { color: 'var(--text-normal)' });
@@ -130,7 +130,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 						const defaultPath = this.state.projectDetection?.projectRoot || this.getVaultPath();
 						const selectedPath = this.selectConfigFile(defaultPath);
 						if (selectedPath) {
-							this.state.projectDetection!.configFilePath = selectedPath;
+							this.state.projectDetection!.configFilePath = this.toRelativePath(selectedPath);
 							if (this.configFileDisplay) {
 								this.configFileDisplay.textContent = this.toRelativePath(selectedPath);
 								setCssProps(this.configFileDisplay, { color: 'var(--text-normal)' });
@@ -265,7 +265,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 					(() => {
 						const selectedPath = this.selectFolder();
 						if (selectedPath) {
-							this.state.projectDetection!.projectRoot = selectedPath;
+							this.state.projectDetection!.projectRoot = this.toRelativePath(selectedPath);
 							if (this.projectRootDisplay) {
 								this.projectRootDisplay.textContent = this.toRelativePath(selectedPath);
 								setCssProps(this.projectRootDisplay, { color: 'var(--text-normal)' });
@@ -298,7 +298,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 						const defaultPath = this.state.projectDetection?.projectRoot || this.getVaultPath();
 						const selectedPath = this.selectConfigFile(defaultPath);
 						if (selectedPath) {
-							this.state.projectDetection!.configFilePath = selectedPath;
+							this.state.projectDetection!.configFilePath = this.toRelativePath(selectedPath);
 							if (this.configFileDisplay) {
 								this.configFileDisplay.textContent = this.toRelativePath(selectedPath);
 								setCssProps(this.configFileDisplay, { color: 'var(--text-normal)' });

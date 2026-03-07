@@ -102,6 +102,30 @@ export class ConfigFlushService {
         }
 
         // 8. Configure Explorer Focus
+        // Auto-configure based on vault location if not manually set
+        if (state.projectDetection && (!state.explorerFocus || Object.keys(state.explorerFocus).length === 0)) {
+            const vaultLocation = state.projectDetection.vaultLocation;
+            if (vaultLocation === 'root') {
+                // Root install: focus on src/content so users see content, not project files
+                state.explorerFocus = {
+                    showRightClickMenu: true,
+                    showFileExplorerIcon: true,
+                    focusLevel: 'custom',
+                    customFolderPath: 'src/content',
+                    hideAncestorFolders: false
+                };
+                console.debug('ConfigFlushService: Auto-configured Explorer Focus for root install (custom: src/content)');
+            } else {
+                // Content or nested-content install: use default parent focus
+                state.explorerFocus = {
+                    showRightClickMenu: true,
+                    showFileExplorerIcon: true,
+                    focusLevel: 'parent',
+                    hideAncestorFolders: false
+                };
+                console.debug('ConfigFlushService: Auto-configured Explorer Focus for content install (parent)');
+            }
+        }
         if (state.enabledPlugins.includes('explorer-focus') || Object.keys(state.explorerFocus).length > 0) {
             await this.explorerFocusConfigurator.saveConfig(state.explorerFocus);
         }

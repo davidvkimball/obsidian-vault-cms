@@ -12,14 +12,20 @@ export default class VaultCMSPlugin extends Plugin {
 	async onload() {
 		await this.loadSettings();
 
-		// Repair relative projectRoot to absolute for reliability
-		if (this.settings.projectRoot && !path.isAbsolute(this.settings.projectRoot)) {
+		// Migrate absolute projectRoot to vault-relative for portability
+		if (this.settings.projectRoot && path.isAbsolute(this.settings.projectRoot)) {
 			const adapter = this.app.vault.adapter as { basePath?: string; path?: string };
 			const vaultPath = adapter.basePath || adapter.path;
 			if (vaultPath) {
-				const absolutePath = path.resolve(vaultPath, this.settings.projectRoot);
-				console.debug(`[Vault CMS] Repairing relative projectRoot: ${this.settings.projectRoot} -> ${absolutePath}`);
-				this.settings.projectRoot = absolutePath;
+				const relativePath = path.relative(vaultPath, this.settings.projectRoot).split(path.sep).join('/') || '.';
+				console.debug(`[Vault CMS] Migrating absolute projectRoot to relative: ${this.settings.projectRoot} -> ${relativePath}`);
+				this.settings.projectRoot = relativePath;
+				// Also migrate configFilePath if absolute
+				if (this.settings.configFilePath && path.isAbsolute(this.settings.configFilePath)) {
+					const relativeConfig = path.relative(vaultPath, this.settings.configFilePath).split(path.sep).join('/');
+					console.debug(`[Vault CMS] Migrating absolute configFilePath to relative: ${this.settings.configFilePath} -> ${relativeConfig}`);
+					this.settings.configFilePath = relativeConfig;
+				}
 				await this.saveSettings();
 			}
 		}

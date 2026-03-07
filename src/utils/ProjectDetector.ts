@@ -31,11 +31,25 @@ export class ProjectDetector {
 		// Determine vault location relative to project
 		const vaultLocation = this.detectVaultLocation(vaultPath, configResult.projectRoot);
 
+		// Convert absolute paths to vault-relative for portable storage
+		const relativeProjectRoot = this.toVaultRelative(configResult.projectRoot, vaultPath);
+		const relativeConfigFilePath = this.toVaultRelative(configResult.configFilePath, vaultPath);
+
 		return {
-			projectRoot: configResult.projectRoot,
-			configFilePath: configResult.configFilePath,
+			projectRoot: relativeProjectRoot,
+			configFilePath: relativeConfigFilePath,
 			vaultLocation
 		};
+	}
+
+	/**
+	 * Convert an absolute path to a vault-relative path.
+	 * If the path is at or above the vault, uses relative notation (e.g. ".." or ".").
+	 */
+	private toVaultRelative(absolutePath: string, vaultPath: string): string {
+		const relative = path.relative(vaultPath, absolutePath);
+		// Normalize to forward slashes
+		return relative.split(path.sep).join('/') || '.';
 	}
 
 	/**
