@@ -39,7 +39,7 @@ export const DEFAULT_SETTINGS: VaultCMSSettings = {
 	attachmentFolderName: undefined,
 	preset: 'vanilla',
 	presetName: '',
-	presetsRepo: 'davidvkimball/vault-cms-presets',
+	presetsRepo: 'davidvkimball/vaultcms-presets',
 	enableEditingToolbar: false,
 	enableExtendedFileTypes: false,
 	enabledPlugins: [],

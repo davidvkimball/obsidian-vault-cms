@@ -28,13 +28,27 @@ export class ProjectOptimizer {
 		this.state = state;
 	}
 
+	/**
+	 * Resolve the vault-relative projectRoot to an absolute path.
+	 */
+	private resolveProjectRoot(): string | null {
+		const relativeRoot = this.state.projectDetection?.projectRoot;
+		if (!relativeRoot) return null;
+
+		const adapter = this.app.vault.adapter as { basePath?: string; path?: string };
+		const vaultPath = adapter.basePath || adapter.path;
+		if (!vaultPath) return null;
+
+		return path.resolve(vaultPath, relativeRoot);
+	}
+
 	public async getStatus(): Promise<OptimizationStatus> {
 		const status: OptimizationStatus = {
 			gitIgnoreStatus: 'not-configured',
 			viteIgnoreStatus: 'not-configured'
 		};
 
-		const projectRoot = this.state.projectDetection?.projectRoot;
+		const projectRoot = this.resolveProjectRoot();
 		if (!projectRoot) {
 			console.debug('[Vault CMS] ProjectOptimizer: No projectRoot in state');
 			return status;
@@ -69,7 +83,9 @@ export class ProjectOptimizer {
 		}
 
 		if (!resolvedViteConfigPath && this.state.projectDetection?.configFilePath) {
-			resolvedViteConfigPath = this.state.projectDetection.configFilePath;
+			const adapter = this.app.vault.adapter as { basePath?: string; path?: string };
+			const vaultPath = adapter.basePath || adapter.path || '';
+			resolvedViteConfigPath = path.resolve(vaultPath, this.state.projectDetection.configFilePath);
 		}
 
 		if (resolvedViteConfigPath && fs.existsSync(resolvedViteConfigPath)) {
@@ -91,7 +107,7 @@ export class ProjectOptimizer {
 	}
 
 	public async configureGitIgnore(): Promise<boolean> {
-		const projectRoot = this.state.projectDetection?.projectRoot;
+		const projectRoot = this.resolveProjectRoot();
 		if (!projectRoot) {
 			console.error('[Vault CMS] ProjectOptimizer: No projectRoot for Git configuration');
 			return false;
@@ -135,7 +151,7 @@ export class ProjectOptimizer {
 	}
 
 	public async configureViteIgnore(): Promise<boolean> {
-		const projectRoot = this.state.projectDetection?.projectRoot;
+		const projectRoot = this.resolveProjectRoot();
 		if (!projectRoot) return false;
 
 		const configDir = this.app.vault.configDir;
@@ -154,7 +170,9 @@ export class ProjectOptimizer {
 		}
 
 		if (!resolvedConfigPath && this.state.projectDetection?.configFilePath) {
-			resolvedConfigPath = this.state.projectDetection.configFilePath;
+			const adapter = this.app.vault.adapter as { basePath?: string; path?: string };
+			const vaultPath = adapter.basePath || adapter.path || '';
+			resolvedConfigPath = path.resolve(vaultPath, this.state.projectDetection.configFilePath);
 			configFileName = path.basename(resolvedConfigPath);
 		}
 

@@ -59,7 +59,7 @@ export class WizardStateManager {
 			attachmentFolderName: attachmentFolderName,
 			preset: settings.preset || 'vanilla',
 			presetName: settings.presetName || '',
-			presetsRepo: settings.presetsRepo || 'davidvkimball/vault-cms-presets',
+			presetsRepo: settings.presetsRepo || 'davidvkimball/vaultcms-presets',
 			enableEditingToolbar: settings.enableEditingToolbar ?? (settings as any).enableWYSIWYG ?? false,
 			enableMdxSupport: settings.enableMdxSupport,
 			enableExtendedFileTypes: settings.enableExtendedFileTypes,
@@ -175,7 +175,7 @@ export class WizardStateManager {
 
 		this.state.preset = settings.preset || 'vanilla';
 		this.state.presetName = settings.presetName || '';
-		this.state.presetsRepo = settings.presetsRepo || 'vaultcms/vault-cms-presets';
+		this.state.presetsRepo = settings.presetsRepo || 'davidvkimball/vaultcms-presets';
 
 		// Sync enableEditingToolbar with actual plugin state
 		const actualVisibility = await this.editingToolbarConfigurator.getVisibility(this.plugin.app);
@@ -275,7 +275,7 @@ export class WizardStateManager {
 		settings.attachmentFolderName = this.state.attachmentFolderName;
 		settings.preset = this.state.preset;
 		settings.presetName = this.state.presetName || '';
-		settings.presetsRepo = this.state.presetsRepo || 'davidvkimball/vault-cms-presets';
+		settings.presetsRepo = this.state.presetsRepo || 'davidvkimball/vaultcms-presets';
 		settings.enableEditingToolbar = this.state.enableEditingToolbar;
 
 		// Clean up old WYSIWYG setting name

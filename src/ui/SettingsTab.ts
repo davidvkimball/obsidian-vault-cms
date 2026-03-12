@@ -1,4 +1,6 @@
 import { App, PluginSettingTab, Notice, Setting , SettingGroup} from 'obsidian';
+// eslint-disable-next-line import/no-nodejs-modules -- Node.js module needed for path operations
+import * as path from 'path';
 import VaultCMSPlugin from '../main';
 import { SetupWizardModal } from './SetupWizardModal';
 import { HealthCheckModal } from './HealthCheckModal';
@@ -125,7 +127,9 @@ export class SettingsTab extends PluginSettingTab {
 		if (this.plugin.settings.projectRoot && this.plugin.settings.projectRoot.trim() !== '') {
 			try {
 				const { GitManager } = await import('../utils/GitManager');
-				const projectRoot = this.plugin.settings.projectRoot;
+				const adapter = this.app.vault.adapter as { basePath?: string; path?: string };
+				const vaultPath = adapter.basePath || adapter.path || '';
+				const projectRoot = path.resolve(vaultPath, this.plugin.settings.projectRoot);
 				const isRepo = await GitManager.isRepo(projectRoot);
 				const remoteUrl = isRepo ? await GitManager.getRemoteUrl(projectRoot) : null;
 				isFullyConfigured = isRepo && !!remoteUrl;
