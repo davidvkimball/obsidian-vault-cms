@@ -10,6 +10,7 @@ import { HomeBaseConfigurator } from './HomeBaseConfig';
 import { ExplorerFocusConfigurator } from './ExplorerFocusConfig';
 import { DataFilesEditorConfigurator } from './DataFilesEditorConfig';
 import { EditingToolbarConfigurator } from './EditingToolbarConfig';
+import { FileNameHistoryConfigurator } from './FileNameHistoryConfig';
 
 export class ConfigFlushService {
     private basesCMSConfigurator: BasesCMSConfigurator;
@@ -22,6 +23,7 @@ export class ConfigFlushService {
     private explorerFocusConfigurator: ExplorerFocusConfigurator;
     private dataFilesEditorConfigurator: DataFilesEditorConfigurator;
     private editingToolbarConfigurator: EditingToolbarConfigurator;
+    private fileNameHistoryConfigurator: FileNameHistoryConfigurator;
 
     constructor(private app: App) {
         this.basesCMSConfigurator = new BasesCMSConfigurator(app);
@@ -34,6 +36,7 @@ export class ConfigFlushService {
         this.explorerFocusConfigurator = new ExplorerFocusConfigurator(app);
         this.dataFilesEditorConfigurator = new DataFilesEditorConfigurator(app);
         this.editingToolbarConfigurator = new EditingToolbarConfigurator(app);
+        this.fileNameHistoryConfigurator = new FileNameHistoryConfigurator(app);
     }
 
     /**
@@ -52,6 +55,9 @@ export class ConfigFlushService {
             state.projectDetection,
             state.enableMdxSupport === true
         );
+        // Pass the resolved base file path into Home Base so it opens the file we created/found
+        const baseFilePath = await this.basesCMSConfigurator.resolveBaseFilePath();
+        state.homeBase = { ...state.homeBase, homeBaseType: 'File', homeBaseValue: baseFilePath };
 
         // 2. Configure Astro Composer
         if (state.projectDetection) {
@@ -89,6 +95,11 @@ export class ConfigFlushService {
 
         // 5. Configure UI Tweaker
         await this.uiTweakerConfigurator.saveConfig(state.enableMdxSupport === true);
+
+        // 5b. Configure File Name History (mdx when MDX support enabled)
+        if (state.enabledPlugins.includes('file-name-history')) {
+            await this.fileNameHistoryConfigurator.saveConfig(state.enableMdxSupport === true);
+        }
 
         // 6. Configure Image Manager
         if (state.enabledPlugins.includes('image-manager') || Object.keys(state.imageManager).length > 0) {

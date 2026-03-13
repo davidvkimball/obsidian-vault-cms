@@ -14,8 +14,8 @@ export default class VaultCMSPlugin extends Plugin {
 
 		// Migrate absolute projectRoot to vault-relative for portability
 		if (this.settings.projectRoot && path.isAbsolute(this.settings.projectRoot)) {
-			const adapter = this.app.vault.adapter as { basePath?: string; path?: string };
-			const vaultPath = adapter.basePath || adapter.path;
+			const { getVaultPath } = await import('./utils/VaultPathHelper');
+			const vaultPath = getVaultPath(this.app);
 			if (vaultPath) {
 				const relativePath = path.relative(vaultPath, this.settings.projectRoot).split(path.sep).join('/') || '.';
 				console.debug(`[Vault CMS] Migrating absolute projectRoot to relative: ${this.settings.projectRoot} -> ${relativePath}`);

@@ -4,6 +4,8 @@ import * as path from 'path';
 // eslint-disable-next-line import/no-nodejs-modules -- Node.js module needed for file operations
 import * as fs from 'fs';
 import { WizardState } from '../types';
+import { getVaultPath } from './VaultPathHelper';
+import { resolveProjectRootFromVaultPath } from './ProjectRootResolver';
 
 export interface OptimizationStatus {
 	gitIgnoreStatus: 'configured' | 'not-configured';
@@ -28,18 +30,9 @@ export class ProjectOptimizer {
 		this.state = state;
 	}
 
-	/**
-	 * Resolve the vault-relative projectRoot to an absolute path.
-	 */
 	private resolveProjectRoot(): string | null {
-		const relativeRoot = this.state.projectDetection?.projectRoot;
-		if (!relativeRoot) return null;
-
-		const adapter = this.app.vault.adapter as { basePath?: string; path?: string };
-		const vaultPath = adapter.basePath || adapter.path;
-		if (!vaultPath) return null;
-
-		return path.resolve(vaultPath, relativeRoot);
+		const vaultPath = getVaultPath(this.app);
+		return resolveProjectRootFromVaultPath(vaultPath ?? '', this.state.projectDetection?.projectRoot);
 	}
 
 	public async getStatus(): Promise<OptimizationStatus> {

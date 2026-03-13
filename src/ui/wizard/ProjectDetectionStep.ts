@@ -15,6 +15,7 @@ import { WizardState } from '../../types';
 import { ProjectDetector } from '../../utils/ProjectDetector';
 import { MdxDetector } from '../../utils/MdxDetector';
 import { ContentTypeDetector } from '../../utils/ContentTypeDetector';
+import { toVaultRelative, getVaultPath } from '../../utils/VaultPathHelper';
 
 export class ProjectDetectionStep extends BaseWizardStep {
 	private projectDetector: ProjectDetector;
@@ -87,7 +88,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 
 			// Display current selection
 			this.projectRootDisplay = projectRootSetting.descEl.createDiv({
-				text: this.state.projectDetection.projectRoot ? this.toRelativePath(this.state.projectDetection.projectRoot) : 'No folder selected',
+				text: this.state.projectDetection.projectRoot ?? 'No folder selected',
 				cls: 'vault-cms-path-display'
 			});
 			setCssProps(this.projectRootDisplay, { color: 'var(--text-normal)' });
@@ -99,9 +100,9 @@ export class ProjectDetectionStep extends BaseWizardStep {
 					(() => {
 						const selectedPath = this.selectFolder();
 						if (selectedPath) {
-							this.state.projectDetection!.projectRoot = this.toRelativePath(selectedPath);
+							this.state.projectDetection!.projectRoot = toVaultRelative(this.app, selectedPath);
 							if (this.projectRootDisplay) {
-								this.projectRootDisplay.textContent = this.toRelativePath(selectedPath);
+								this.projectRootDisplay.textContent = this.state.projectDetection!.projectRoot;
 								setCssProps(this.projectRootDisplay, { color: 'var(--text-normal)' });
 							}
 							// Update detected flag if user changes
@@ -117,7 +118,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 
 			// Display current selection
 			this.configFileDisplay = configFileSetting.descEl.createDiv({
-				text: this.state.projectDetection.configFilePath ? this.toRelativePath(this.state.projectDetection.configFilePath) : 'No file selected',
+				text: this.state.projectDetection.configFilePath ?? 'No file selected',
 				cls: 'vault-cms-path-display'
 			});
 			setCssProps(this.configFileDisplay, { color: 'var(--text-normal)' });
@@ -127,12 +128,15 @@ export class ProjectDetectionStep extends BaseWizardStep {
 				.setCta()
 				.onClick(() => {
 					(() => {
-						const defaultPath = this.state.projectDetection?.projectRoot || this.getVaultPath();
+						const vaultPath = getVaultPath(this.app);
+						const defaultPath = this.state.projectDetection?.projectRoot
+							? (vaultPath ? path.resolve(vaultPath, this.state.projectDetection!.projectRoot) : undefined)
+							: vaultPath ?? undefined;
 						const selectedPath = this.selectConfigFile(defaultPath);
 						if (selectedPath) {
-							this.state.projectDetection!.configFilePath = this.toRelativePath(selectedPath);
+							this.state.projectDetection!.configFilePath = toVaultRelative(this.app, selectedPath);
 							if (this.configFileDisplay) {
-								this.configFileDisplay.textContent = this.toRelativePath(selectedPath);
+								this.configFileDisplay.textContent = this.state.projectDetection!.configFilePath;
 								setCssProps(this.configFileDisplay, { color: 'var(--text-normal)' });
 							}
 							// Update detected flag if user changes
@@ -249,7 +253,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 
 			// Display current selection
 			this.projectRootDisplay = projectRootSetting.descEl.createDiv({
-				text: this.state.projectDetection.projectRoot ? this.toRelativePath(this.state.projectDetection.projectRoot) : 'No folder selected',
+				text: this.state.projectDetection.projectRoot ?? 'No folder selected',
 				cls: 'vault-cms-path-display'
 			});
 			if (this.state.projectDetection.projectRoot) {
@@ -265,9 +269,9 @@ export class ProjectDetectionStep extends BaseWizardStep {
 					(() => {
 						const selectedPath = this.selectFolder();
 						if (selectedPath) {
-							this.state.projectDetection!.projectRoot = this.toRelativePath(selectedPath);
+							this.state.projectDetection!.projectRoot = toVaultRelative(this.app, selectedPath);
 							if (this.projectRootDisplay) {
-								this.projectRootDisplay.textContent = this.toRelativePath(selectedPath);
+								this.projectRootDisplay.textContent = this.state.projectDetection!.projectRoot;
 								setCssProps(this.projectRootDisplay, { color: 'var(--text-normal)' });
 							}
 						}
@@ -281,7 +285,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 
 			// Display current selection
 			this.configFileDisplay = configFileSetting.descEl.createDiv({
-				text: this.state.projectDetection.configFilePath ? this.toRelativePath(this.state.projectDetection.configFilePath) : 'No file selected',
+				text: this.state.projectDetection.configFilePath ?? 'No file selected',
 				cls: 'vault-cms-path-display'
 			});
 			if (this.state.projectDetection.configFilePath) {
@@ -295,12 +299,15 @@ export class ProjectDetectionStep extends BaseWizardStep {
 				.setCta()
 				.onClick(() => {
 					(() => {
-						const defaultPath = this.state.projectDetection?.projectRoot || this.getVaultPath();
+						const vaultPath = getVaultPath(this.app);
+						const defaultPath = this.state.projectDetection?.projectRoot
+							? (vaultPath ? path.resolve(vaultPath, this.state.projectDetection!.projectRoot) : undefined)
+							: vaultPath ?? undefined;
 						const selectedPath = this.selectConfigFile(defaultPath);
 						if (selectedPath) {
-							this.state.projectDetection!.configFilePath = this.toRelativePath(selectedPath);
+							this.state.projectDetection!.configFilePath = toVaultRelative(this.app, selectedPath);
 							if (this.configFileDisplay) {
-								this.configFileDisplay.textContent = this.toRelativePath(selectedPath);
+								this.configFileDisplay.textContent = this.state.projectDetection!.configFilePath;
 								setCssProps(this.configFileDisplay, { color: 'var(--text-normal)' });
 							}
 						}
@@ -418,8 +425,10 @@ export class ProjectDetectionStep extends BaseWizardStep {
 				throw new Error('Electron dialog API not available');
 			}
 
-			const vaultPath = this.getVaultPath();
-			let defaultPath = this.state.projectDetection?.projectRoot || vaultPath;
+			const vaultPath = getVaultPath(this.app) ?? '';
+			let defaultPath = this.state.projectDetection?.projectRoot
+				? (vaultPath ? path.resolve(vaultPath, this.state.projectDetection!.projectRoot) : this.state.projectDetection.projectRoot)
+				: vaultPath;
 
 			// Convert relative path to absolute if needed
 			if (defaultPath && !path.isAbsolute(defaultPath)) {
@@ -487,7 +496,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 				throw new Error('Electron dialog API not available');
 			}
 
-			const vaultPath = this.getVaultPath();
+			const vaultPath = getVaultPath(this.app) ?? '/';
 			let startPath = defaultPath || vaultPath;
 
 			// If we have a detected config file path, use its directory
@@ -536,26 +545,6 @@ export class ProjectDetectionStep extends BaseWizardStep {
 		return null;
 	}
 
-	/**
-	 * Get the vault path
-	 */
-	private getVaultPath(): string {
-		const adapter = this.app.vault.adapter as { basePath?: string; path?: string };
-		const vaultPath = adapter.basePath || adapter.path;
-		// Resolve path (convert relative to absolute, normalize separators)
-		if (vaultPath) {
-			// If already absolute, return as-is (normalized)
-			if (vaultPath.startsWith('/') || /^[A-Z]:/.test(vaultPath)) {
-				return vaultPath.replace(/\\/g, '/');
-			}
-			// For relative paths, we'd need to resolve, but in Obsidian context, basePath should be absolute
-			return vaultPath.replace(/\\/g, '/');
-		}
-		// Fallback - in Obsidian context this shouldn't happen
-		return '/';
-	}
-
-
 	validate(): boolean {
 		if (this.detected) {
 			return true;
@@ -571,8 +560,9 @@ export class ProjectDetectionStep extends BaseWizardStep {
 
 		// Check if paths exist (resolve relative paths to absolute)
 		try {
-			const vaultPath = this.getVaultPath();
-			const resolvedProjectRoot = path.isAbsolute(projectRoot) ? projectRoot : path.join(vaultPath, projectRoot);
+			const vaultPath = getVaultPath(this.app);
+			if (!vaultPath) return false;
+			const resolvedProjectRoot = path.isAbsolute(projectRoot) ? projectRoot : path.resolve(vaultPath, projectRoot);
 			const resolvedConfigFilePath = path.isAbsolute(configFilePath) ? configFilePath : path.join(vaultPath, configFilePath);
 
 			if (!fs.existsSync(resolvedProjectRoot) || !fs.statSync(resolvedProjectRoot).isDirectory()) {

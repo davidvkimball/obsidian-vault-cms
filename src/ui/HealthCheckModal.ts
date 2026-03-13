@@ -2,6 +2,7 @@ import { App, Modal, TFile, setIcon } from 'obsidian';
 import VaultCMSPlugin from '../main';
 import { ProjectDetector } from '../utils/ProjectDetector';
 import { BasesCMSConfigurator } from '../utils/BasesCMSConfig';
+import { resolveProjectRoot } from '../utils/ProjectRootResolver';
 
 interface HealthCheckResult {
 	category: string;
@@ -305,7 +306,9 @@ export class HealthCheckModal extends Modal {
 
 	private async checkGitIntegration() {
 		const checks: HealthCheckResult['checks'] = [];
-		const { gitConfig, projectRoot } = this.plugin.settings;
+		const { gitConfig, projectRoot: relativeRoot } = this.plugin.settings;
+
+		const projectRoot = resolveProjectRoot(this.app, relativeRoot);
 
 		// 1. Check if Git is a repo
 		if (projectRoot) {
@@ -348,7 +351,7 @@ export class HealthCheckModal extends Modal {
 			checks.push({
 				name: 'Git repository check',
 				status: 'fail',
-				message: 'Project root not configured'
+				message: relativeRoot ? 'Project root path could not be resolved' : 'Project root not configured'
 			});
 		}
 

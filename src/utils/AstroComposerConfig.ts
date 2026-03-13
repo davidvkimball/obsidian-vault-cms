@@ -2,6 +2,7 @@ import { App } from 'obsidian';
 import { AstroComposerConfig, ContentTypeConfig, FrontmatterProperties, ProjectDetectionResult } from '../types';
 import { PathResolver } from './PathResolver';
 import { SafeConfigWriter } from './SafeConfigWriter';
+import { getVaultPath } from './VaultPathHelper';
 
 type PluginWithSettings = {
 	settings?: Record<string, unknown>;
@@ -160,11 +161,8 @@ export class AstroComposerConfigurator {
 		}
 		
 		// Convert absolute path to relative from vault root
-		const adapter = this.app.vault.adapter as { basePath?: string; path?: string };
-		const vaultPath = adapter.basePath || adapter.path;
-		if (!vaultPath) {
-			return inputPath;
-		}
+		const vaultPath = getVaultPath(this.app);
+		if (!vaultPath) return inputPath;
 		
 		// Normalize paths (replace backslashes with forward slashes, remove trailing slashes)
 		const vaultNormalized = vaultPath.replace(/\\/g, '/').replace(/\/$/, '');

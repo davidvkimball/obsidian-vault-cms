@@ -5,6 +5,7 @@ import { WizardState } from '../../types';
 import { GitManager } from '../../utils/GitManager';
 import { ConfigFlushService } from '../../utils/ConfigFlushService';
 import { SafeConfigWriter } from '../../utils/SafeConfigWriter';
+import { resolveProjectRoot } from '../../utils/ProjectRootResolver';
 import * as path from 'path';
 
 export class GitSetupStep extends BaseWizardStep {
@@ -20,15 +21,8 @@ export class GitSetupStep extends BaseWizardStep {
         this.showNextButton = false;
     }
 
-    private getAbsoluteProjectRoot(): string {
-        const relativeRoot = this.state.projectDetection?.projectRoot || '.';
-        if (path.isAbsolute(relativeRoot)) {
-            return relativeRoot;
-        }
-
-        const adapter = this.app.vault.adapter as any;
-        const vaultRoot = adapter.getBasePath ? adapter.getBasePath() : '';
-        return path.resolve(vaultRoot, relativeRoot);
+    private getAbsoluteProjectRoot(): string | null {
+        return resolveProjectRoot(this.app, this.state.projectDetection?.projectRoot || '.') ?? null;
     }
 
     async display(): Promise<void> {
@@ -41,12 +35,12 @@ export class GitSetupStep extends BaseWizardStep {
             attr: { style: 'font-style: italic; opacity: 0.8; margin-bottom: 2rem;' }
         });
 
-        const projectRoot = this.getAbsoluteProjectRoot();
+        const projectRoot = this.getAbsoluteProjectRoot() ?? '';
 
         // 1. Static Layout Elements (Rendered Immediately)
         const rootInfo = containerEl.createDiv({ cls: 'git-root-info', attr: { style: 'margin-bottom: 1rem;' } });
         rootInfo.createEl('b', { text: 'Project Root: ' });
-        rootInfo.createSpan({ text: projectRoot });
+        rootInfo.createSpan({ text: projectRoot || '(not set)' });
 
         // Placeholder for dynamic status
         const statusEl = containerEl.createDiv({

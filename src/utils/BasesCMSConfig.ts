@@ -33,7 +33,7 @@ export class BasesCMSConfigurator {
 			}
 		}
 
-		// 3. Absolute default
+		// 3. Default when nothing exists: _bases is most flexible (Astro themes often ignore underscore-prefixed paths)
 		return '_bases/Home.base';
 	}
 

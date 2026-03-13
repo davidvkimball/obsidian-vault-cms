@@ -2,7 +2,7 @@ import { App, Setting, Notice } from 'obsidian';
 import { BaseWizardStep } from './BaseWizardStep';
 import { WizardState } from '../../types';
 import { GitManager } from '../../utils/GitManager';
-import * as path from 'path';
+import { resolveProjectRoot } from '../../utils/ProjectRootResolver';
 
 export class DeploymentStep extends BaseWizardStep {
     private remoteUrl: string | null = null;
@@ -34,11 +34,15 @@ export class DeploymentStep extends BaseWizardStep {
     }
 
     async shouldSkip(): Promise<boolean> {
-        const projectRoot = this.state.projectDetection?.projectRoot;
-        if (projectRoot) {
-            this.remoteUrl = await GitManager.getRemoteUrl(projectRoot);
+        const absoluteRoot = this.getAbsoluteProjectRoot();
+        if (absoluteRoot) {
+            this.remoteUrl = await GitManager.getRemoteUrl(absoluteRoot);
         }
         return !this.remoteUrl;
+    }
+
+    private getAbsoluteProjectRoot(): string | null {
+        return resolveProjectRoot(this.app, this.state.projectDetection?.projectRoot);
     }
 
     async display(): Promise<void> {
@@ -61,9 +65,9 @@ export class DeploymentStep extends BaseWizardStep {
         });
 
         // 1. Fetch remote URL (Async)
-        const projectRoot = this.state.projectDetection?.projectRoot;
-        if (projectRoot) {
-            this.remoteUrl = await GitManager.getRemoteUrl(projectRoot);
+        const absoluteRoot = this.getAbsoluteProjectRoot();
+        if (absoluteRoot) {
+            this.remoteUrl = await GitManager.getRemoteUrl(absoluteRoot);
         }
 
         // 2. Clear skeleton and render platforms

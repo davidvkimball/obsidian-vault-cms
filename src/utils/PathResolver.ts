@@ -2,6 +2,7 @@ import { App } from 'obsidian';
 // eslint-disable-next-line import/no-nodejs-modules -- Node.js module needed for path operations
 import * as path from 'path';
 import { ProjectDetectionResult } from '../types';
+import { getVaultPath } from './VaultPathHelper';
 
 /**
  * Utility class to resolve content type folder paths relative to vault root
@@ -28,8 +29,7 @@ export class PathResolver {
 	 * @returns Path from vault root to content type folder, or null if cannot be determined
 	 */
 	getFolderPathFromVaultRoot(folderName: string, projectDetection?: ProjectDetectionResult): string {
-		const adapter = this.app.vault.adapter as { basePath?: string; path?: string };
-		const vaultPath = adapter.basePath || adapter.path;
+		const vaultPath = getVaultPath(this.app);
 
 		// 1. Check if folderName is already a valid path in the vault.
 		// This handles cases where folderName is already a vault-relative path (e.g., "src/content/posts"

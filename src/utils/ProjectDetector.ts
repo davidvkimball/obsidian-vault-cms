@@ -4,6 +4,7 @@ import * as path from 'path';
 // eslint-disable-next-line import/no-nodejs-modules -- Node.js module needed for file operations
 import * as fs from 'fs';
 import { ProjectDetectionResult } from '../types';
+import { getVaultPath } from './VaultPathHelper';
 
 export class ProjectDetector {
 	private app: App;
@@ -13,9 +14,7 @@ export class ProjectDetector {
 	}
 
 	detectProject(): ProjectDetectionResult | null {
-		const vault = this.app.vault;
-		const adapter = vault.adapter as { basePath?: string; path?: string };
-		const vaultPath = adapter.basePath || adapter.path;
+		const vaultPath = getVaultPath(this.app);
 
 		if (!vaultPath) {
 			return null;

@@ -127,9 +127,9 @@ export class SettingsTab extends PluginSettingTab {
 		if (this.plugin.settings.projectRoot && this.plugin.settings.projectRoot.trim() !== '') {
 			try {
 				const { GitManager } = await import('../utils/GitManager');
-				const adapter = this.app.vault.adapter as { basePath?: string; path?: string };
-				const vaultPath = adapter.basePath || adapter.path || '';
-				const projectRoot = path.resolve(vaultPath, this.plugin.settings.projectRoot);
+				const { resolveProjectRoot } = await import('../utils/ProjectRootResolver');
+				const projectRoot = resolveProjectRoot(this.app, this.plugin.settings.projectRoot);
+				if (!projectRoot) throw new Error('Could not resolve project root');
 				const isRepo = await GitManager.isRepo(projectRoot);
 				const remoteUrl = isRepo ? await GitManager.getRemoteUrl(projectRoot) : null;
 				isFullyConfigured = isRepo && !!remoteUrl;

@@ -1,4 +1,5 @@
 import { App, TFolder } from 'obsidian';
+import { getVaultPath } from './VaultPathHelper';
 // eslint-disable-next-line import/no-nodejs-modules -- Node.js module needed for path operations
 import * as path from 'path';
 // eslint-disable-next-line import/no-nodejs-modules -- Node.js module needed for file operations
@@ -68,9 +69,7 @@ export class ContentTypeDetector {
 			return null;
 		}
 
-		const vault = this.app.vault;
-		const adapter = vault.adapter as { basePath?: string; path?: string };
-		const vaultPath = adapter.basePath || adapter.path;
+		const vaultPath = getVaultPath(this.app);
 
 		if (!vaultPath) {
 			return null;
@@ -97,7 +96,7 @@ export class ContentTypeDetector {
 
 		// Now find the corresponding TFolder in Obsidian's vault structure
 		// We need to navigate from vault root to src/content
-		const vaultRoot = vault.getRoot();
+		const vaultRoot = this.app.vault.getRoot();
 		if (!(vaultRoot instanceof TFolder)) {
 			return null;
 		}

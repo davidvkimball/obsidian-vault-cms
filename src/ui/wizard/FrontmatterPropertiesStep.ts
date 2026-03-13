@@ -243,10 +243,10 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 				tagsSetting.settingEl.insertAdjacentElement('afterend', tagsTextSetting.settingEl);
 			}
 
-			// Has Draft Status?
+			// Enable Draft Status
 			const draftSetting = new Setting(contentTypeWrapper)
-				.setName('Has draft status?')
-				.setDesc('Does this content type have draft status?');
+				.setName('Enable draft status')
+				.setDesc('Property-based drafts use a frontmatter key (e.g. draft). Underscore-only drafts use file prefix (_post.md) with no property.');
 
 			let draftPropertySetting: Setting | null = null;
 			let draftLogicSetting: Setting | null = null;
@@ -262,12 +262,14 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 					props.hasDraftStatus = value;
 					if (value && !props.draftProperty) {
 						const detectedDraft = example ? this.frontmatterAnalyzer.autoDetectDraftProperty(example.frontmatter) : null;
-						props.draftProperty = detectedDraft?.property || 'draft';
-						// Fix logic: if property is "draft", use "true-draft", if "published" use "false-draft"
-						if (detectedDraft?.property === 'published') {
-							props.draftLogic = 'false-draft';
-						} else {
-							props.draftLogic = 'true-draft';
+						props.draftProperty = detectedDraft?.property;
+						// Fix logic only when we have a concrete property
+						if (props.draftProperty) {
+							if (props.draftProperty === 'published') {
+								props.draftLogic = 'false-draft';
+							} else {
+								props.draftLogic = 'true-draft';
+							}
 						}
 						// Show fields
 						if (!draftPropertySetting) {
@@ -570,6 +572,18 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 					// Handle description property
 					if (prop === props.descriptionProperty) {
 						template += `${prop}: ""\n`;
+						processedProps.add(prop);
+						continue;
+					}
+
+					// Draft property: only include when draftProperty is set; use our template value
+					if (prop === props.draftProperty && props.draftProperty) {
+						const draftValue = props.draftLogic === 'false-draft' ? 'false' : 'true';
+						template += `${prop}: ${draftValue}\n`;
+						processedProps.add(prop);
+						continue;
+					}
+					if ((prop === 'draft' || prop === 'published' || prop === 'visible') && !props.draftProperty) {
 						processedProps.add(prop);
 						continue;
 					}
