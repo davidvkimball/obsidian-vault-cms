@@ -405,6 +405,16 @@ export class ContentTypeStep extends BaseWizardStep {
 			});
 		}
 
+		// Public image path resolution
+		new Setting(stepContentWrapper)
+			.setName('Resolve cover images from public folder')
+			.setDesc('Enable this if your theme uses absolute image paths (e.g. /images/photo.jpg) that reference the Astro project\'s public/ folder. This lets banners and card thumbnails display correctly in Obsidian.')
+			.addToggle(toggle => toggle
+				.setValue(this.state.resolvePublicImages ?? false)
+				.onChange(value => {
+					this.state.resolvePublicImages = value;
+				}));
+
 		stepContentWrapper.createEl('hr', { cls: 'vault-cms-divider' });
 
 		// Content types section

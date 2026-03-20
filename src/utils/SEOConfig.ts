@@ -32,10 +32,14 @@ export class SEOConfigurator {
 		contentTypes: ContentTypeConfig[],
 		frontmatterProperties: { [contentTypeId: string]: FrontmatterProperties },
 		projectDetection?: ProjectDetectionResult,
-		enableMdxSupport?: boolean
+		enableMdxSupport?: boolean,
+		defaultContentTypeId?: string
 	): SEOConfig {
-		// Use the first content type's properties as defaults
-		const firstType = contentTypes.find(ct => ct.enabled);
+		// Use the default content type's properties, falling back to first enabled
+		const defaultType = defaultContentTypeId
+			? contentTypes.find(ct => ct.id === defaultContentTypeId && ct.enabled)
+			: undefined;
+		const firstType = defaultType || contentTypes.find(ct => ct.enabled);
 		const firstProps = firstType ? frontmatterProperties[firstType.id] : undefined;
 
 		// Build scan directories from all enabled content types

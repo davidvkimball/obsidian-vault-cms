@@ -67,5 +67,48 @@ export default class VaultCMSPlugin extends Plugin {
 	async saveSettings() {
 		await this.saveData(this.settings);
 	}
+
+	/**
+	 * Public API: Resolve an absolute image path (e.g. /images/blog/1.jpg)
+	 * against the Astro project's public/ folder.
+	 * Returns a file:// resource URL if the file exists, null otherwise.
+	 * Other plugins (Image Manager, Bases CMS) can call this via:
+	 *   app.plugins.plugins['vault-cms']?.resolvePublicPath('/images/blog/1.jpg')
+	 */
+	resolvePublicPath(absolutePath: string): string | null {
+		if (!this.settings.resolvePublicImages || !this.settings.projectRoot) return null;
+		if (!absolutePath.startsWith('/')) return null;
+
+		try {
+			const fs = require('fs') as typeof import('fs');
+			const pathModule = require('path') as typeof import('path');
+			const { Platform } = require('obsidian') as typeof import('obsidian');
+
+			const adapter = this.app.vault.adapter as unknown as { basePath?: string; path?: string };
+			const vaultPath = String(adapter.basePath || adapter.path || '');
+			if (!vaultPath) return null;
+
+			const projectRoot = pathModule.resolve(vaultPath, this.settings.projectRoot);
+			const relativePath = absolutePath.slice(1); // Remove leading /
+
+			// Try multiple common asset locations
+			const candidates = [
+				pathModule.join(projectRoot, 'public', relativePath),
+				pathModule.join(projectRoot, 'src', 'assets', relativePath),
+				pathModule.join(projectRoot, 'static', relativePath),
+				pathModule.join(projectRoot, 'assets', relativePath),
+			];
+
+			for (const candidate of candidates) {
+				if (fs.existsSync(candidate)) {
+					return Platform.resourcePathPrefix + candidate.replace(/\\/g, '/');
+				}
+			}
+
+			return null;
+		} catch {
+			return null;
+		}
+	}
 }
 

@@ -79,7 +79,8 @@ export class ConfigFlushService {
             state.contentTypes,
             state.frontmatterProperties,
             state.projectDetection,
-            state.enableMdxSupport
+            state.enableMdxSupport,
+            state.defaultContentTypeId
         );
         state.seoConfig = seoConfig;
         await this.seoConfigurator.saveConfig(seoConfig);

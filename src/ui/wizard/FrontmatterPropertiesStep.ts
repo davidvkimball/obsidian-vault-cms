@@ -93,7 +93,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 				const detectedDraft = this.frontmatterAnalyzer.autoDetectDraftProperty(dummyFrontmatter);
 				const detectedTags = this.frontmatterAnalyzer.autoDetectTagsProperty(dummyFrontmatter);
 				const detectedImage = this.frontmatterAnalyzer.autoDetectImageProperty(dummyFrontmatter);
-				const detectedDesc = this.frontmatterAnalyzer.autoDetectDescriptionProperty(dummyFrontmatter);
+				const detectedDesc = this.frontmatterAnalyzer.autoDetectDescriptionProperty(dummyFrontmatter, example?.frontmatter);
 				const detectedTitle = this.frontmatterAnalyzer.autoDetectTitleProperty(dummyFrontmatter);
 				const detectedDate = this.frontmatterAnalyzer.autoDetectDateProperty(dummyFrontmatter);
 
@@ -507,15 +507,17 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 		// Parse the original YAML to maintain order
 		if (example && example.rawYaml) {
 			// Parse the raw YAML line by line to maintain order
+			// ONLY process top-level properties (no leading whitespace) to avoid nested YAML keys
 			const lines = example.rawYaml.split('\n');
+			const topLevelLines = lines.filter(line => line.length > 0 && !line.startsWith(' ') && !line.startsWith('\t') && !line.startsWith('#'));
 			const processedProps = new Set<string>();
 
 			// First, add title property if it's detected/enabled (ALWAYS include it)
 			let titleAdded = false;
 			if (props.titleProperty) {
-				for (const line of lines) {
+				for (const line of topLevelLines) {
 					const trimmed = line.trim();
-					if (!trimmed || trimmed.startsWith('#')) continue;
+					if (!trimmed) continue;
 
 					const colonIndex = trimmed.indexOf(':');
 					if (colonIndex > 0) {
@@ -536,9 +538,9 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 			// 2. Add date property if it's detected/enabled (ALWAYS include it)
 			let dateAdded = false;
 			if (props.dateProperty) {
-				for (const line of lines) {
+				for (const line of topLevelLines) {
 					const trimmed = line.trim();
-					if (!trimmed || trimmed.startsWith('#')) continue;
+					if (!trimmed) continue;
 
 					const colonIndex = trimmed.indexOf(':');
 					if (colonIndex > 0) {
@@ -557,10 +559,10 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 				}
 			}
 
-			// 3. Then process other lines in order
-			for (const line of lines) {
+			// 3. Then process other top-level lines in order
+			for (const line of topLevelLines) {
 				const trimmed = line.trim();
-				if (!trimmed || trimmed.startsWith('#')) continue;
+				if (!trimmed) continue;
 
 				const colonIndex = trimmed.indexOf(':');
 				if (colonIndex > 0) {
@@ -613,8 +615,15 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 			}
 
 			// 4. Finally, add any missing properties that were found in the folder but weren't in the example
+			// Skip properties that are redundant variants of already-mapped properties
+			const descVariants = new Set(['description', 'summary', 'excerpt', 'intro', 'snippet', 'blurb', 'metaDescription', 'meta_description']);
 			for (const prop of aggregateProps) {
 				if (processedProps.has(prop)) continue;
+
+				// Skip description-like properties if we already have a description property mapped
+				if (props.descriptionProperty && prop !== props.descriptionProperty && descVariants.has(prop)) {
+					continue;
+				}
 
 				if (prop === props.titleProperty) {
 					template += `${prop}: "{{title}}"\n`;

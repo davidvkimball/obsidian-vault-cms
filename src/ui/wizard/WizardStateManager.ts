@@ -57,6 +57,7 @@ export class WizardStateManager {
 			defaultContentTypeId: settings.defaultContentTypeId,
 			attachmentHandlingMode: attachmentHandlingMode || 'subfolder',
 			attachmentFolderName: attachmentFolderName,
+			resolvePublicImages: settings.resolvePublicImages ?? false,
 			preset: settings.preset || 'vanilla',
 			presetName: settings.presetName || '',
 			presetsRepo: settings.presetsRepo || 'davidvkimball/vaultcms-presets',
@@ -148,6 +149,8 @@ export class WizardStateManager {
 		this.state.defaultContentTypeId = settings.defaultContentTypeId;
 
 		// Use saved settings for attachment handling, or infer from Obsidian if not set
+		this.state.resolvePublicImages = settings.resolvePublicImages ?? false;
+
 		if (settings.attachmentHandlingMode) {
 			this.state.attachmentHandlingMode = settings.attachmentHandlingMode;
 			this.state.attachmentFolderName = settings.attachmentFolderName;
@@ -273,6 +276,7 @@ export class WizardStateManager {
 		settings.defaultContentTypeId = this.state.defaultContentTypeId;
 		settings.attachmentHandlingMode = this.state.attachmentHandlingMode;
 		settings.attachmentFolderName = this.state.attachmentFolderName;
+		settings.resolvePublicImages = this.state.resolvePublicImages ?? false;
 		settings.preset = this.state.preset;
 		settings.presetName = this.state.presetName || '';
 		settings.presetsRepo = this.state.presetsRepo || 'davidvkimball/vaultcms-presets';

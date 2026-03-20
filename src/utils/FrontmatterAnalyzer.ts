@@ -46,10 +46,55 @@ export class FrontmatterAnalyzer {
 			}
 		}
 
-		for (const file of files) {
-			const example = await this.parseFrontmatter(file);
-			if (example) {
-				return example;
+		// Detect whether a file is likely section config or actual content.
+		// Rule: if a file is the ONLY md/mdx file in its folder, it's content
+		// (folder-based post where the folder name is the slug).
+		// If multiple md/mdx files share a folder, the ones matching common
+		// content patterns (post-01, post-02, etc.) are content; an outlier
+		// that doesn't match is likely config. For scoring purposes we just
+		// check: is this file alone in its folder?
+		const isLikelySectionConfig = (f: TFile) => {
+			if (!f.parent) return false;
+			const mdSiblings = f.parent.children.filter(
+				(c): c is TFile => c instanceof TFile && c.path !== f.path &&
+				(c.extension === 'md' || c.extension === 'mdx')
+			);
+			// Only file in the folder = content (folder-based post)
+			if (mdSiblings.length === 0) return false;
+			// Multiple files in folder: this file might be config.
+			// Heuristic: if siblings share a naming pattern and this file doesn't, it's likely config.
+			// Simple version: check if this basename contains "index"
+			const name = f.basename.toLowerCase();
+			if (name === 'index' || name === '-index' || name === '_index') return true;
+			// Otherwise assume it's content
+			return false;
+		};
+
+		if (files.length > 1) {
+			// Score files: non-index files with more frontmatter keys are better examples
+			const candidates: Array<{ file: TFile; example: ExampleFrontmatter; score: number }> = [];
+
+			for (const file of files) {
+				const example = await this.parseFrontmatter(file);
+				if (!example) continue;
+
+				let score = 0;
+				// Non-config files get a big boost
+				if (!isLikelySectionConfig(file)) score += 100;
+				// More frontmatter properties = better representation
+				if (example.frontmatter) score += Object.keys(example.frontmatter).length;
+
+				candidates.push({ file, example, score });
+			}
+
+			// Sort by score descending, pick the best
+			candidates.sort((a, b) => b.score - a.score);
+			if (candidates.length > 0) return candidates[0].example;
+		} else {
+			// Only one file, just use it
+			for (const file of files) {
+				const example = await this.parseFrontmatter(file);
+				if (example) return example;
 			}
 		}
 
@@ -67,24 +112,85 @@ export class FrontmatterAnalyzer {
 		}
 
 		const files = this.getMarkdownFiles(folder, true, undefined, 0, includeMdx);
-		const aggregateProps = new Set<string>();
-
-		// Limit the number of files we scan to keep it performant
 		const filesToScan = files.slice(0, limit);
 
+		// First pass: read all frontmatter keys per file
+		const fileKeys = new Map<string, Set<string>>();
 		for (const file of filesToScan) {
+			let keys: string[] = [];
 			if (file.extension === 'md') {
-				// Use Obsidian's metadata cache for standard markdown files (very fast)
 				const cache = this.app.metadataCache.getFileCache(file);
-				if (cache && cache.frontmatter) {
-					Object.keys(cache.frontmatter).forEach(key => aggregateProps.add(key));
-				}
+				if (cache?.frontmatter) keys = Object.keys(cache.frontmatter);
 			} else if (includeMdx && file.extension === 'mdx') {
-				// MDX files aren't in Obsidian's metadata cache natively, so we have to parse manually
-				const example = await this.parseFrontmatter(file);
-				if (example && example.frontmatter) {
-					Object.keys(example.frontmatter).forEach(key => aggregateProps.add(key));
+				const parsed = await this.parseFrontmatter(file);
+				if (parsed?.frontmatter) keys = Object.keys(parsed.frontmatter);
+			}
+			if (keys.length > 0) fileKeys.set(file.path, new Set(keys));
+		}
+
+		// Find consensus keys: keys appearing in more than half the files
+		const keyFrequency = new Map<string, number>();
+		for (const keys of fileKeys.values()) {
+			for (const k of keys) keyFrequency.set(k, (keyFrequency.get(k) || 0) + 1);
+		}
+		const threshold = Math.max(1, Math.floor(fileKeys.size / 2));
+		const consensusKeys = new Set<string>();
+		for (const [k, count] of keyFrequency) {
+			if (count >= threshold) consensusKeys.add(k);
+		}
+
+		// Detect config files:
+		// - Only file in its folder = content (folder-based post)
+		// - Multiple files in folder + index-like name = likely config
+		// - Frontmatter with very low overlap to consensus = likely config (different schema)
+		const isSectionConfig = (f: TFile) => {
+			if (!f.parent) return false;
+			const mdSiblings = f.parent.children.filter(
+				(c): c is TFile => c instanceof TFile && c.path !== f.path &&
+				(c.extension === 'md' || c.extension === 'mdx')
+			);
+			if (mdSiblings.length === 0) return false;
+
+			// Check frontmatter similarity to consensus
+			const keys = fileKeys.get(f.path);
+			if (keys && consensusKeys.size > 0) {
+				let overlap = 0;
+				for (const k of keys) {
+					if (consensusKeys.has(k)) overlap++;
 				}
+				const similarity = overlap / Math.max(keys.size, 1);
+				if (similarity < 0.3 && keys.size > 2) return true;
+			}
+
+			const name = f.basename.toLowerCase();
+			return name === 'index' || name === '-index' || name === '_index';
+		};
+
+		const propCount = new Map<string, number>();
+		let nonIndexFileCount = 0;
+
+		for (const file of filesToScan) {
+			const isConfig = isSectionConfig(file);
+			if (!isConfig) nonIndexFileCount++;
+
+			const keys = fileKeys.get(file.path);
+			if (!keys) continue;
+
+			for (const key of keys) {
+				if (isConfig) {
+					if (!propCount.has(key)) propCount.set(key, 0);
+				} else {
+					propCount.set(key, (propCount.get(key) || 0) + 1);
+				}
+			}
+		}
+
+		// Include properties that appear in at least one non-index file,
+		// OR all properties if there are no non-index files
+		const aggregateProps = new Set<string>();
+		for (const [key, count] of propCount.entries()) {
+			if (nonIndexFileCount === 0 || count > 0) {
+				aggregateProps.add(key);
 			}
 		}
 
@@ -200,16 +306,30 @@ export class FrontmatterAnalyzer {
 		return false;
 	}
 
-	autoDetectDescriptionProperty(frontmatter: Record<string, unknown>): string | null {
-		const descriptionProperties = ['description', 'summary', 'excerpt', 'intro', 'snippet', 'blurb'];
+	autoDetectDescriptionProperty(frontmatter: Record<string, unknown>, exampleFrontmatter?: Record<string, unknown>): string | null {
+		const descKeywords = ['description', 'summary', 'excerpt', 'intro', 'snippet', 'blurb'];
 
-		for (const prop of descriptionProperties) {
-			if (frontmatter.hasOwnProperty(prop)) {
-				return prop;
+		const findMatch = (keys: string[]): string | null => {
+			// Exact match first
+			for (const kw of descKeywords) {
+				if (keys.includes(kw)) return kw;
 			}
+			// Substring match (e.g. metaDescription, meta_description)
+			for (const key of keys) {
+				const lower = key.toLowerCase();
+				if (descKeywords.some(kw => lower.includes(kw))) return key;
+			}
+			return null;
+		};
+
+		// Prefer the example file's properties (most representative of this content type)
+		if (exampleFrontmatter) {
+			const match = findMatch(Object.keys(exampleFrontmatter));
+			if (match) return match;
 		}
 
-		return null;
+		// Fall back to aggregate properties
+		return findMatch(Object.keys(frontmatter));
 	}
 
 	autoDetectTagsProperty(frontmatter: Record<string, unknown>): string | null {
@@ -224,23 +344,27 @@ export class FrontmatterAnalyzer {
 	autoDetectDraftProperty(frontmatter: Record<string, unknown>): { property: string; logic: 'true-draft' | 'false-draft' } | null {
 		if (frontmatter.hasOwnProperty('draft')) {
 			const val = frontmatter['draft'];
-			if (typeof val === 'boolean') {
+			// Accept boolean or null (null comes from aggregate dummy frontmatter where values are stripped)
+			if (typeof val === 'boolean' || val === null) {
 				return { property: 'draft', logic: 'true-draft' };
 			}
 		}
 
 		if (frontmatter.hasOwnProperty('published')) {
 			const val = frontmatter['published'];
-			// If published is a boolean, it's draft logic
-			if (typeof val === 'boolean') {
+			// If published is a boolean (or null from dummy), it's draft logic
+			if (typeof val === 'boolean' || val === null) {
+				// But skip if it looks like a date property was already detected
+				// Check if value is null (from dummy) - could be either boolean or date
+				// Prefer not claiming it as draft if it could be a date
+				if (val === null) return null; // Ambiguous: could be a date. Don't assume.
 				return { property: 'published', logic: 'false-draft' };
 			}
-			// If published is a date (checked in autoDetectDateProperty), we skip it here
 		}
 
 		if (frontmatter.hasOwnProperty('visible')) {
 			const val = frontmatter['visible'];
-			if (typeof val === 'boolean') {
+			if (typeof val === 'boolean' || val === null) {
 				return { property: 'visible', logic: 'false-draft' };
 			}
 		}

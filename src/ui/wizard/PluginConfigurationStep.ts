@@ -86,7 +86,7 @@ export class PluginConfigurationStep extends BaseWizardStep {
                 marginBottom: '15px'
             });
             warningDiv.createEl('p', {
-                text: '⚠️ Warning: Different content types use different properties for title or description. SEO will use the first content type\'s defaults.',
+                text: '⚠️ Warning: Different content types use different properties for title or description. SEO will use the default content type\'s properties.',
                 attr: { style: 'margin: 0; font-size: 0.9em;' }
             });
         }

@@ -26,6 +26,7 @@ export interface VaultCMSSettings {
 	explorerFocus: ExplorerFocusConfig;
 	ignoreConfig: IgnoreConfig;
 	gitConfig: GitConfig;
+	resolvePublicImages: boolean;
 	runWizardOnStartup: boolean;
 	wizardCompleted: boolean;
 }
@@ -78,6 +79,7 @@ export const DEFAULT_SETTINGS: VaultCMSSettings = {
 		branchName: 'main',
 		autoConfigureObsidianGit: true
 	},
+	resolvePublicImages: false,
 	runWizardOnStartup: true,
 	wizardCompleted: false
 };
