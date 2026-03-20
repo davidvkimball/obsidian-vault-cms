@@ -109,6 +109,12 @@ export interface AstroComposerConfig {
 	configFilePath: string;
 	terminalProjectRootPath: string;
 	showMdxFilesInExplorer?: boolean;
+	// Global draft/date settings (derived from default content type)
+	syncDraftDate?: boolean;
+	draftDetectionMode?: 'property' | 'underscore-prefix';
+	draftProperty?: string;
+	draftLogic?: 'true-is-draft' | 'false-is-draft';
+	publishDateField?: string;
 }
 
 export interface AstroComposerCustomType {

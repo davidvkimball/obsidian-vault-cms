@@ -85,6 +85,9 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 				});
 			}
 
+			// Check for underscore-prefixed files (needed for both init and toggle handler)
+			const hasUnderscoreFiles = await this.frontmatterAnalyzer.hasUnderscoreFiles(folderPath);
+
 			// Initialize properties if not exists
 			if (!this.state.frontmatterProperties[contentType.id]) {
 				const detectedDraft = this.frontmatterAnalyzer.autoDetectDraftProperty(dummyFrontmatter);
@@ -94,17 +97,17 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 				const detectedTitle = this.frontmatterAnalyzer.autoDetectTitleProperty(dummyFrontmatter);
 				const detectedDate = this.frontmatterAnalyzer.autoDetectDateProperty(dummyFrontmatter);
 
-				// Check for underscore-prefixed files
-				const hasUnderscoreFiles = await this.frontmatterAnalyzer.hasUnderscoreFiles(folderPath);
+				// If underscore files exist, prefer underscore mode (don't auto-fill draftProperty)
+				const useDraftProperty = hasUnderscoreFiles ? undefined : detectedDraft?.property;
 
 				this.state.frontmatterProperties[contentType.id] = {
-					titleProperty: detectedTitle || undefined, // Only set if detected, otherwise blank
-					dateProperty: detectedDate || undefined, // Only set if detected, otherwise blank
+					titleProperty: detectedTitle || undefined,
+					dateProperty: detectedDate || undefined,
 					descriptionProperty: detectedDesc || undefined,
 					tagsProperty: detectedTags || undefined,
-					draftProperty: detectedDraft?.property,
-					draftLogic: detectedDraft?.property === 'published' ? 'false-draft' : (detectedDraft ? 'true-draft' : undefined),
-					hasDraftStatus: !!detectedDraft?.property || hasUnderscoreFiles, // Track if draft status is enabled
+					draftProperty: useDraftProperty,
+					draftLogic: useDraftProperty === 'published' ? 'false-draft' : (useDraftProperty ? 'true-draft' : undefined),
+					hasDraftStatus: !!useDraftProperty || hasUnderscoreFiles,
 					imageProperty: detectedImage || undefined
 				};
 			}
@@ -261,7 +264,8 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 				.onChange(value => {
 					props.hasDraftStatus = value;
 					if (value && !props.draftProperty) {
-						const detectedDraft = example ? this.frontmatterAnalyzer.autoDetectDraftProperty(example.frontmatter) : null;
+						// Only auto-detect property when underscore files don't exist
+						const detectedDraft = (!hasUnderscoreFiles && example) ? this.frontmatterAnalyzer.autoDetectDraftProperty(example.frontmatter) : null;
 						props.draftProperty = detectedDraft?.property;
 						// Fix logic only when we have a concrete property
 						if (props.draftProperty) {
@@ -472,14 +476,12 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 				text: 'Edit the template that will be used when creating new files of this content type. Use {{title}} and {{date}} as variables. Note: {{title}} should be in quotes (e.g., title: "{{title}}"), while {{date}} should not be in quotes (e.g., date: {{date}}).'
 			});
 
-			// Initialize template if not exists
-			if (!props.template) {
-				// Get correct folder path for aggregation
-				const pathResolver = new PathResolver(this.app);
-				const folderPath = pathResolver.getFolderPathFromVaultRoot(contentType.folder, this.state.projectDetection);
-				const aggregateProps = await this.frontmatterAnalyzer.getPropertiesInFolder(folderPath, this.state.enableMdxSupport);
-
-				// Generate default template based on properties and ALL found keys
+			// Always regenerate the template from current properties to avoid stale
+			// cached templates (e.g. a draft property that was removed)
+			{
+				const pathResolver2 = new PathResolver(this.app);
+				const folderPath2 = pathResolver2.getFolderPathFromVaultRoot(contentType.folder, this.state.projectDetection);
+				const aggregateProps = await this.frontmatterAnalyzer.getPropertiesInFolder(folderPath2, this.state.enableMdxSupport);
 				props.template = this.generateDefaultTemplate(props, example, aggregateProps);
 			}
 
@@ -627,6 +629,8 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 				} else if (prop === props.draftProperty) {
 					const draftValue = props.draftLogic === 'false-draft' ? 'false' : 'true';
 					template += `${prop}: ${draftValue}\n`;
+				} else if ((prop === 'draft' || prop === 'published' || prop === 'visible') && !props.draftProperty) {
+					// Skip draft-related properties when using underscore prefix mode
 				} else {
 					// Generic fallback
 					template += `${prop}: ""\n`;

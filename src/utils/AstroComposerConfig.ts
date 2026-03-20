@@ -82,6 +82,24 @@ export class AstroComposerConfigurator {
 			config.defaultTemplate = props?.template || this.generateTemplate(props);
 		}
 
+		// Set global draft/date settings from the default content type
+		const defaultProps = defaultContentType ? frontmatterProperties[defaultContentType.id] : undefined;
+		if (defaultProps) {
+			if (defaultProps.hasDraftStatus) {
+				config.syncDraftDate = true;
+				if (defaultProps.draftProperty) {
+					config.draftDetectionMode = 'property';
+					config.draftProperty = defaultProps.draftProperty;
+					config.draftLogic = defaultProps.draftLogic === 'false-draft' ? 'false-is-draft' : 'true-is-draft';
+				} else {
+					config.draftDetectionMode = 'underscore-prefix';
+				}
+			}
+			if (defaultProps.dateProperty) {
+				config.publishDateField = defaultProps.dateProperty;
+			}
+		}
+
 		// Add other content types
 		for (const contentType of otherContentTypes) {
 			const props = frontmatterProperties[contentType.id];
@@ -245,6 +263,23 @@ export class AstroComposerConfigurator {
 				pluginSettings.enableConfigRibbonIcon = true;
 			}
 			
+			// Update global draft/date settings
+			if (config.syncDraftDate !== undefined) {
+				pluginSettings.syncDraftDate = config.syncDraftDate;
+			}
+			if (config.draftDetectionMode) {
+				pluginSettings.draftDetectionMode = config.draftDetectionMode;
+			}
+			if (config.draftProperty !== undefined) {
+				pluginSettings.draftProperty = config.draftProperty;
+			}
+			if (config.draftLogic) {
+				pluginSettings.draftLogic = config.draftLogic;
+			}
+			if (config.publishDateField) {
+				pluginSettings.publishDateField = config.publishDateField;
+			}
+
 			// Update MDX support flag
 			if (config.showMdxFilesInExplorer !== undefined) {
 				pluginSettings.showMdxFilesInExplorer = config.showMdxFilesInExplorer;
@@ -365,6 +400,13 @@ export class AstroComposerConfigurator {
 		if (config.configFilePath) existingData.configFilePath = config.configFilePath;
 		if (config.terminalProjectRootPath) existingData.terminalProjectRootPath = config.terminalProjectRootPath;
 		if (config.showMdxFilesInExplorer !== undefined) existingData.showMdxFilesInExplorer = config.showMdxFilesInExplorer;
+
+		// Update global draft/date settings
+		if (config.syncDraftDate !== undefined) existingData.syncDraftDate = config.syncDraftDate;
+		if (config.draftDetectionMode) existingData.draftDetectionMode = config.draftDetectionMode;
+		if (config.draftProperty !== undefined) existingData.draftProperty = config.draftProperty;
+		if (config.draftLogic) existingData.draftLogic = config.draftLogic;
+		if (config.publishDateField) existingData.publishDateField = config.publishDateField;
 
 		// Ensure commands are enabled only if paths are present
 		if (config.configFilePath && config.terminalProjectRootPath) {
