@@ -177,7 +177,7 @@ export class SettingsTab extends PluginSettingTab {
 					.addButton(button => {
 						button.setButtonText('Setup / Update Git...')
 							.onClick(() => {
-								const modal = new SetupWizardModal(this.app, { currentStep: 11 }, this.plugin);
+								const modal = new SetupWizardModal(this.app, { currentStep: 7 }, this.plugin);
 								modal.open();
 							});
 					});

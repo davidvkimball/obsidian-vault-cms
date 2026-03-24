@@ -268,26 +268,14 @@ export class BasesCMSConfigurator {
 			if (!props) return;
 
 			const existingView = viewsByName.get(ct.name);
-			const generatedView = this.generateViewForContentType(ct, props, projectDetection);
 
 			if (existingView) {
-				// ONLY update core "plumbing" properties from the wizard
-				// Preserve all other user customizations (sort, layout, formulas, etc.)
-				const coreUpdates = {
-					filters: generatedView.filters,
-					newNoteLocation: generatedView.newNoteLocation,
-					titleProperty: generatedView.titleProperty,
-					dateProperty: generatedView.dateProperty,
-					draftStatusProperty: generatedView.draftStatusProperty,
-					tagsProperty: generatedView.tagsProperty,
-					showTags: generatedView.showTags,
-					showDraftStatus: generatedView.showDraftStatus,
-					draftStatusReverse: generatedView.draftStatusReverse,
-					draftStatusUseFilenamePrefix: generatedView.draftStatusUseFilenamePrefix
-				};
-				finalViews.push({ ...existingView, ...coreUpdates });
+				// View already exists - preserve it entirely, don't overwrite user customizations
+				finalViews.push(existingView);
 				processedViewNames.add(ct.name);
 			} else {
+				// New view - generate from scratch
+				const generatedView = this.generateViewForContentType(ct, props, projectDetection);
 				finalViews.push(generatedView);
 				processedViewNames.add(ct.name);
 			}

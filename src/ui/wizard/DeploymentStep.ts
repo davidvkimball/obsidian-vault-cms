@@ -1,15 +1,15 @@
-import { App, Setting, Notice } from 'obsidian';
+import { App, Setting, Notice, TFile } from 'obsidian';
 import { BaseWizardStep } from './BaseWizardStep';
 import { WizardState } from '../../types';
 import { GitManager } from '../../utils/GitManager';
 import { resolveProjectRoot } from '../../utils/ProjectRootResolver';
+import * as path from 'path';
 
 export class DeploymentStep extends BaseWizardStep {
     private remoteUrl: string | null = null;
 
     constructor(app: App, containerEl: HTMLElement, state: WizardState, onNext: () => void, onBack: () => void, onCancel: () => void) {
         super(app, containerEl, state, onNext, onBack, onCancel);
-        this.showNextButton = false;
     }
 
     private getTailoredInstructions() {
@@ -51,7 +51,7 @@ export class DeploymentStep extends BaseWizardStep {
 
         containerEl.createEl('h2', { text: 'Deployment Setup' });
         containerEl.createEl('p', {
-            text: "Your site is ready to be published! Choose a deployment platform to host your Astro site. Select 'skip' if you've already set this up."
+            text: "Your site is ready to be published! Choose a deployment platform to host your Astro site. Click \"Next\" when you're done or to set this up later."
         });
 
         const instructions = this.getTailoredInstructions();
@@ -82,7 +82,13 @@ export class DeploymentStep extends BaseWizardStep {
                 `Base directory: ${instructions.rootDir === '/' ? '(leave empty)' : instructions.rootDir}`,
                 `Build command: ${instructions.buildCommand}`,
                 `Publish directory: ${instructions.outputDir}`
-            ]
+            ],
+            configGenerator: () => this.generateConfigFile('netlify.toml', [
+                '[build]',
+                `  command = "pnpm run build"`,
+                `  publish = "dist"`,
+                ''
+            ].join('\n'))
         });
 
         // Vercel
@@ -94,20 +100,33 @@ export class DeploymentStep extends BaseWizardStep {
                 `Framework Preset: Astro`,
                 `Root Directory: ${instructions.rootDir}`,
                 `Build Command: ${instructions.buildCommand}`
-            ]
+            ],
+            configGenerator: () => this.generateConfigFile('vercel.json', JSON.stringify({ framework: 'astro' }, null, 2) + '\n')
         });
 
         // Cloudflare
         this.renderPlatform(platformContainer, {
             name: 'Cloudflare',
-            description: 'Host your site on Cloudflare Pages or Workers.',
+            description: 'Host your site on Cloudflare Workers.',
             url: this.getCloudflareDeployUrl(),
             instructions: [
-                `Framework Preset: Astro`,
-                `Root Directory: ${instructions.rootDir}`,
-                `Build Command: ${instructions.buildCommand}`,
-                `Output Directory: ${instructions.outputDir}`
-            ]
+                `A wrangler.toml will be created for static asset hosting.`,
+                `Build your site with: pnpm run build`,
+                `Deploy with: npx wrangler deploy`
+            ],
+            configGenerator: () => {
+                const today = new Date().toISOString().split('T')[0];
+                const projectName = this.getProjectName();
+                return this.generateConfigFile('wrangler.toml', [
+                    `name = "${projectName}"`,
+                    `compatibility_date = "${today}"`,
+                    '',
+                    '[assets]',
+                    '  directory = "./dist"',
+                    '  not_found_handling = "404-page"',
+                    ''
+                ].join('\n'));
+            }
         });
 
         // GitHub
@@ -131,16 +150,10 @@ export class DeploymentStep extends BaseWizardStep {
     }
 
     private getVercelDeployUrl(): string {
-        if (this.remoteUrl) {
-            return `https://vercel.com/new/clone?repository-url=${encodeURIComponent(this.remoteUrl)}`;
-        }
-        return 'https://vercel.com/new';
+        return 'https://vercel.com/new/import';
     }
 
     private getCloudflareDeployUrl(): string {
-        if (this.remoteUrl) {
-            return `https://deploy.workers.cloudflare.com/?url=${encodeURIComponent(this.remoteUrl)}`;
-        }
         return 'https://dash.cloudflare.com/';
     }
 
@@ -156,7 +169,7 @@ export class DeploymentStep extends BaseWizardStep {
         return 'https://github.com/features/pages';
     }
 
-    private renderPlatform(container: HTMLElement, platform: any) {
+    private renderPlatform(container: HTMLElement, platform: { name: string; description: string; url: string; instructions: string[]; recommended?: boolean; configGenerator?: () => Promise<void> }) {
         const platformEl = container.createDiv({
             cls: 'deployment-platform',
             attr: { style: 'margin-bottom: 2rem; padding: 1rem; border: 1px solid var(--background-modifier-border); border-radius: 8px;' }
@@ -182,7 +195,39 @@ export class DeploymentStep extends BaseWizardStep {
             .addButton(btn => btn
                 .setButtonText(`Set up on ${platform.name}`)
                 .setCta()
-                .onClick(() => window.open(platform.url)));
+                .onClick(async () => {
+                    if (platform.configGenerator) {
+                        await platform.configGenerator();
+                    }
+                    window.open(platform.url);
+                }));
+    }
+
+    private async generateConfigFile(filename: string, content: string): Promise<void> {
+        const projectRoot = this.getAbsoluteProjectRoot();
+        if (!projectRoot) return;
+
+        const filePath = path.join(projectRoot, filename);
+
+        try {
+            // Check if file already exists using Node fs
+            const fs = require('fs');
+            if (fs.existsSync(filePath)) {
+                return; // File exists, don't overwrite
+            }
+            fs.writeFileSync(filePath, content, 'utf-8');
+            new Notice(`Created ${filename}`);
+        } catch {
+            // Silent failure
+        }
+    }
+
+    private getProjectName(): string {
+        const projectRoot = this.getAbsoluteProjectRoot();
+        if (projectRoot) {
+            return projectRoot.split(/[\\/]/).pop() || 'my-site';
+        }
+        return 'my-site';
     }
 
     validate(): boolean {

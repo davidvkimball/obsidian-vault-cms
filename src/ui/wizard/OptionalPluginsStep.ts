@@ -14,6 +14,10 @@ interface PluginInfo {
 	id: string;
 	name: string;
 	category: 'essential' | 'nice-to-have';
+	/** 'community' = in official directory, 'brat' = install via BRAT from GitHub */
+	source?: 'community' | 'brat';
+	/** GitHub repo for BRAT-only plugins (e.g. 'davidvkimball/obsidian-seo') */
+	repo?: string;
 }
 
 export class OptionalPluginsStep extends BaseWizardStep {
@@ -35,27 +39,28 @@ export class OptionalPluginsStep extends BaseWizardStep {
 
 		// Define all plugins with their categories
 		const allPlugins: PluginInfo[] = [
-			{ id: 'astro-composer', name: 'Astro Composer', category: 'essential' },
-			{ id: 'bases-cms', name: 'Bases CMS', category: 'essential' },
-			{ id: 'new-tab-default-page', name: 'Default New Tab Page', category: 'essential' },
-			{ id: 'editing-toolbar', name: 'Editing Toolbar', category: 'essential' },
-			{ id: 'home-base', name: 'Home Base', category: 'essential' },
-			{ id: 'homepage', name: 'Homepage', category: 'essential' },
-			{ id: 'image-manager', name: 'Image Manager', category: 'essential' },
-			{ id: 'obsidian-paste-image-rename', name: 'Paste Image Rename', category: 'essential' },
-			{ id: 'property-over-file-name', name: 'Property Over File Name', category: 'essential' },
-			{ id: 'seo', name: 'SEO', category: 'essential' },
-			{ id: 'ui-tweaker', name: 'UI Tweaker', category: 'essential' },
-			{ id: 'simple-focus', name: 'Simple Focus', category: 'essential' },
-			{ id: 'statusbar-organizer', name: 'Status Bar Organizer', category: 'essential' },
-			{ id: 'file-name-history', name: 'File Name History', category: 'nice-to-have' },
-			{ id: 'data-files-editor', name: 'Data Files Editor', category: 'nice-to-have' },
-			{ id: 'iconic', name: 'Iconic', category: 'nice-to-have' },
-			{ id: 'paste-image-into-property', name: 'Paste Image Into Property', category: 'nice-to-have' },
-			{ id: 'settings-search', name: 'Settings Search', category: 'nice-to-have' },
-			{ id: 'tag-wrangler', name: 'Tag Wrangler', category: 'nice-to-have' },
-			{ id: 'zenmode', name: 'Zen Mode', category: 'nice-to-have' },
-			{ id: 'explorer-focus', name: 'Explorer Focus', category: 'nice-to-have' }
+			{ id: 'astro-composer', name: 'Astro Composer', category: 'essential', source: 'brat', repo: 'davidvkimball/obsidian-astro-composer' },
+			{ id: 'bases-cms', name: 'Bases CMS', category: 'essential', source: 'brat', repo: 'davidvkimball/obsidian-bases-cms' },
+			{ id: 'new-tab-default-page', name: 'Default New Tab Page', category: 'essential', source: 'community' },
+			{ id: 'editing-toolbar', name: 'Editing Toolbar', category: 'essential', source: 'community' },
+			{ id: 'home-base', name: 'Home Base', category: 'essential', source: 'brat', repo: 'davidvkimball/obsidian-home-base' },
+			{ id: 'homepage', name: 'Homepage', category: 'essential', source: 'community' },
+			{ id: 'image-manager', name: 'Image Manager', category: 'essential', source: 'brat', repo: 'davidvkimball/obsidian-image-manager' },
+			{ id: 'obsidian-paste-image-rename', name: 'Paste Image Rename', category: 'essential', source: 'community' },
+			{ id: 'property-over-file-name', name: 'Property Over File Name', category: 'essential', source: 'brat', repo: 'davidvkimball/obsidian-property-over-file-name' },
+			{ id: 'seo', name: 'SEO', category: 'essential', source: 'brat', repo: 'davidvkimball/obsidian-seo' },
+			{ id: 'ui-tweaker', name: 'UI Tweaker', category: 'essential', source: 'brat', repo: 'davidvkimball/obsidian-ui-tweaker' },
+			{ id: 'simple-focus', name: 'Simple Focus', category: 'essential', source: 'community' },
+			{ id: 'statusbar-organizer', name: 'Status Bar Organizer', category: 'essential', source: 'community' },
+			{ id: 'omnisearch', name: 'Omnisearch', category: 'nice-to-have', source: 'community' },
+			{ id: 'file-name-history', name: 'File Name History', category: 'nice-to-have', source: 'brat', repo: 'davidvkimball/obsidian-file-name-history' },
+			{ id: 'data-files-editor', name: 'Data Files Editor', category: 'nice-to-have', source: 'brat', repo: 'davidvkimball/obsidian-data-files-editor' },
+			{ id: 'iconic', name: 'Iconic', category: 'nice-to-have', source: 'community' },
+			{ id: 'paste-image-into-property', name: 'Paste Image Into Property', category: 'nice-to-have', source: 'community' },
+			{ id: 'settings-search', name: 'Settings Search', category: 'nice-to-have', source: 'community' },
+			{ id: 'tag-wrangler', name: 'Tag Wrangler', category: 'nice-to-have', source: 'community' },
+			{ id: 'zenmode', name: 'Zen Mode', category: 'nice-to-have', source: 'brat', repo: 'davidvkimball/obsidian-zenmode' },
+			{ id: 'explorer-focus', name: 'Explorer Focus', category: 'nice-to-have', source: 'brat', repo: 'davidvkimball/obsidian-explorer-focus' }
 		];
 
 		const plugins = (this.app as { plugins?: { plugins?: Record<string, unknown>; enabledPlugins?: Set<string> } }).plugins;
@@ -99,6 +104,50 @@ export class OptionalPluginsStep extends BaseWizardStep {
 
 		if (essentialPlugins.length === 0 && niceToHavePlugins.length === 0) {
 			containerEl.createEl('p', { text: 'No Vault CMS plugins detected.' });
+		}
+
+		// Missing plugins section
+		const missingPlugins = allPlugins.filter(p =>
+			!installedPluginIds.includes(p.id) && !ignoredPlugins.includes(p.id)
+		);
+
+		if (missingPlugins.length > 0) {
+			const missingEssential = missingPlugins.filter(p => p.category === 'essential');
+			const missingNiceToHave = missingPlugins.filter(p => p.category === 'nice-to-have');
+
+			if (missingEssential.length > 0 || missingNiceToHave.length > 0) {
+				const details = containerEl.createEl('details', { attr: { style: 'margin-bottom: 1rem;' } });
+				details.createEl('summary', {
+					text: `Not installed (${missingPlugins.length})`,
+					attr: { style: 'font-weight: bold; cursor: pointer; padding: 0.5rem 0; color: var(--text-muted);' }
+				});
+
+				const content = details.createDiv({ attr: { style: 'padding: 0.5rem 0.5rem 0.5rem 1.5rem; border-left: 2px solid var(--background-modifier-border);' } });
+
+				for (const plugin of [...missingEssential, ...missingNiceToHave]) {
+					const setting = new Setting(content)
+						.setName(plugin.name)
+						.setDesc(plugin.category === 'essential' ? 'Recommended' : 'Optional');
+
+					setting.nameEl.style.fontSize = '0.9em';
+					setting.descEl.style.fontSize = '0.8em';
+
+					if (plugin.source === 'community') {
+						setting.addButton(btn => btn
+							.setButtonText('Install')
+							.setCta()
+							.onClick(() => {
+								window.open(`obsidian://show-plugin?id=${plugin.id}`);
+							}));
+					} else if (plugin.source === 'brat' && plugin.repo) {
+						setting.addButton(btn => btn
+							.setButtonText('GitHub')
+							.onClick(() => {
+								window.open(`https://github.com/${plugin.repo}`);
+							}));
+					}
+				}
+			}
 		}
 
 		// --- Merged Editing Toolbar Section ---

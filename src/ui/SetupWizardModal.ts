@@ -34,6 +34,7 @@ export class SetupWizardModal extends Modal {
 	private isCompleting: boolean = false;
 	private initialSettingsSnapshot: Partial<WizardState> | null = null;
 	private lastSavedStepIndex: number = -1; // Track the last step where "Next" was clicked
+	private navigatingBack: boolean = false; // Track navigation direction for skip logic
 
 	constructor(app: App, initialState?: Partial<WizardState>, pluginInstance?: VaultCMSPlugin) {
 		super(app);
@@ -48,6 +49,21 @@ export class SetupWizardModal extends Modal {
 		// Apply any initial state overrides
 		if (initialState) {
 			this.stateManager.updateState(initialState);
+
+			// When jumping to a specific step, ensure projectDetection is populated
+			// from saved plugin settings so steps like GitSetupStep can find the project root
+			if (initialState.currentStep && initialState.currentStep > 1) {
+				const currentState = this.stateManager.getState();
+				if (!currentState.projectDetection?.projectRoot && this.plugin.settings.projectRoot) {
+					this.stateManager.updateState({
+						projectDetection: {
+							projectRoot: this.plugin.settings.projectRoot,
+							configFilePath: currentState.projectDetection?.configFilePath || '',
+							vaultLocation: currentState.projectDetection?.vaultLocation || 'root',
+						}
+					});
+				}
+			}
 		}
 		this.steps = [
 			WelcomeStep,
@@ -144,12 +160,26 @@ export class SetupWizardModal extends Modal {
 			);
 
 			if (await stepInstance.shouldSkip()) {
-				console.debug(`SetupWizardModal: Step ${StepClass.name} requested skip. Advancing...`);
-				this.stateManager.nextStep(this.steps.length);
-				this.stateMachine.next();
+				if (this.navigatingBack) {
+					// When going backwards, skip backwards
+					console.debug(`SetupWizardModal: Step ${StepClass.name} requested skip (going back)...`);
+					if (this.stateManager.canGoPrevious()) {
+						this.stateManager.previousStep();
+					} else {
+						this.navigatingBack = false;
+					}
+				} else {
+					// When going forwards, skip forwards
+					console.debug(`SetupWizardModal: Step ${StepClass.name} requested skip. Advancing...`);
+					this.stateManager.nextStep(this.steps.length);
+					this.stateMachine.next();
+				}
 				return this.renderCurrentStep();
 			}
 		}
+
+		// Step will render, reset navigation direction
+		this.navigatingBack = false;
 
 		// Scroll to top IMMEDIATELY before clearing content to prevent visual jump
 		this.scrollToTop();
@@ -292,6 +322,7 @@ export class SetupWizardModal extends Modal {
 			prevBtn.addEventListener('click', () => {
 				// Discard any changes made on current step and go back
 				this.discardCurrentStepChanges();
+				this.navigatingBack = true;
 				this.stateManager.previousStep();
 				void this.renderCurrentStep();
 			});
