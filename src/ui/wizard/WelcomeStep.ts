@@ -31,7 +31,7 @@ export class WelcomeStep extends BaseWizardStep {
 		const list = containerEl.createEl('ul');
 		list.createEl('li', { text: 'Detecting your Astro project structure' });
 		list.createEl('li', { text: 'Identifying your content types' });
-		list.createEl('li', { text: 'Mapping frontmatter properties' });
+		list.createEl('li', { text: 'Mapping properties' });
 		list.createEl('li', { text: 'Configuring plugins and themes' });
 		list.createEl('li', { text: 'Setting up Home Base content views' });
 		list.createEl('li', { text: 'Configuring Astro Composer and SEO plugins' });

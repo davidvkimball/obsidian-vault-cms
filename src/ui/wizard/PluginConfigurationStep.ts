@@ -16,7 +16,7 @@ export class PluginConfigurationStep extends BaseWizardStep {
 
         containerEl.createEl('h2', { text: 'Plugin Configuration' });
         containerEl.createEl('p', {
-            text: 'Your plugins will be automatically configured using your mapped frontmatter properties. Review the settings below.'
+            text: 'Your plugins will be automatically configured using your mapped properties. Review the settings below.'
         });
 
         const enabledTypes = this.state.contentTypes.filter(ct => ct.enabled);

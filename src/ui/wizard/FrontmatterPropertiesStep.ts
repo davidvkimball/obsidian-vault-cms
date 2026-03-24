@@ -33,7 +33,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 
 		stepContentWrapper.createEl('h2', { text: 'Frontmatter properties' });
 		stepContentWrapper.createEl('p', {
-			text: 'Map frontmatter properties for each content type. We\'ll find example files to help you.'
+			text: 'Map properties for each content type. We\'ll find example files to help you.'
 		});
 
 		for (const contentType of this.state.contentTypes) {
@@ -116,7 +116,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 
 			new Setting(contentTypeWrapper)
 				.setName('Title property')
-				.setDesc('The frontmatter property that contains the title (e.g., title, name, heading). Leave blank to use full file name instead.')
+				.setDesc('The property that contains the title (like title, name, heading). Leave blank to use full file name instead.')
 				.addText(text => {
 					const detected = 'title';
 					text.setPlaceholder(detected)
@@ -128,7 +128,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 
 			new Setting(contentTypeWrapper)
 				.setName('Date property')
-				.setDesc('The frontmatter property that contains the date (e.g., date, pubDate, publishedDate, publishDate). Leave blank to use file created date instead.')
+				.setDesc('The property that contains the date (like date, pubDate, publishedDate, publishDate). Leave blank to use file created date instead.')
 				.addText(text => {
 					const detected = example ? this.frontmatterAnalyzer.autoDetectDateProperty(example.frontmatter) : null;
 					text.setPlaceholder(detected || 'date')
@@ -155,7 +155,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 						if (!descTextSetting) {
 							descTextSetting = new Setting(contentTypeWrapper)
 								.setName('Description property')
-								.setDesc('The frontmatter property that contains the description (e.g., description, summary, excerpt, intro, snippet, blurb)')
+								.setDesc('The property that contains the description (like description, summary, excerpt, intro, snippet, blurb)')
 								.addText(text => text
 									.setValue(props.descriptionProperty || '')
 									.onChange(value => {
@@ -178,7 +178,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 			if (props.descriptionProperty) {
 				descTextSetting = new Setting(contentTypeWrapper)
 					.setName('Description property')
-					.setDesc('The frontmatter property that contains the description (e.g., description, summary, excerpt, intro, snippet, blurb)')
+					.setDesc('The property that contains the description (like description, summary, excerpt, intro, snippet, blurb)')
 					.addText(text => text
 						.setValue(props.descriptionProperty || '')
 						.onChange(value => {
@@ -206,7 +206,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 						if (!tagsTextSetting) {
 							tagsTextSetting = new Setting(contentTypeWrapper)
 								.setName('Tags property')
-								.setDesc('The frontmatter property that contains tags (e.g., tags, tag, categories, category). Leave blank if not applicable.')
+								.setDesc('The property that contains tags (like tags, tag, categories, category). Leave blank if not applicable.')
 								.addText(text => {
 									const detected = example ? this.frontmatterAnalyzer.autoDetectTagsProperty(example.frontmatter) : null;
 									text.setPlaceholder(detected || 'tags')
@@ -232,7 +232,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 			if (props.tagsProperty) {
 				tagsTextSetting = new Setting(contentTypeWrapper)
 					.setName('Tags property')
-					.setDesc('The frontmatter property that contains tags (e.g., tags, tag, categories, category). Leave blank if not applicable.')
+					.setDesc('The property that contains tags (like tags, tag, categories, category). Leave blank if not applicable.')
 					.addText(text => {
 						const detected = example ? this.frontmatterAnalyzer.autoDetectTagsProperty(example.frontmatter) : null;
 						text.setPlaceholder(detected || 'tags')
@@ -249,7 +249,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 			// Enable Draft Status
 			const draftSetting = new Setting(contentTypeWrapper)
 				.setName('Enable draft status')
-				.setDesc('Property-based drafts use a frontmatter key (e.g. draft). Underscore-only drafts use file prefix (_post.md) with no property.');
+				.setDesc('Property-based drafts use a property key (like draft). Underscore-only drafts use file prefix (_post.md) with no property.');
 
 			let draftPropertySetting: Setting | null = null;
 			let draftLogicSetting: Setting | null = null;
@@ -430,7 +430,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 						if (!imageTextSetting) {
 							imageTextSetting = new Setting(contentTypeWrapper)
 								.setName('Image property')
-								.setDesc('The frontmatter property that contains the image/cover (e.g., image, cover, coverImage, thumbnail, featuredImage). Leave blank if not applicable.')
+								.setDesc('The property that contains the image/cover (like image, cover, coverImage, thumbnail, featuredImage). Leave blank if not applicable.')
 								.addText(text => {
 									const detected = example ? this.frontmatterAnalyzer.autoDetectImageProperty(example.frontmatter) : null;
 									text.setPlaceholder(detected || 'image')
@@ -456,7 +456,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 			if (props.imageProperty) {
 				imageTextSetting = new Setting(contentTypeWrapper)
 					.setName('Image property')
-					.setDesc('The frontmatter property that contains the image/cover (e.g., image, cover, coverImage, thumbnail, featuredImage). Leave blank if not applicable.')
+					.setDesc('The property that contains the image/cover (like image, cover, coverImage, thumbnail, featuredImage). Leave blank if not applicable.')
 					.addText(text => {
 						const detected = example ? this.frontmatterAnalyzer.autoDetectImageProperty(example.frontmatter) : null;
 						text.setPlaceholder(detected || 'image')
@@ -473,7 +473,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 			// Template editor
 			contentTypeWrapper.createEl('h4', { text: 'Template' });
 			contentTypeWrapper.createEl('p', {
-				text: 'Edit the template that will be used when creating new files of this content type. Use {{title}} and {{date}} as variables. Note: {{title}} should be in quotes (e.g., title: "{{title}}"), while {{date}} should not be in quotes (e.g., date: {{date}}).'
+				text: 'Edit the template that will be used when creating new files of this content type. Use {{title}} and {{date}} as variables. Note: {{title}} should be in quotes (like title: "{{title}}"), while {{date}} should not be in quotes (like date: {{date}}).'
 			});
 
 			// Always regenerate the template from current properties to avoid stale

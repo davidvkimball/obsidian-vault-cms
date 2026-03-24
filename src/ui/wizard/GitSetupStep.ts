@@ -113,7 +113,7 @@ export class GitSetupStep extends BaseWizardStep {
         });
 
         const tokenHelp = instructions.createEl('ul');
-        tokenHelp.createEl('li', { text: `Set a Note (e.g., "${this.state.gitConfig.repoName || 'Project'} (Vault CMS)")` });
+        tokenHelp.createEl('li', { text: `Set a Note (like "${this.state.gitConfig.repoName || 'Project'} (Vault CMS)")` });
         tokenHelp.createEl('li', { text: 'Set Expiration to "No expiration"' });
         tokenHelp.createEl('li', { text: 'Check the "repo" box (so all top options are selected)' });
         tokenHelp.createEl('li', { text: 'Click "Generate token" at the bottom, copy it, and paste it below.' });
@@ -259,7 +259,7 @@ export class GitSetupStep extends BaseWizardStep {
         // Branch Name
         new Setting(setupContent)
             .setName('Default Branch')
-            .setDesc('The name of the initial branch (e.g., "main" or "master").')
+            .setDesc('The name of the initial branch ("main" or "master").')
             .addText(text => {
                 const initialBranch = this.state.gitConfig.branchName || 'main';
                 if (!this.state.gitConfig.branchName) {
@@ -363,7 +363,7 @@ export class GitSetupStep extends BaseWizardStep {
                 new Notice('Successfully synced with GitHub!');
             } catch (pushError) {
                 console.error('Sync failed:', pushError);
-                new Notice('Initial sync failed. Please ensure you have Git configured locally and your credentials are set up (e.g. Git Credential Manager).');
+                new Notice('Initial sync failed. Please ensure you have Git configured locally and your credentials are set up (like Git Credential Manager).');
                 // Don't throw, let them finish setup and sync manually if needed
             }
 
