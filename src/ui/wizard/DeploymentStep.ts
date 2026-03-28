@@ -1,206 +1,134 @@
-import { App, Setting, Notice, TFile } from 'obsidian';
+import { App, Setting, Notice } from 'obsidian';
 import { BaseWizardStep } from './BaseWizardStep';
 import { WizardState } from '../../types';
-import { GitManager } from '../../utils/GitManager';
 import { resolveProjectRoot } from '../../utils/ProjectRootResolver';
 import * as path from 'path';
 
+type Platform = 'netlify' | 'vercel' | 'cloudflare' | 'github-pages';
+
+interface PlatformInfo {
+    id: Platform;
+    name: string;
+    description: string;
+    url: string;
+    configFile?: string;
+    configContent?: () => string;
+}
+
 export class DeploymentStep extends BaseWizardStep {
-    private remoteUrl: string | null = null;
+    private selectedPlatform: Platform | '' = '';
 
     constructor(app: App, containerEl: HTMLElement, state: WizardState, onNext: () => void, onBack: () => void, onCancel: () => void) {
         super(app, containerEl, state, onNext, onBack, onCancel);
     }
 
-    private getTailoredInstructions() {
-        const vaultLocation = this.state.projectDetection?.vaultLocation || 'root';
-        const projectRoot = this.state.projectDetection?.projectRoot || '';
-
-        let rootDir = '/';
-        let buildCommand = 'npm run build';
-        let outputDir = 'dist';
-
-        // For nested-content, we need to instruct the user about the Build settings
-        if (vaultLocation === 'nested-content' || vaultLocation === 'content') {
-            // Usually in our setups, the projectRoot is where the package.json is,
-            // so instructions remain standard unless it's a monorepo.
-        }
-
-        return {
-            rootDir,
-            buildCommand,
-            outputDir
-        };
-    }
-
     async shouldSkip(): Promise<boolean> {
-        const absoluteRoot = this.getAbsoluteProjectRoot();
-        if (absoluteRoot) {
-            this.remoteUrl = await GitManager.getRemoteUrl(absoluteRoot);
-        }
-        return !this.remoteUrl;
+        return false;
     }
 
     private getAbsoluteProjectRoot(): string | null {
         return resolveProjectRoot(this.app, this.state.projectDetection?.projectRoot);
     }
 
+    private getProjectName(): string {
+        const projectRoot = this.getAbsoluteProjectRoot();
+        if (projectRoot) {
+            return projectRoot.split(/[\\/]/).pop() || 'my-site';
+        }
+        return 'my-site';
+    }
+
+    private getPlatforms(): PlatformInfo[] {
+        return [
+            {
+                id: 'netlify',
+                name: 'Netlify',
+                description: 'Fast and reliable hosting with a great developer experience.',
+                url: 'https://app.netlify.com/start',
+                configFile: 'netlify.toml',
+                configContent: () => [
+                    '[build]',
+                    '  command = "pnpm run build"',
+                    '  publish = "dist"',
+                    ''
+                ].join('\n')
+            },
+            {
+                id: 'vercel',
+                name: 'Vercel',
+                description: 'Optimized for frontend frameworks with zero-config deployment.',
+                url: 'https://vercel.com/new/import',
+                configFile: 'vercel.json',
+                configContent: () => JSON.stringify({ framework: 'astro' }, null, 2) + '\n'
+            },
+            {
+                id: 'cloudflare',
+                name: 'Cloudflare',
+                description: 'Global edge network with generous free tier.',
+                url: 'https://dash.cloudflare.com/',
+                configFile: 'wrangler.toml',
+                configContent: () => {
+                    const today = new Date().toISOString().split('T')[0];
+                    const projectName = this.getProjectName();
+                    return [
+                        `name = "${projectName}"`,
+                        `compatibility_date = "${today}"`,
+                        '',
+                        '[assets]',
+                        '  directory = "./dist"',
+                        '  not_found_handling = "404-page"',
+                        ''
+                    ].join('\n');
+                }
+            },
+            {
+                id: 'github-pages',
+                name: 'GitHub Pages',
+                description: 'Host directly from your GitHub repository. Requires a public repo for free accounts.',
+                url: 'https://github.com/features/pages'
+            }
+        ];
+    }
+
     async display(): Promise<void> {
         const { containerEl } = this;
         containerEl.empty();
 
-        containerEl.createEl('h2', { text: 'Deployment Setup' });
+        containerEl.createEl('h2', { text: 'Deployment' });
         containerEl.createEl('p', {
-            text: "Your site is ready to be published! Choose a deployment platform to host your Astro site. Click \"Next\" when you're done or to set this up later."
+            text: 'Choose where you want to host your site. A config file will be created for your chosen platform.'
         });
 
-        const instructions = this.getTailoredInstructions();
-        const platformContainer = containerEl.createDiv({
-            cls: 'deployment-platforms',
-            attr: { style: 'min-height: 400px;' }
-        });
-        platformContainer.createEl('i', {
-            text: 'Resolving repository details...',
-            attr: { style: 'opacity: 0.5;' }
-        });
+        // Restore previous selection if any
+        this.selectedPlatform = (this.state as any).deploymentPlatform || '';
 
-        // 1. Fetch remote URL (Async)
-        const absoluteRoot = this.getAbsoluteProjectRoot();
-        if (absoluteRoot) {
-            this.remoteUrl = await GitManager.getRemoteUrl(absoluteRoot);
-        }
+        const platforms = this.getPlatforms();
 
-        // 2. Clear skeleton and render platforms
-        platformContainer.empty();
+        for (const platform of platforms) {
+            const setting = new Setting(containerEl);
+            setting.setName(platform.name);
+            setting.setDesc(platform.description);
 
-        // Netlify
-        this.renderPlatform(platformContainer, {
-            name: 'Netlify',
-            description: 'Fast and reliable hosting. Great developer experience.',
-            url: this.getNetlifyDeployUrl(),
-            instructions: [
-                `Base directory: ${instructions.rootDir === '/' ? '(leave empty)' : instructions.rootDir}`,
-                `Build command: ${instructions.buildCommand}`,
-                `Publish directory: ${instructions.outputDir}`
-            ],
-            configGenerator: () => this.generateConfigFile('netlify.toml', [
-                '[build]',
-                `  command = "pnpm run build"`,
-                `  publish = "dist"`,
-                ''
-            ].join('\n'))
-        });
+            setting.addButton(btn => {
+                const isSelected = this.selectedPlatform === platform.id;
+                btn.setButtonText(isSelected ? 'Selected' : 'Select');
+                if (isSelected) btn.setCta();
+                if (isSelected) btn.setDisabled(true);
 
-        // Vercel
-        this.renderPlatform(platformContainer, {
-            name: 'Vercel',
-            description: 'Optimized for frontend frameworks with zero-config deployment.',
-            url: this.getVercelDeployUrl(),
-            instructions: [
-                `Framework Preset: Astro`,
-                `Root Directory: ${instructions.rootDir}`,
-                `Build Command: ${instructions.buildCommand}`
-            ],
-            configGenerator: () => this.generateConfigFile('vercel.json', JSON.stringify({ framework: 'astro' }, null, 2) + '\n')
-        });
+                btn.onClick(async () => {
+                    this.selectedPlatform = platform.id;
+                    (this.state as any).deploymentPlatform = platform.id;
 
-        // Cloudflare
-        this.renderPlatform(platformContainer, {
-            name: 'Cloudflare',
-            description: 'Host your site on Cloudflare Workers.',
-            url: this.getCloudflareDeployUrl(),
-            instructions: [
-                `A wrangler.toml will be created for static asset hosting.`,
-                `Build your site with: pnpm run build`,
-                `Deploy with: npx wrangler deploy`
-            ],
-            configGenerator: () => {
-                const today = new Date().toISOString().split('T')[0];
-                const projectName = this.getProjectName();
-                return this.generateConfigFile('wrangler.toml', [
-                    `name = "${projectName}"`,
-                    `compatibility_date = "${today}"`,
-                    '',
-                    '[assets]',
-                    '  directory = "./dist"',
-                    '  not_found_handling = "404-page"',
-                    ''
-                ].join('\n'));
-            }
-        });
+                    // Generate config file if applicable
+                    if (platform.configFile && platform.configContent) {
+                        await this.generateConfigFile(platform.configFile, platform.configContent());
+                    }
 
-        // GitHub
-        this.renderPlatform(platformContainer, {
-            name: 'GitHub',
-            description: 'Host directly from your GitHub repository. (Requires Public repository for free accounts)',
-            url: this.getGitHubPagesUrl(),
-            instructions: [
-                'Requires a GitHub Action to build and deploy.',
-                'Go to Repository Settings > Pages > Build and deployment > Source: GitHub Actions.',
-                'Ensure your repository is PUBLIC to use GH Pages for free.'
-            ]
-        });
-    }
-
-    private getNetlifyDeployUrl(): string {
-        if (this.remoteUrl) {
-            return `https://app.netlify.com/start/deploy?repository=${encodeURIComponent(this.remoteUrl)}`;
-        }
-        return 'https://app.netlify.com/';
-    }
-
-    private getVercelDeployUrl(): string {
-        return 'https://vercel.com/new/import';
-    }
-
-    private getCloudflareDeployUrl(): string {
-        return 'https://dash.cloudflare.com/';
-    }
-
-    private getGitHubPagesUrl(): string {
-        if (this.remoteUrl) {
-            // Convert https://github.com/user/repo.git to https://github.com/user/repo/settings/pages
-            let cleanUrl = this.remoteUrl.trim();
-            if (cleanUrl.endsWith('.git')) {
-                cleanUrl = cleanUrl.slice(0, -4);
-            }
-            return `${cleanUrl}/settings/pages`;
-        }
-        return 'https://github.com/features/pages';
-    }
-
-    private renderPlatform(container: HTMLElement, platform: { name: string; description: string; url: string; instructions: string[]; recommended?: boolean; configGenerator?: () => Promise<void> }) {
-        const platformEl = container.createDiv({
-            cls: 'deployment-platform',
-            attr: { style: 'margin-bottom: 2rem; padding: 1rem; border: 1px solid var(--background-modifier-border); border-radius: 8px;' }
-        });
-
-        const header = platformEl.createEl('h3', { attr: { style: 'margin-top: 0;' } });
-        header.createSpan({ text: platform.name });
-        if (platform.recommended) {
-            header.createSpan({
-                text: ' RECOMMENDED',
-                attr: { style: 'font-size: 0.6em; vertical-align: middle; background: var(--interactive-accent); color: var(--text-on-accent); padding: 2px 6px; border-radius: 4px; margin-left: 10px;' }
+                    // Re-render to update button states
+                    await this.display();
+                });
             });
         }
-
-        platformEl.createEl('p', { text: platform.description });
-
-        const instructionList = platformEl.createEl('ul');
-        platform.instructions.forEach((inst: string) => {
-            instructionList.createEl('li', { text: inst });
-        });
-
-        new Setting(platformEl)
-            .addButton(btn => btn
-                .setButtonText(`Set up on ${platform.name}`)
-                .setCta()
-                .onClick(async () => {
-                    if (platform.configGenerator) {
-                        await platform.configGenerator();
-                    }
-                    window.open(platform.url);
-                }));
     }
 
     private async generateConfigFile(filename: string, content: string): Promise<void> {
@@ -210,7 +138,6 @@ export class DeploymentStep extends BaseWizardStep {
         const filePath = path.join(projectRoot, filename);
 
         try {
-            // Check if file already exists using Node fs
             const fs = require('fs');
             if (fs.existsSync(filePath)) {
                 return; // File exists, don't overwrite
@@ -222,12 +149,28 @@ export class DeploymentStep extends BaseWizardStep {
         }
     }
 
-    private getProjectName(): string {
-        const projectRoot = this.getAbsoluteProjectRoot();
-        if (projectRoot) {
-            return projectRoot.split(/[\\/]/).pop() || 'my-site';
+    /**
+     * Returns the deploy URL for the selected platform.
+     * Called by GitSetupStep after a successful push.
+     */
+    public static getDeployUrl(platform: string): string {
+        switch (platform) {
+            case 'netlify': return 'https://app.netlify.com/start';
+            case 'vercel': return 'https://vercel.com/new/import';
+            case 'cloudflare': return 'https://dash.cloudflare.com/';
+            case 'github-pages': return 'https://github.com/features/pages';
+            default: return '';
         }
-        return 'my-site';
+    }
+
+    public static getPlatformName(platform: string): string {
+        switch (platform) {
+            case 'netlify': return 'Netlify';
+            case 'vercel': return 'Vercel';
+            case 'cloudflare': return 'Cloudflare';
+            case 'github-pages': return 'GitHub Pages';
+            default: return '';
+        }
     }
 
     validate(): boolean {
@@ -239,6 +182,6 @@ export class DeploymentStep extends BaseWizardStep {
     }
 
     getDescription(): string {
-        return 'Publish your site';
+        return 'Choose your hosting platform';
     }
 }

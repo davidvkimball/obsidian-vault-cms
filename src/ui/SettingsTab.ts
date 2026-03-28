@@ -15,6 +15,7 @@ export class SettingsTab extends PluginSettingTab {
 	private contentEl: HTMLElement;
 	private gitSetting: Setting;
 	private viteSetting: Setting;
+	private hooksSetting: Setting;
 	private optimizer: ProjectOptimizer;
 
 	constructor(app: App, plugin: VaultCMSPlugin) {
@@ -172,10 +173,10 @@ export class SettingsTab extends PluginSettingTab {
 		// Only show management/setup button if NOT fully configured
 		if (!isFullyConfigured) {
 			gitGroup.addSetting(setting => {
-				setting.setName('Manage Git integration')
-					.setDesc('Initialize repository, connect to GitHub, or update credentials.')
+				setting.setName('Deployment and Git setup')
+					.setDesc('Choose a deployment platform and connect to GitHub.')
 					.addButton(button => {
-						button.setButtonText('Setup / Update Git...')
+						button.setButtonText('Setup...')
 							.onClick(() => {
 								const modal = new SetupWizardModal(this.app, { currentStep: 7 }, this.plugin);
 								modal.open();
@@ -219,6 +220,13 @@ export class SettingsTab extends PluginSettingTab {
 			this.viteSetting = setting;
 			this.updateViteSetting(status.viteIgnoreStatus);
 		});
+
+		if (status.gitHooksStatus !== 'none') {
+			optimizationGroup.addSetting(setting => {
+				this.hooksSetting = setting;
+				this.updateHooksSetting(status.gitHooksStatus);
+			});
+		}
 	}
 
 	private updateGitSetting(status: 'configured' | 'not-configured') {
@@ -273,5 +281,30 @@ export class SettingsTab extends PluginSettingTab {
 				});
 		});
 		this.optimizer.renderStatus(this.viteSetting.controlEl, status);
+	}
+
+	private updateHooksSetting(status: 'detected' | 'neutralized' | 'none') {
+		this.hooksSetting.setName('Neutralize developer git hooks')
+			.setDesc('This project has git hooks (like husky or commitlint) that can block publishing from Obsidian. Disable so commits can happen easily from Obsidian.')
+			.clear();
+
+		if (status === 'detected') {
+			this.hooksSetting.addButton(button => {
+				button.setButtonText('Neutralize')
+					.setCta()
+					.onClick(async () => {
+						try {
+							this.optimizer.neutralizeGitHooks();
+							new Notice('Git hooks neutralized');
+							const newStatus = await this.optimizer.getStatus();
+							this.updateHooksSetting(newStatus.gitHooksStatus);
+						} catch (error) {
+							new Notice(`Failed to neutralize git hooks: ${error instanceof Error ? error.message : String(error)}`);
+						}
+					});
+			});
+		}
+
+		this.optimizer.renderStatus(this.hooksSetting.controlEl, status === 'neutralized' ? 'configured' : 'not-configured');
 	}
 }

@@ -6,19 +6,20 @@ import { GitManager } from '../../utils/GitManager';
 import { ConfigFlushService } from '../../utils/ConfigFlushService';
 import { SafeConfigWriter } from '../../utils/SafeConfigWriter';
 import { resolveProjectRoot } from '../../utils/ProjectRootResolver';
+import { DeploymentStep } from './DeploymentStep';
 import * as path from 'path';
 
 export class GitSetupStep extends BaseWizardStep {
     private gitManager: typeof GitManager;
     private configFlushService: ConfigFlushService;
     private safeConfigWriter: SafeConfigWriter;
+    private pendingPat: string = ''; // In-memory only, never persisted
 
     constructor(app: App, containerEl: HTMLElement, state: WizardState, onNext: () => void, onBack: () => void, onCancel: () => void) {
         super(app, containerEl, state, onNext, onBack, onCancel);
         this.gitManager = GitManager;
         this.configFlushService = new ConfigFlushService(app);
         this.safeConfigWriter = new SafeConfigWriter(app);
-        this.showNextButton = false;
     }
 
     private getAbsoluteProjectRoot(): string | null {
@@ -31,7 +32,7 @@ export class GitSetupStep extends BaseWizardStep {
 
         containerEl.createEl('h2', { text: 'Git Integration' });
         containerEl.createEl('p', {
-            text: "Connect your project to GitHub to enable sync and deployment. Note: if you skip this step, the Deployment step will also be skipped.",
+            text: "Connect your project to GitHub to enable sync and deployment. Click \"Skip\" to set this up later.",
             attr: { style: 'font-style: italic; opacity: 0.8; margin-bottom: 2rem;' }
         });
 
@@ -141,7 +142,7 @@ export class GitSetupStep extends BaseWizardStep {
         let secretValue = (this.app as any).secretStorage?.getSecret(secretId);
 
         // Ensure state is synced with secret storage on mount
-        if (secretValue && !this.state.gitConfig.pat) {
+        if (secretValue && !this.pendingPat) {
             // We don't want to "ghost" davidvkimball if it's stale
             // But if it's there, we keep it for the Sync button.
         }
@@ -150,7 +151,7 @@ export class GitSetupStep extends BaseWizardStep {
             text.setPlaceholder('ghp_xxxxxxxxxxxx')
                 .setValue(secretValue ? '********' : '') // Show dots if we have a saved secret
                 .onChange(value => {
-                    this.state.gitConfig.pat = value.trim();
+                    this.pendingPat = value.trim();
                 });
             text.inputEl.type = 'password';
         });
@@ -165,7 +166,7 @@ export class GitSetupStep extends BaseWizardStep {
             button.setButtonText('Verify Token')
                 .onClick(async () => {
                     // 1. Resolve Token
-                    let token = this.state.gitConfig.pat;
+                    let token = this.pendingPat;
 
                     // If the field is blank, contains dots, or the ID string, pull from storage
                     if (!token || token === '********' || token === 'vault-cms-github-pat') {
@@ -307,12 +308,12 @@ export class GitSetupStep extends BaseWizardStep {
     private async handleGitSetup(button: ButtonComponent, alreadyRepo: boolean, alreadyHasRemote: boolean) {
         if (this.hasAdvanced) return;
 
-        let { pat } = this.state.gitConfig;
+        let pat = this.pendingPat;
         const { repoName, repoDescription, isPrivate, branchName } = this.state.gitConfig;
         const projectRoot = this.getAbsoluteProjectRoot();
         const branch = branchName || 'main';
 
-        // 1. Resolve Token: State (fresh entry) -> Secret Storage (mask/ID check) -> Null
+        // 1. Resolve Token: pending input -> Secret Storage -> Null
         if (!pat || pat === '********' || pat === 'vault-cms-github-pat') {
             pat = (this.app as any).secretStorage?.getSecret('vault-cms-github-pat') || pat;
         }
@@ -378,16 +379,36 @@ export class GitSetupStep extends BaseWizardStep {
             }
 
             // Clear plain-text PAT from state before finishing
-            this.state.gitConfig.pat = '';
+            this.pendingPat = '';
 
             this.state.gitConfig.enabled = true;
             button.setButtonText('Success!');
             new Notice('Git setup complete!');
 
-            // Auto-advance after small delay
+            // Show deploy button if a platform was selected
+            const selectedPlatform = (this.state as any).deploymentPlatform as string || '';
+            if (selectedPlatform) {
+                const platformName = DeploymentStep.getPlatformName(selectedPlatform);
+                const deployUrl = DeploymentStep.getDeployUrl(selectedPlatform);
+                if (platformName && deployUrl) {
+                    const deployContainer = this.containerEl.createDiv({ attr: { style: 'margin-top: 1.5rem; padding: 1rem; border: 1px solid var(--interactive-accent); border-radius: 8px; text-align: center;' } });
+                    deployContainer.createEl('p', { text: `Your code has been pushed. Connect your repo to ${platformName} to go live.` });
+                    new Setting(deployContainer)
+                        .addButton(btn => btn
+                            .setButtonText(`Deploy on ${platformName}`)
+                            .setCta()
+                            .onClick(() => {
+                                window.open(deployUrl);
+                            }));
+                }
+            }
+
+            // Auto-advance after delay if no platform selected
             if (!this.hasAdvanced) {
                 this.hasAdvanced = true;
-                setTimeout(() => this.onNext(), 1500);
+                if (!selectedPlatform) {
+                    setTimeout(() => this.onNext(), 1500);
+                }
             }
 
         } catch (error) {

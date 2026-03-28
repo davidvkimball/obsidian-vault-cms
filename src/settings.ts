@@ -26,6 +26,7 @@ export interface VaultCMSSettings {
 	explorerFocus: ExplorerFocusConfig;
 	ignoreConfig: IgnoreConfig;
 	gitConfig: GitConfig;
+	deploymentPlatform: 'netlify' | 'vercel' | 'cloudflare' | 'github-pages' | '';
 	resolvePublicImages: boolean;
 	runWizardOnStartup: boolean;
 	wizardCompleted: boolean;
@@ -79,6 +80,7 @@ export const DEFAULT_SETTINGS: VaultCMSSettings = {
 		branchName: 'main',
 		autoConfigureObsidianGit: true
 	},
+	deploymentPlatform: '',
 	resolvePublicImages: false,
 	runWizardOnStartup: true,
 	wizardCompleted: false

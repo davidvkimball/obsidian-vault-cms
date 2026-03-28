@@ -130,27 +130,33 @@ export class GitManager {
             await execAsync(`git branch -M ${branch}`, { cwd: projectRoot });
 
             // 5. Push and set upstream
-            // To ensure the push succeeds without a credential helper, we temporarily use the token in the URL
+            // Pass credentials inline via git -c so we never modify the remote URL
+            console.debug('GitManager: Pushing to remote...');
+
             if (token) {
                 const remoteUrl = await this.getRemoteUrl(projectRoot, remoteName);
                 if (remoteUrl && remoteUrl.startsWith('https://')) {
+                    // Use url.insteadOf to inject token without modifying the stored remote
                     const authenticatedUrl = remoteUrl.replace('https://', `https://${token}@`);
-
-                    console.debug('GitManager: Pushing with temporary token auth');
-                    // We temporarily set the remote URL to include the token for the push
-                    await execAsync(`git remote set-url ${remoteName} ${authenticatedUrl}`, { cwd: projectRoot });
-
-                    try {
-                        await execAsync(`git push -u ${remoteName} ${branch}`, { cwd: projectRoot });
-                    } finally {
-                        // ALWAYS revert to the clean URL
-                        await execAsync(`git remote set-url ${remoteName} ${remoteUrl}`, { cwd: projectRoot });
-                    }
+                    const escaped = authenticatedUrl.replace(/"/g, '\\"');
+                    const original = remoteUrl.replace(/"/g, '\\"');
+                    await execAsync(
+                        `git -c "url.${escaped}.insteadOf=${original}" push -u ${remoteName} ${branch}`,
+                        { cwd: projectRoot, maxBuffer: 10 * 1024 * 1024 }
+                    );
                 } else {
-                    await execAsync(`git push -u ${remoteName} ${branch}`, { cwd: projectRoot });
+                    await execAsync(`git push -u ${remoteName} ${branch}`, { cwd: projectRoot, maxBuffer: 10 * 1024 * 1024 });
                 }
             } else {
-                await execAsync(`git push -u ${remoteName} ${branch}`, { cwd: projectRoot });
+                await execAsync(`git push -u ${remoteName} ${branch}`, { cwd: projectRoot, maxBuffer: 10 * 1024 * 1024 });
+            }
+
+            // 6. Verify the push succeeded
+            try {
+                const { stdout: trackingInfo } = await execAsync(`git rev-parse --abbrev-ref ${branch}@{upstream}`, { cwd: projectRoot });
+                console.debug('GitManager: Push verified. Upstream:', trackingInfo.trim());
+            } catch {
+                throw new Error(`Push failed. The repository was created but files could not be uploaded. Try pushing manually with: git push -u origin ${branch}`);
             }
         } catch (error) {
             console.error('GitManager.initialCommitAndPush failed:', error);

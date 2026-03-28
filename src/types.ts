@@ -58,7 +58,6 @@ export interface WizardState {
 
 export interface GitConfig {
 	enabled: boolean;
-	pat?: string;
 	repoName?: string;
 	repoDescription?: string;
 	isPrivate: boolean;

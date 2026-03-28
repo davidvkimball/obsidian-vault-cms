@@ -73,8 +73,8 @@ export class SetupWizardModal extends Modal {
 			PluginConfigurationStep,
 			OptionalPluginsStep,
 			IgnoreStep,
-			GitSetupStep,
 			DeploymentStep,
+			GitSetupStep,
 			FinalizeStep
 		];
 

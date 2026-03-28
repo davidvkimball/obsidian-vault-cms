@@ -7,6 +7,7 @@ export class IgnoreStep extends BaseWizardStep {
 	private optimizer: ProjectOptimizer;
 	private gitSetting: Setting;
 	private viteSetting: Setting;
+	private hooksSetting: Setting;
 
 	constructor(app: App, containerEl: HTMLElement, state: WizardState, onNext: () => void, onBack: () => void, onCancel: () => void) {
 		super(app, containerEl, state, onNext, onBack, onCancel);
@@ -33,6 +34,12 @@ export class IgnoreStep extends BaseWizardStep {
 		// Vite Ignore Setting
 		this.viteSetting = new Setting(containerEl);
 		this.updateViteSetting(status.viteIgnoreStatus);
+
+		// Git Hooks Setting (only show if hooks detected or neutralized)
+		if (status.gitHooksStatus !== 'none') {
+			this.hooksSetting = new Setting(containerEl);
+			this.updateHooksSetting(status.gitHooksStatus);
+		}
 
 		return Promise.resolve();
 	}
@@ -81,6 +88,31 @@ export class IgnoreStep extends BaseWizardStep {
 		});
 
 		this.optimizer.renderStatus(this.viteSetting.controlEl, status);
+	}
+
+	private updateHooksSetting(status: 'detected' | 'neutralized' | 'none') {
+		this.hooksSetting.setName('Neutralize developer git hooks')
+			.setDesc('This project has git hooks (like husky or commitlint) that can block publishing from Obsidian. Disable so commits can happen easily from Obsidian.')
+			.clear();
+
+		if (status === 'detected') {
+			this.hooksSetting.addButton(button => {
+				button.setButtonText('Neutralize')
+					.setCta()
+					.onClick(async () => {
+						try {
+							this.optimizer.neutralizeGitHooks();
+							new Notice('Git hooks neutralized');
+							const newStatus = await this.optimizer.getStatus();
+							this.updateHooksSetting(newStatus.gitHooksStatus);
+						} catch (error) {
+							new Notice(`Failed to neutralize git hooks: ${error instanceof Error ? error.message : String(error)}`);
+						}
+					});
+			});
+		}
+
+		this.optimizer.renderStatus(this.hooksSetting.controlEl, status === 'neutralized' ? 'configured' : 'not-configured');
 	}
 
 	validate(): boolean {

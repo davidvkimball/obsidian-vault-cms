@@ -336,7 +336,7 @@ export class HealthCheckModal extends Modal {
 
 				// 3. Check GitHub PAT
 				const savedSecret = (this.app as any).secretStorage?.getSecret('vault-cms-github-pat');
-				const hasPat = !!(gitConfig.pat || savedSecret);
+				const hasPat = !!savedSecret;
 
 				// Only show PAT check if they've explicitly enabled integration OR if it's missing but they started the setup
 				if (gitConfig.enabled) {

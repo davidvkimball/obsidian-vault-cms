@@ -10,6 +10,7 @@ import { resolveProjectRootFromVaultPath } from './ProjectRootResolver';
 export interface OptimizationStatus {
 	gitIgnoreStatus: 'configured' | 'not-configured';
 	viteIgnoreStatus: 'configured' | 'not-configured';
+	gitHooksStatus: 'detected' | 'neutralized' | 'none';
 }
 
 /**
@@ -38,7 +39,8 @@ export class ProjectOptimizer {
 	public async getStatus(): Promise<OptimizationStatus> {
 		const status: OptimizationStatus = {
 			gitIgnoreStatus: 'not-configured',
-			viteIgnoreStatus: 'not-configured'
+			viteIgnoreStatus: 'not-configured',
+			gitHooksStatus: 'none'
 		};
 
 		const projectRoot = this.resolveProjectRoot();
@@ -96,7 +98,105 @@ export class ProjectOptimizer {
 			console.debug('[Vault CMS] ProjectOptimizer: No valid Astro config found to check');
 		}
 
+		// Check for git hooks (husky, simple-git-hooks, lefthook, etc.)
+		status.gitHooksStatus = this.detectGitHooks(projectRoot);
+
 		return status;
+	}
+
+	/**
+	 * Detects developer git hooks that would interfere with Obsidian-based publishing.
+	 * Checks for: husky, simple-git-hooks, lefthook, lint-staged, commitlint.
+	 */
+	private detectGitHooks(projectRoot: string): 'detected' | 'neutralized' | 'none' {
+		const huskyPreCommit = path.join(projectRoot, '.husky', 'pre-commit');
+		const huskyCommitMsg = path.join(projectRoot, '.husky', 'commit-msg');
+		const lefthookYml = path.join(projectRoot, 'lefthook.yml');
+		const simpleGitHooksInPkg = this.packageJsonHasHookTools(projectRoot);
+
+		const hasHooks = fs.existsSync(huskyPreCommit) || fs.existsSync(huskyCommitMsg) || fs.existsSync(lefthookYml) || simpleGitHooksInPkg;
+
+		if (!hasHooks) return 'none';
+
+		// Check if already neutralized (hooks contain only "exit 0" or are empty)
+		const isNeutralized = this.isHookNeutralized(huskyPreCommit) && this.isHookNeutralized(huskyCommitMsg);
+		if (isNeutralized && !fs.existsSync(lefthookYml) && !simpleGitHooksInPkg) return 'neutralized';
+
+		return 'detected';
+	}
+
+	private isHookNeutralized(hookPath: string): boolean {
+		if (!fs.existsSync(hookPath)) return true;
+		const content = fs.readFileSync(hookPath, 'utf8').trim();
+		return content === 'exit 0' || content === '' || content === '#!/bin/sh\nexit 0';
+	}
+
+	private packageJsonHasHookTools(projectRoot: string): boolean {
+		const pkgPath = path.join(projectRoot, 'package.json');
+		if (!fs.existsSync(pkgPath)) return false;
+		try {
+			const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+			const scripts = pkg.scripts || {};
+			// Only check if prepare script actively references hook tools
+			// Mere presence of devDependencies (commitlint, lint-staged) is harmless without hooks
+			const prepare = scripts.prepare || '';
+			return /husky|simple-git-hooks|lefthook/.test(prepare);
+		} catch {
+			return false;
+		}
+	}
+
+	/**
+	 * Neutralizes git hooks so they don't block Obsidian-based publishing.
+	 * - Replaces husky hook scripts with "exit 0"
+	 * - Removes the "prepare" script from package.json if it references hook tools
+	 */
+	public neutralizeGitHooks(): boolean {
+		const projectRoot = this.resolveProjectRoot();
+		if (!projectRoot) return false;
+
+		let changed = false;
+
+		// Neutralize husky hooks
+		const huskyDir = path.join(projectRoot, '.husky');
+		if (fs.existsSync(huskyDir)) {
+			for (const hookName of ['pre-commit', 'commit-msg', 'pre-push']) {
+				const hookPath = path.join(huskyDir, hookName);
+				if (fs.existsSync(hookPath) && !this.isHookNeutralized(hookPath)) {
+					fs.writeFileSync(hookPath, 'exit 0', 'utf8');
+					changed = true;
+				}
+			}
+		}
+
+		// Remove prepare script if it references hook tools
+		const pkgPath = path.join(projectRoot, 'package.json');
+		if (fs.existsSync(pkgPath)) {
+			try {
+				const pkgContent = fs.readFileSync(pkgPath, 'utf8');
+				const pkg = JSON.parse(pkgContent);
+				if (pkg.scripts?.prepare && /husky|simple-git-hooks|lefthook/.test(pkg.scripts.prepare)) {
+					delete pkg.scripts.prepare;
+					fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf8');
+					changed = true;
+				}
+			} catch (e) {
+				console.error('[Vault CMS] Failed to patch package.json:', e);
+			}
+		}
+
+		// Remove lefthook config
+		const lefthookPath = path.join(projectRoot, 'lefthook.yml');
+		if (fs.existsSync(lefthookPath)) {
+			try {
+				fs.unlinkSync(lefthookPath);
+				changed = true;
+			} catch (e) {
+				console.error('[Vault CMS] Failed to remove lefthook.yml:', e);
+			}
+		}
+
+		return changed;
 	}
 
 	public async configureGitIgnore(): Promise<boolean> {
