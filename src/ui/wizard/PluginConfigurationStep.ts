@@ -122,7 +122,7 @@ export class PluginConfigurationStep extends BaseWizardStep {
             .setName('SEO Scan directories')
             .setDesc('Comma-separated list of directories to scan')
             .addText(text => text
-                .setValue(initialScanDirs)
+                .setValue(this.state.seoConfig.scanDirectories)
                 .onChange(value => {
                     if (this.state.seoConfig) {
                         this.state.seoConfig.scanDirectories = value;

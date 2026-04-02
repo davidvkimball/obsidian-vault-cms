@@ -85,8 +85,14 @@ export class FinalizeStep extends BaseWizardStep {
 			await this.configFlushService.flush(this.state);
 
 			// Configure default content type and Obsidian settings (following astro-modular-settings pattern)
-			if (this.state.defaultContentTypeId) {
-				const defaultType = this.state.contentTypes.find(ct => ct.id === this.state.defaultContentTypeId);
+			const defaultTypeId =
+				this.state.defaultContentTypeId ||
+				this.state.contentTypes.find(ct => ct.enabled)?.id;
+			if (defaultTypeId && !this.state.defaultContentTypeId) {
+				this.state.defaultContentTypeId = defaultTypeId;
+			}
+			if (defaultTypeId) {
+				const defaultType = this.state.contentTypes.find(ct => ct.id === defaultTypeId);
 				if (defaultType) {
 					console.debug('FinalizeStep: Configuring Obsidian settings for default content type:', defaultType.name);
 					const app = this.app as { setting?: { set?: (key: string, value: unknown) => Promise<void>; save?: () => Promise<void> } };

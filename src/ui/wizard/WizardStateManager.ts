@@ -34,11 +34,12 @@ export class WizardStateManager {
 		if (!attachmentHandlingMode) {
 			const vault = this.plugin.app.vault as { config?: { newFileLocation?: string; newFileFolderPath?: string; attachmentFolderPath?: string; newLinkFormat?: string } };
 			const obsidianConfig = vault.config;
-
-			if (obsidianConfig?.attachmentFolderPath) {
-				const folderPath = obsidianConfig.attachmentFolderPath;
-				if (folderPath === './') {
+			const folderPath = obsidianConfig?.attachmentFolderPath;
+			// Obsidian uses "", ".", or "./" for "same folder as current file" depending on version
+			if (folderPath !== undefined) {
+				if (folderPath === '' || folderPath === './' || folderPath === '.') {
 					attachmentHandlingMode = 'same-folder';
+					attachmentFolderName = undefined;
 				} else if (folderPath.startsWith('./')) {
 					attachmentHandlingMode = 'subfolder';
 					attachmentFolderName = folderPath.substring(2);
@@ -157,10 +158,10 @@ export class WizardStateManager {
 		} else {
 			const vault = this.plugin.app.vault as { config?: { newFileLocation?: string; newFileFolderPath?: string; attachmentFolderPath?: string; newLinkFormat?: string } };
 			const obsidianConfig = vault.config;
+			const folderPath = obsidianConfig?.attachmentFolderPath;
 
-			if (obsidianConfig?.attachmentFolderPath) {
-				const folderPath = obsidianConfig.attachmentFolderPath;
-				if (folderPath === './') {
+			if (folderPath !== undefined) {
+				if (folderPath === '' || folderPath === './' || folderPath === '.') {
 					this.state.attachmentHandlingMode = 'same-folder';
 					this.state.attachmentFolderName = undefined;
 				} else if (folderPath.startsWith('./')) {

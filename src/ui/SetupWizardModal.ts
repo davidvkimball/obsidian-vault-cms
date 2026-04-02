@@ -408,6 +408,8 @@ export class SetupWizardModal extends Modal {
 				// If we're on FinalizeStep, apply configuration first
 				if (this.currentStepInstance instanceof FinalizeStep) {
 					await this.currentStepInstance.applyConfiguration(shouldRestart);
+					// Flush + Obsidian settings update wizard state; persist that state to data.json
+					await this.stateManager.buildFinalSettings();
 				} else {
 					// For other steps, just save the current step
 					await this.saveCurrentStepToWizardState();

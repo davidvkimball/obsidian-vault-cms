@@ -74,16 +74,20 @@ export class ConfigFlushService {
             await this.astroComposerConfigurator.saveConfig(astroConfig);
         }
 
-        // 3. Configure SEO
-        const seoConfig = this.seoConfigurator.generateSEOConfig(
+        // 3. Configure SEO (merge: preserve user-edited scan directories from the wizard)
+        const generatedSeo = this.seoConfigurator.generateSEOConfig(
             state.contentTypes,
             state.frontmatterProperties,
             state.projectDetection,
             state.enableMdxSupport,
             state.defaultContentTypeId
         );
-        state.seoConfig = seoConfig;
-        await this.seoConfigurator.saveConfig(seoConfig);
+        const userScanDirs = state.seoConfig?.scanDirectories?.trim();
+        state.seoConfig = {
+            ...generatedSeo,
+            scanDirectories: userScanDirs || generatedSeo.scanDirectories
+        };
+        await this.seoConfigurator.saveConfig(state.seoConfig);
 
         // 4. Configure Property Over File Name
         const firstType = state.contentTypes.find(ct => ct.enabled);

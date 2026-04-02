@@ -202,12 +202,81 @@ export class ContentTypeStep extends BaseWizardStep {
 		}
 	}
 
+	/**
+	 * Walk up from the step container to find the element that actually scrolls (modal body).
+	 */
+	private findWizardScrollParent(): HTMLElement | null {
+		let el: HTMLElement | null = this.containerEl;
+		while (el && el !== document.body) {
+			const style = window.getComputedStyle(el);
+			const oy = style.overflowY;
+			if (
+				el.scrollHeight > el.clientHeight &&
+				(oy === 'auto' || oy === 'scroll' || style.overflow === 'auto' || style.overflow === 'scroll')
+			) {
+				return el;
+			}
+			el = el.parentElement;
+		}
+		return (this.containerEl.closest('.modal-content') as HTMLElement) || this.containerEl.parentElement;
+	}
+
+	/**
+	 * Show or hide the optional "Attachment folder" row without re-rendering the whole step.
+	 */
+	private renderAttachmentExtraSlot(slot: HTMLElement): void {
+		slot.empty();
+		const mode = this.state.attachmentHandlingMode;
+		if (mode !== 'specified-folder' && mode !== 'subfolder') {
+			return;
+		}
+		const descText =
+			mode === 'specified-folder'
+				? 'Enter the exact path to the folder for attachments (e.g., "attachments" or "images/attachments"). Leave blank to use "attachments" as default.'
+				: 'Enter the name of the subfolder for attachments (e.g., "attachments"). Leave blank to use "attachments" as default.';
+
+		const folderNameSetting = new Setting(slot).setName('Attachment folder').setDesc(descText);
+		folderNameSetting.addText(text => {
+			text
+				.setPlaceholder('attachments')
+				.setValue(this.state.attachmentFolderName || '')
+				.onChange(value => {
+					this.state.attachmentFolderName = value || undefined;
+				});
+			new FolderNameSuggest(this.app, text.inputEl, mode);
+		});
+	}
+
+	/**
+	 * Show or hide the index file name row for one content type without re-rendering the whole step.
+	 */
+	private renderIndexFileSlot(contentType: ContentTypeConfig, slot: HTMLElement): void {
+		slot.empty();
+		if (contentType.fileOrganization !== 'folder') {
+			return;
+		}
+		new Setting(slot)
+			.setName(`${contentType.name} - Index file name`)
+			.setDesc('Name of the index file in folder-based organization')
+			.addText(text =>
+				text
+					.setValue(contentType.indexFileName || 'index')
+					.onChange(value => {
+						contentType.indexFileName = value || 'index';
+					})
+			);
+	}
+
 	async display(): Promise<void> {
 		const { containerEl } = this;
 
-		// Preserve scroll position to prevent jumping
-		const scrollableParent = containerEl.closest('.modal-content') || containerEl.parentElement;
-		const currentScrollTop = scrollableParent ? scrollableParent.scrollTop : 0;
+		const scrollParent = this.findWizardScrollParent();
+		const savedScrollTop = scrollParent?.scrollTop ?? 0;
+
+		const activeEl = document.activeElement;
+		if (activeEl instanceof HTMLElement && containerEl.contains(activeEl)) {
+			activeEl.blur();
+		}
 
 		// Find or create content wrapper (preserve footer if it exists)
 		let stepContentWrapper = containerEl.querySelector('.content-type-step-content') as HTMLElement;
@@ -221,13 +290,20 @@ export class ContentTypeStep extends BaseWizardStep {
 			stepContentWrapper.empty();
 		}
 
-		// Function to restore scroll after render
-		const restoreScroll = () => {
-			if (scrollableParent && currentScrollTop > 0) {
-				requestAnimationFrame(() => {
-					scrollableParent.scrollTop = currentScrollTop;
-				});
+		const restoreScroll = (): void => {
+			if (!scrollParent) {
+				return;
 			}
+			const top = savedScrollTop;
+			const apply = (): void => {
+				scrollParent.scrollTop = top;
+			};
+			requestAnimationFrame(() => {
+				requestAnimationFrame(() => {
+					apply();
+					setTimeout(apply, 0);
+				});
+			});
 		};
 
 		stepContentWrapper.createEl('h2', { text: 'Content types' });
@@ -363,6 +439,7 @@ export class ContentTypeStep extends BaseWizardStep {
 			cls: 'vault-cms-section-desc'
 		});
 
+		let attachmentExtraSlot: HTMLElement;
 		new Setting(stepContentWrapper)
 			.setName('How are attachments handled?')
 			.setDesc('Choose how attachments are stored for all content types')
@@ -373,37 +450,14 @@ export class ContentTypeStep extends BaseWizardStep {
 				.setValue(this.state.attachmentHandlingMode || 'subfolder')
 				.onChange(value => {
 					this.state.attachmentHandlingMode = value as 'specified-folder' | 'same-folder' | 'subfolder';
-					// Clear folder name if switching to same-folder
 					if (value === 'same-folder') {
 						this.state.attachmentFolderName = undefined;
 					}
-					// Re-render to show/hide folder name input
-					void this.display();
+					this.renderAttachmentExtraSlot(attachmentExtraSlot);
 				}));
 
-		// Show folder name input for specified-folder or subfolder modes
-		if (this.state.attachmentHandlingMode === 'specified-folder' || this.state.attachmentHandlingMode === 'subfolder') {
-			const descText = this.state.attachmentHandlingMode === 'specified-folder'
-				? 'Enter the exact path to the folder for attachments (e.g., "attachments" or "images/attachments"). Leave blank to use "attachments" as default.'
-				: 'Enter the name of the subfolder for attachments (e.g., "attachments"). Leave blank to use "attachments" as default.';
-
-			const folderNameSetting = new Setting(stepContentWrapper)
-				.setName('Attachment folder')
-				.setDesc(descText);
-
-			folderNameSetting.addText(text => {
-				text.setPlaceholder('attachments')
-					.setValue(this.state.attachmentFolderName || '')
-					.onChange(value => {
-						this.state.attachmentFolderName = value || undefined;
-					});
-
-				// Add autocomplete suggester with mode (only if not same-folder)
-				if (this.state.attachmentHandlingMode !== 'same-folder') {
-					new FolderNameSuggest(this.app, text.inputEl, this.state.attachmentHandlingMode);
-				}
-			});
-		}
+		attachmentExtraSlot = stepContentWrapper.createDiv({ cls: 'vault-cms-attachment-extra-slot' });
+		this.renderAttachmentExtraSlot(attachmentExtraSlot);
 
 		// Public image path resolution
 		new Setting(stepContentWrapper)
@@ -421,7 +475,8 @@ export class ContentTypeStep extends BaseWizardStep {
 		stepContentWrapper.createEl('h3', { text: 'Content types', cls: 'vault-cms-section-header' });
 
 		for (const contentType of this.state.contentTypes) {
-			const setting = new Setting(stepContentWrapper);
+			const block = stepContentWrapper.createDiv({ cls: 'vault-cms-ct-block' });
+			const setting = new Setting(block);
 
 			// Create click-to-edit name element with icon
 			const nameContainer = setting.nameEl.createDiv({ cls: 'vault-cms-editable-name' });
@@ -528,8 +583,8 @@ export class ContentTypeStep extends BaseWizardStep {
 						contentType.enabled = value;
 					}));
 
-			// File organization dropdown
-			new Setting(stepContentWrapper)
+			let indexFileSlot: HTMLElement;
+			new Setting(block)
 				.setName(`${contentType.name} - File organization`)
 				.setDesc('Choose how content is organized for this content type')
 				.addDropdown(dropdown => dropdown
@@ -538,28 +593,18 @@ export class ContentTypeStep extends BaseWizardStep {
 					.setValue(contentType.fileOrganization || 'file')
 					.onChange(value => {
 						contentType.fileOrganization = value as 'file' | 'folder';
-						// Re-render to show/hide index file name setting
-						void this.display();
+						this.renderIndexFileSlot(contentType, indexFileSlot);
 					}));
 
-			// Show index file name for folder-based organization
-			if (contentType.fileOrganization === 'folder') {
-				new Setting(stepContentWrapper)
-					.setName(`${contentType.name} - Index file name`)
-					.setDesc('Name of the index file in folder-based organization')
-					.addText(text => text
-						.setValue(contentType.indexFileName || 'index')
-						.onChange(value => {
-							contentType.indexFileName = value || 'index';
-						}));
-			}
+			indexFileSlot = block.createDiv({ cls: 'vault-cms-index-file-slot' });
+			this.renderIndexFileSlot(contentType, indexFileSlot);
 
 			// Link base path for Astro Composer
 			// Extract folder name from path (e.g., "src/content/posts" -> "posts")
 			const pathParts = contentType.folder.split('/').filter(p => p.length > 0);
 			const folderName = pathParts[pathParts.length - 1] || contentType.folder;
 			const defaultLinkBasePath = `/${folderName}/`;
-			new Setting(stepContentWrapper)
+			new Setting(block)
 				.setName(`${contentType.name} - Link base path`)
 				.setDesc(`URL path for this content type ("/posts/" or "/" for root). Leave blank to use default: ${defaultLinkBasePath}`)
 				.addText(text => text
