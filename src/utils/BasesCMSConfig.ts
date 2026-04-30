@@ -231,7 +231,7 @@ export class BasesCMSConfigurator {
 			// Preserve existing property displayNames, especially for file.name/fullname
 			const existingProps = (existingBase?.properties as Record<string, { displayName?: string } | undefined>) || {};
 			for (const prop of Array.from(allProperties).sort()) {
-				lines.push(`  ${prop}:`);
+				lines.push(`  "${prop}":`);
 				// Preserve existing displayName if it exists, especially for file.name/fullname
 				const existingProp = existingProps[prop];
 				if (existingProp?.displayName) {
@@ -338,39 +338,83 @@ export class BasesCMSConfigurator {
 
 		// Handle blank title/date properties
 		if (props.titleProperty) {
-			view.titleProperty = `note.${props.titleProperty}`;
+			if (props.titleProperty.includes('.')) {
+				const parts = props.titleProperty.split('.');
+				view.titleProperty = `note.${parts[0]}`;
+				view.titlePropertyHasNested = true;
+				view.titlePropertyNested = parts.slice(1).join('.');
+			} else {
+				view.titleProperty = `note.${props.titleProperty}`;
+			}
 		} else {
 			view.titleProperty = `file.fullname`;
+			view.titlePropertyNested = `file.fullname`;
 		}
 
 		if (props.dateProperty) {
-			view.dateProperty = `note.${props.dateProperty}`;
+			if (props.dateProperty.includes('.')) {
+				const parts = props.dateProperty.split('.');
+				view.dateProperty = `note.${parts[0]}`;
+				view.datePropertyHasNested = true;
+				view.datePropertyNested = parts.slice(1).join('.');
+			} else {
+				view.dateProperty = `note.${props.dateProperty}`;
+			}
 		} else {
 			view.dateProperty = `file.ctime`;
 		}
 
 		if (props.descriptionProperty) {
-			view.descriptionProperty = `note.${props.descriptionProperty}`;
+			if (props.descriptionProperty.includes('.')) {
+				const parts = props.descriptionProperty.split('.');
+				view.descriptionProperty = `note.${parts[0]}`;
+				view.descriptionPropertyHasNested = true;
+				view.descriptionPropertyNested = parts.slice(1).join('.');
+			} else {
+				view.descriptionProperty = `note.${props.descriptionProperty}`;
+			}
 		}
 
 		if (props.imageProperty) {
-			view.imageProperty = `note.${props.imageProperty}`;
+			if (props.imageProperty.includes('.')) {
+				const parts = props.imageProperty.split('.');
+				view.imageProperty = `note.${parts[0]}`;
+				view.imagePropertyHasNested = true;
+				view.imagePropertyNested = parts.slice(1).join('.');
+			} else {
+				view.imageProperty = `note.${props.imageProperty}`;
+			}
 		}
 
 		view.showTags = !!props.tagsProperty;
 		if (props.tagsProperty) {
-			view.tagsProperty = `note.${props.tagsProperty}`;
+			if (props.tagsProperty.includes('.')) {
+				const parts = props.tagsProperty.split('.');
+				view.tagsProperty = `note.${parts[0]}`;
+				view.tagsPropertyHasNested = true;
+				view.tagsPropertyNested = parts.slice(1).join('.');
+			} else {
+				view.tagsProperty = `note.${props.tagsProperty}`;
+			}
 		}
 
 		view.showDraftStatus = !!props.hasDraftStatus;
 		if (props.hasDraftStatus) {
 			if (props.draftProperty) {
-				view.draftStatusProperty = `note.${props.draftProperty}`;
+				if (props.draftProperty.includes('.')) {
+					const parts = props.draftProperty.split('.');
+					view.draftStatusProperty = `note.${parts[0]}`;
+					view.draftStatusPropertyHasNested = true;
+					view.draftStatusPropertyNested = parts.slice(1).join('.');
+				} else {
+					view.draftStatusProperty = `note.${props.draftProperty}`;
+				}
 				view.draftStatusReverse = props.draftLogic === 'false-draft';
 			} else {
 				view.draftStatusUseFilenamePrefix = true;
 			}
 		}
+
 
 		return view;
 	}

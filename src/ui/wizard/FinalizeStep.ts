@@ -84,6 +84,16 @@ export class FinalizeStep extends BaseWizardStep {
 			// Flush all configurations using the centralized service
 			await this.configFlushService.flush(this.state);
 
+			// Save Vault CMS's own internal settings
+			const vaultCmsPlugin = (this.app as any).plugins?.plugins?.['vault-cms'];
+			if (vaultCmsPlugin && vaultCmsPlugin.settings) {
+				vaultCmsPlugin.settings.resolvePublicImages = this.state.resolvePublicImages;
+				if (typeof vaultCmsPlugin.saveSettings === 'function') {
+					await vaultCmsPlugin.saveSettings();
+					console.debug('FinalizeStep: Saved Vault CMS internal settings');
+				}
+			}
+
 			// Configure default content type and Obsidian settings (following astro-modular-settings pattern)
 			const defaultTypeId =
 				this.state.defaultContentTypeId ||

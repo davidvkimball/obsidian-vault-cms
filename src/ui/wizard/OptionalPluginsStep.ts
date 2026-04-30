@@ -37,26 +37,18 @@ export class OptionalPluginsStep extends BaseWizardStep {
 			text: 'Review and configure your installed plugins. Essential plugins are recommended for the core Vault CMS experience.'
 		});
 
-		// Define all plugins with their categories
 		const allPlugins: PluginInfo[] = [
 			{ id: 'astro-composer', name: 'Astro Composer', category: 'essential', source: 'brat', repo: 'davidvkimball/obsidian-astro-composer' },
 			{ id: 'bases-cms', name: 'Bases CMS', category: 'essential', source: 'brat', repo: 'davidvkimball/obsidian-bases-cms' },
-			{ id: 'new-tab-default-page', name: 'Default New Tab Page', category: 'essential', source: 'community' },
 			{ id: 'editing-toolbar', name: 'Editing Toolbar', category: 'essential', source: 'community' },
 			{ id: 'home-base', name: 'Home Base', category: 'essential', source: 'brat', repo: 'davidvkimball/obsidian-home-base' },
-			{ id: 'homepage', name: 'Homepage', category: 'essential', source: 'community' },
 			{ id: 'image-manager', name: 'Image Manager', category: 'essential', source: 'brat', repo: 'davidvkimball/obsidian-image-manager' },
-			{ id: 'obsidian-paste-image-rename', name: 'Paste Image Rename', category: 'essential', source: 'community' },
 			{ id: 'property-over-file-name', name: 'Property Over File Name', category: 'essential', source: 'brat', repo: 'davidvkimball/obsidian-property-over-file-name' },
 			{ id: 'seo', name: 'SEO', category: 'essential', source: 'brat', repo: 'davidvkimball/obsidian-seo' },
 			{ id: 'ui-tweaker', name: 'UI Tweaker', category: 'essential', source: 'brat', repo: 'davidvkimball/obsidian-ui-tweaker' },
-			{ id: 'simple-focus', name: 'Simple Focus', category: 'essential', source: 'community' },
-			{ id: 'statusbar-organizer', name: 'Status Bar Organizer', category: 'essential', source: 'community' },
 			{ id: 'omnisearch', name: 'Omnisearch', category: 'nice-to-have', source: 'community' },
 			{ id: 'file-name-history', name: 'File Name History', category: 'nice-to-have', source: 'brat', repo: 'davidvkimball/obsidian-file-name-history' },
 			{ id: 'data-files-editor', name: 'Data Files Editor', category: 'nice-to-have', source: 'brat', repo: 'davidvkimball/obsidian-data-files-editor' },
-			{ id: 'iconic', name: 'Iconic', category: 'nice-to-have', source: 'community' },
-			{ id: 'paste-image-into-property', name: 'Paste Image Into Property', category: 'nice-to-have', source: 'community' },
 			{ id: 'settings-search', name: 'Settings Search', category: 'nice-to-have', source: 'community' },
 			{ id: 'tag-wrangler', name: 'Tag Wrangler', category: 'nice-to-have', source: 'community' },
 			{ id: 'zenmode', name: 'Zen Mode', category: 'nice-to-have', source: 'brat', repo: 'davidvkimball/obsidian-zenmode' },
