@@ -594,7 +594,12 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 
 					// Process other properties
 					const value = example.frontmatter[prop];
-					if (value === null || value === undefined) {
+					if (this.isNestedObject(value)) {
+						// Preserve nested structure (e.g. image: { src, alt }) with cleared scalars.
+						// Wins over the special-prop branches above so any property that's nested
+						// in the example stays nested in the template.
+						template += `${prop}:${this.renderClearedYaml(value, 2)}`;
+					} else if (value === null || value === undefined) {
 						template += `${prop}:\n`;
 					} else if (Array.isArray(value)) {
 						template += `${prop}: []\n`;
@@ -668,6 +673,48 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 
 		template += '---\n';
 		return template;
+	}
+
+	/**
+	 * Detects a plain nested object — something we should render as nested YAML
+	 * rather than flatten to a scalar default. Excludes arrays and Dates.
+	 */
+	private isNestedObject(value: unknown): value is Record<string, unknown> {
+		return value !== null
+			&& typeof value === 'object'
+			&& !Array.isArray(value)
+			&& !(value instanceof Date);
+	}
+
+	/**
+	 * Render a parsed frontmatter value as YAML with scalar values cleared to
+	 * sensible placeholder defaults, preserving nested object structure. Returns
+	 * a fragment intended to be appended directly after `${prop}:` (so it
+	 * starts with either ` ` for inline scalars or `\n` for nested keys).
+	 */
+	private renderClearedYaml(value: unknown, indent: number): string {
+		if (value === null || value === undefined) {
+			return '\n';
+		}
+		if (Array.isArray(value)) {
+			return ' []\n';
+		}
+		if (value instanceof Date) {
+			return ' ""\n';
+		}
+		if (typeof value === 'object') {
+			const pad = ' '.repeat(indent);
+			let out = '\n';
+			for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+				out += `${pad}${k}:${this.renderClearedYaml(v, indent + 2)}`;
+			}
+			return out;
+		}
+		if (typeof value === 'boolean' || typeof value === 'number') {
+			return ` ${value}\n`;
+		}
+		// Strings and any other scalar type — clear to empty string placeholder
+		return ' ""\n';
 	}
 
 	validate(): boolean {
