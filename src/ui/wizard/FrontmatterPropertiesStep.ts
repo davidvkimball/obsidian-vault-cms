@@ -430,7 +430,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 						if (!imageTextSetting) {
 							imageTextSetting = new Setting(contentTypeWrapper)
 								.setName('Image property')
-								.setDesc('The property that contains the image/cover (like image, cover, coverImage, thumbnail, featuredImage). Leave blank if not applicable.')
+								.setDesc('The property that contains the image/cover (like image, cover). Use dot-notation for nested properties (e.g., image.src). Leave blank if not applicable.')
 								.addText(text => {
 									const detected = example ? this.frontmatterAnalyzer.autoDetectImageProperty(example.frontmatter) : null;
 									text.setPlaceholder(detected || 'image')
@@ -456,7 +456,7 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 			if (props.imageProperty) {
 				imageTextSetting = new Setting(contentTypeWrapper)
 					.setName('Image property')
-					.setDesc('The property that contains the image/cover (like image, cover, coverImage, thumbnail, featuredImage). Leave blank if not applicable.')
+					.setDesc('The property that contains the image/cover (like image, cover). Use dot-notation for nested properties (e.g., image.src). Leave blank if not applicable.')
 					.addText(text => {
 						const detected = example ? this.frontmatterAnalyzer.autoDetectImageProperty(example.frontmatter) : null;
 						text.setPlaceholder(detected || 'image')
@@ -631,48 +631,70 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 				}
 
 				if (prop === props.titleProperty) {
-					template += `${prop}: "{{title}}"\n`;
+					template += this.renderPropertyPath(prop, '"{{title}}"');
 				} else if (prop === props.dateProperty) {
-					template += `${prop}: {{date}}\n`;
+					template += this.renderPropertyPath(prop, '{{date}}');
 				} else if (prop === props.descriptionProperty) {
-					template += `${prop}: ""\n`;
+					template += this.renderPropertyPath(prop, '""');
 				} else if (prop === props.tagsProperty) {
-					template += `${prop}: []\n`;
+					template += this.renderPropertyPath(prop, '[]');
 				} else if (prop === props.imageProperty) {
-					template += `${prop}: ""\n`;
+					template += this.renderPropertyPath(prop, '""');
 				} else if (prop === props.draftProperty) {
 					const draftValue = props.draftLogic === 'false-draft' ? 'false' : 'true';
-					template += `${prop}: ${draftValue}\n`;
+					template += this.renderPropertyPath(prop, draftValue);
 				} else if ((prop === 'draft' || prop === 'published' || prop === 'visible') && !props.draftProperty) {
 					// Skip draft-related properties when using underscore prefix mode
 				} else {
 					// Generic fallback
-					template += `${prop}: ""\n`;
+					template += this.renderPropertyPath(prop, '""');
 				}
 				processedProps.add(prop);
 			}
 		} else {
 			// Default template if no example - only include properties that are set
 			if (props.titleProperty) {
-				template += `${props.titleProperty}: "{{title}}"\n`;
+				template += this.renderPropertyPath(props.titleProperty, '"{{title}}"');
 			}
 			if (props.dateProperty) {
-				template += `${props.dateProperty}: {{date}}\n`;
+				template += this.renderPropertyPath(props.dateProperty, '{{date}}');
 			}
 			if (props.descriptionProperty) {
-				template += `${props.descriptionProperty}: ""\n`;
+				template += this.renderPropertyPath(props.descriptionProperty, '""');
 			}
 			if (props.tagsProperty) {
-				template += `${props.tagsProperty}: []\n`;
+				template += this.renderPropertyPath(props.tagsProperty, '[]');
+			}
+			if (props.imageProperty) {
+				template += this.renderPropertyPath(props.imageProperty, '""');
 			}
 			if (props.draftProperty) {
 				const draftValue = props.draftLogic === 'false-draft' ? 'false' : 'true';
-				template += `${props.draftProperty}: ${draftValue}\n`;
+				template += this.renderPropertyPath(props.draftProperty, draftValue);
 			}
 		}
 
 		template += '---\n';
 		return template;
+	}
+
+	/**
+	 * Renders a property key as YAML, expanding dot-notation into nested objects.
+	 * E.g., 'image.src' -> 'image:\n  src: defaultVal\n'
+	 */
+	private renderPropertyPath(prop: string, defaultVal: string): string {
+		if (!prop.includes('.')) {
+			return `${prop}: ${defaultVal}\n`;
+		}
+		const parts = prop.split('.');
+		let result = `${parts[0]}:\n`;
+		let indent = '  ';
+		for (let i = 1; i < parts.length - 1; i++) {
+			result += `${indent}${parts[i]}:\n`;
+			indent += '  ';
+		}
+		result += `${indent}${parts[parts.length - 1]}: ${defaultVal}\n`;
+		return result;
 	}
 
 	/**

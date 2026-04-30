@@ -103,6 +103,15 @@
 	background: transparent;
 }
 
+/* Spacing between content types */
+.vault-cms-wizard .vault-cms-ct-block {
+	margin-top: 2rem;
+}
+
+.vault-cms-wizard .vault-cms-section-header + .vault-cms-ct-block {
+	margin-top: 0.5rem;
+}
+
 /*
 
 This CSS file will be included with your plugin, and
