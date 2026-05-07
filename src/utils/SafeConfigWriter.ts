@@ -1,4 +1,4 @@
-import { App, Notice, TFile } from 'obsidian';
+import { App, Notice } from 'obsidian';
 
 /**
  * Utility for safely reading and writing plugin configuration files
@@ -29,36 +29,28 @@ export class SafeConfigWriter {
 	}
 
 	/**
-	 * Creates a backup of a plugin's data.json file
-	 */
-	private async createBackup(pluginId: string, originalFile: TFile): Promise<void> {
-		try {
-			const content = await this.app.vault.read(originalFile);
-			const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-			const backupPath = `${this.app.vault.configDir}/plugins/${pluginId}/data.json.backup-${timestamp}`;
-
-			await this.app.vault.create(backupPath, content);
-			console.debug(`SafeConfigWriter: Created backup at ${backupPath}`);
-		} catch (error: unknown) {
-			console.warn(`SafeConfigWriter: Failed to create backup for ${pluginId}:`, error);
-			// Don't throw - backup failure shouldn't block the operation
-		}
-	}
-
-	/**
-	 * Safely reads a plugin's data.json file
+	 * Safely reads a plugin's data.json file via the DataAdapter.
+	 *
+	 * IMPORTANT: This MUST use `app.vault.adapter` (filesystem) rather than the
+	 * Vault API. `vault.getAbstractFileByPath()` does NOT consistently track
+	 * paths under `.obsidian/`, so it returns `null` for plugin data files
+	 * that exist on disk. If `mergeConfig` then reads via the Vault API and
+	 * gets `null`, it'll merge updates into `{}` and overwrite the entire
+	 * existing data.json with just the new keys — silently wiping every
+	 * other setting (commit message, status bar prefs, etc.).
+	 *
+	 * Returns `null` only when the file truly doesn't exist or fails to parse.
 	 */
 	async readConfig(pluginId: string): Promise<Record<string, unknown> | null> {
 		const configPath = `${this.app.vault.configDir}/plugins/${pluginId}/data.json`;
-		const dataFile = this.app.vault.getAbstractFileByPath(configPath);
-
-		if (!dataFile || !(dataFile instanceof TFile)) {
-			console.debug(`SafeConfigWriter: Config file not found for ${pluginId}`);
-			return null;
-		}
+		const adapter = this.app.vault.adapter;
 
 		try {
-			const content = await this.app.vault.read(dataFile);
+			if (!(await adapter.exists(configPath))) {
+				console.debug(`SafeConfigWriter: Config file not found for ${pluginId}`);
+				return null;
+			}
+			const content = await adapter.read(configPath);
 			const parsed = JSON.parse(content) as unknown;
 
 			if (!this.validateJSON(parsed)) {
@@ -94,38 +86,40 @@ export class SafeConfigWriter {
 		}
 
 		const configPath = `${this.app.vault.configDir}/plugins/${pluginId}/data.json`;
+		const pluginDir = `${this.app.vault.configDir}/plugins/${pluginId}`;
+		const adapter = this.app.vault.adapter;
 
+		// Use the DataAdapter throughout for `.obsidian/` paths — the Vault API
+		// (`getAbstractFileByPath`, `createFolder`, `create`, `modify`) does NOT
+		// reliably track paths under `.obsidian/`, leading to:
+		//   - "Folder/File already exists" errors when items are present on disk
+		//     but missing from the vault index
+		//   - misleading null reads that cause `mergeConfig` to overwrite all
+		//     existing settings instead of merging them
+		// The adapter operates on the actual filesystem and avoids both classes
+		// of bug.
 		try {
-			// Check if file exists
-			const dataFile = this.app.vault.getAbstractFileByPath(configPath);
+			const exists = await adapter.exists(configPath);
 
-			if (dataFile && dataFile instanceof TFile) {
-				// Create backup before modifying
+			if (exists) {
+				// Best-effort backup before overwriting. We can't use
+				// `vault.create` because the .obsidian path isn't tracked, so
+				// write the backup via the adapter too.
 				if (createBackup) {
-					await this.createBackup(pluginId, dataFile);
+					try {
+						const original = await adapter.read(configPath);
+						const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+						const backupPath = `${pluginDir}/data.json.backup-${timestamp}`;
+						await adapter.write(backupPath, original);
+						console.debug(`SafeConfigWriter: Created backup at ${backupPath}`);
+					} catch (backupError) {
+						console.warn(`SafeConfigWriter: Backup failed for ${pluginId} (non-fatal):`, backupError);
+					}
 				}
-
-				// Modify existing file
-				const content = JSON.stringify(data, null, 2);
-				await this.app.vault.modify(dataFile, content);
-				console.debug(`SafeConfigWriter: Successfully updated ${pluginId} config`);
 			} else {
-				// Create new file via the DataAdapter rather than the Vault API.
-				//
-				// Why: Obsidian's vault index does NOT reliably track paths under
-				// `.obsidian/` (where plugin configs live). `getAbstractFileByPath`
-				// returns `null` for an installed plugin's folder/data.json even
-				// when both exist on disk, which sends us down this "create new"
-				// branch. The Vault API's `createFolder`/`create` then throw
-				// "Folder already exists" / "File already exists" because the
-				// items ARE there on disk, just not in the index.
-				//
-				// The adapter writes directly to the filesystem, and `mkdir` and
-				// `write` are both idempotent for the existence cases we care
-				// about (mkdir tolerates an existing dir, write overwrites).
-				const pluginDir = `${this.app.vault.configDir}/plugins/${pluginId}`;
-				const adapter = this.app.vault.adapter;
-
+				// Ensure the plugin directory exists. `mkdir` is idempotent
+				// against vault-indexed directories but throws "already exists"
+				// when the directory is on disk but not indexed — swallow that.
 				try {
 					if (!(await adapter.exists(pluginDir))) {
 						await adapter.mkdir(pluginDir);
@@ -134,11 +128,11 @@ export class SafeConfigWriter {
 					const folderMsg = folderError instanceof Error ? folderError.message : String(folderError);
 					if (!/already exists/i.test(folderMsg)) throw folderError;
 				}
-
-				const content = JSON.stringify(data, null, 2);
-				await adapter.write(configPath, content);
-				console.debug(`SafeConfigWriter: Successfully created ${pluginId} config via adapter`);
 			}
+
+			const content = JSON.stringify(data, null, 2);
+			await adapter.write(configPath, content);
+			console.debug(`SafeConfigWriter: Successfully ${exists ? 'updated' : 'created'} ${pluginId} config via adapter`);
 
 			return true;
 		} catch (error: unknown) {
