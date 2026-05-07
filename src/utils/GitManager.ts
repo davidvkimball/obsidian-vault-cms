@@ -98,6 +98,39 @@ export class GitManager {
     }
 
     /**
+     * Pull the meaningful git error out of a Node `exec` rejection. By default
+     * Node prepends `Command failed: <cmd>` and chains the full stderr in
+     * `.message`, which buries the actual diagnostic. We prefer:
+     *   1. `error.stderr` if present (Node attaches it on exec rejections)
+     *   2. lines beginning with `fatal:`, `remote:`, `error:` from `.message`
+     *   3. the trimmed message as a last resort
+     *
+     * This is what the user sees in the wizard's "Setup failed: ..." notice,
+     * so it needs to be the actual git diagnostic, not the wrapper preamble.
+     */
+    private static extractGitError(error: unknown): string {
+        const anyErr = error as any;
+        const stderr = (anyErr?.stderr ? String(anyErr.stderr) : '').trim();
+        if (stderr) {
+            // Strip the trailing "fatal: The remote end hung up unexpectedly" noise
+            // when there's a more specific upstream message above it.
+            const meaningful = stderr
+                .split('\n')
+                .map((l) => l.trim())
+                .filter((l) => l.length > 0);
+            return meaningful.join(' | ');
+        }
+        const msg = (error instanceof Error ? error.message : String(error)).trim();
+        const lines = msg.split('\n').map((l) => l.trim()).filter(Boolean);
+        const diagnostic = lines.filter((l) =>
+            /^(fatal|remote|error|hint):/i.test(l) || l.toLowerCase().includes('permission denied')
+        );
+        if (diagnostic.length > 0) return diagnostic.join(' | ');
+        // Last resort: drop the boilerplate first line and join the rest.
+        return lines.slice(1).join(' | ') || msg;
+    }
+
+    /**
      * Whether the local repo has any commits yet (HEAD exists).
      */
     private static async hasHead(projectRoot: string): Promise<boolean> {
@@ -199,9 +232,13 @@ export class GitManager {
             throw new Error(`No "${remoteName}" remote configured for "${projectRoot}".`);
         }
 
+        // For PATs over HTTPS, the canonical auth URL is `https://<TOKEN>@github.com/...`
+        // (token as the user component, empty password). The `x-access-token:` prefix
+        // is for GitHub App installation tokens only; using it with a PAT silently
+        // fails authentication on push even though the PAT is valid for the API.
         const usingTokenAuth = !!token && cleanUrl.startsWith('https://');
         if (usingTokenAuth) {
-            const authedUrl = cleanUrl.replace('https://', `https://x-access-token:${token}@`);
+            const authedUrl = cleanUrl.replace('https://', `https://${token}@`);
             await execAsync(`git remote set-url ${remoteName} ${authedUrl}`, { cwd: projectRoot });
         }
 
@@ -212,14 +249,7 @@ export class GitManager {
                     { cwd: projectRoot, maxBuffer: 10 * 1024 * 1024 }
                 );
             } catch (pushError) {
-                const raw = pushError instanceof Error ? pushError.message : String(pushError);
-                // Surface the first useful line of git's error rather than the wrapper noise.
-                const firstLine = raw.split('\n').find((l) => l.trim().length > 0) || raw;
-                throw new Error(
-                    `git push failed: ${firstLine.trim()}. ` +
-                    `If credentials are the issue, regenerate your GitHub PAT with the "repo" scope. ` +
-                    `Manual recovery: cd "${projectRoot}" && git push -u ${remoteName} ${branch}`
-                );
+                throw new Error(`git push failed: ${this.extractGitError(pushError)}`);
             }
         } finally {
             // Always restore the clean URL — even if push threw — so the token

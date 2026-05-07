@@ -36,20 +36,30 @@ export default class VaultCMSPlugin extends Plugin {
 		// Add settings tab
 		this.addSettingTab(new SettingsTab(this.app, this));
 
-		// Open wizard on startup if configured
+		// Open wizard on startup if configured.
+		//
+		// On first vault open, Obsidian's "Trust author and enable plugins" flow
+		// often leaves the Settings panel mounted (typically on Community Plugins).
+		// Settings is a top-level overlay that renders ABOVE Modals — so if the
+		// wizard opens while Settings is up, the wizard is invisible to the user.
+		//
+		// Two mitigations applied together:
+		//   1. Wait 3s instead of 2 — past most of Obsidian's startup auto-opens.
+		//   2. Close the Settings panel if it's currently open before opening the
+		//      wizard, so the wizard becomes the topmost overlay.
 		if (this.settings.runWizardOnStartup) {
 			this.app.workspace.onLayoutReady(() => {
-				// Delay the wizard to let Obsidian fully load (like astro-modular-settings)
 				this.startupTimeoutId = window.setTimeout(() => {
 					void (async () => {
 						// Reload settings to check if user disabled the setting
 						await this.loadSettings();
-						if (this.settings.runWizardOnStartup) {
-							const wizard = new SetupWizardModal(this.app, undefined, this);
-							wizard.open();
-						}
+						if (!this.settings.runWizardOnStartup) return;
+
+						this.closeSettingsPanelIfOpen();
+						const wizard = new SetupWizardModal(this.app, undefined, this);
+						wizard.open();
 					})();
-				}, 2000); // 2-second delay
+				}, 3000);
 			});
 		}
 	}
@@ -57,6 +67,36 @@ export default class VaultCMSPlugin extends Plugin {
 	onunload() {
 		if (this.startupTimeoutId) {
 			window.clearTimeout(this.startupTimeoutId);
+		}
+	}
+
+	/**
+	 * If Obsidian's Settings panel is currently open, close it. Used right
+	 * before opening the wizard on startup so the wizard isn't hidden behind
+	 * the post-trust Settings overlay.
+	 *
+	 * Settings is exposed on the (untyped) `app.setting` object. Failing to
+	 * find or close it is non-fatal — worst case the wizard renders behind
+	 * Settings and the user can close Settings manually.
+	 */
+	private closeSettingsPanelIfOpen() {
+		try {
+			const setting = (this.app as any).setting;
+			if (!setting) return;
+
+			// Heuristic: the settings overlay's container is mounted in the DOM
+			// while the panel is visible. `containerEl` and a visible
+			// `.modal-container.mod-settings` both indicate it's open.
+			const isOpen =
+				(setting.containerEl && setting.containerEl.parentElement) ||
+				document.body.querySelector('.modal-container.mod-settings');
+
+			if (isOpen && typeof setting.close === 'function') {
+				setting.close();
+				console.debug('VaultCMS: Closed Settings panel before opening wizard');
+			}
+		} catch (e) {
+			console.debug('VaultCMS: closeSettingsPanelIfOpen failed (non-fatal):', e);
 		}
 	}
 
