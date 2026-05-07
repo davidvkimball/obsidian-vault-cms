@@ -12,14 +12,22 @@ export interface OptimizationStatus {
 	viteIgnoreStatus: 'configured' | 'not-configured';
 	gitHooksStatus: 'detected' | 'neutralized' | 'none';
 	/**
-	 * Whether the project ships GitHub Actions workflow files
-	 * (`.github/workflows/*.yml`). These require the `workflow` PAT scope to
-	 * push — without that scope, GitHub rejects the initial push entirely.
-	 * Removing them is opt-in via the wizard.
+	 * Whether the project ships any "GitHub automation" files that the
+	 * average Vault CMS user doesn't want when starting fresh:
+	 *
+	 *   - `.github/workflows/*.yml` — GitHub Actions workflow files. Require
+	 *     the PAT `workflow` scope to push, otherwise the initial push is
+	 *     rejected.
+	 *   - `.github/dependabot.yml` — Dependabot config that opens dependency
+	 *     bump PRs the moment the repo is created on GitHub.
+	 *
+	 * Other `.github/` content (ISSUE_TEMPLATE/, pull_request_template.md,
+	 * CODEOWNERS, FUNDING.yml) is left in place — those don't interfere
+	 * with the initial push or auto-create PRs.
 	 */
-	githubWorkflowsStatus: 'detected' | 'removed' | 'none';
+	githubAutomationStatus: 'detected' | 'removed' | 'none';
 	/** Files that would be removed if the user opts in. */
-	githubWorkflowFiles: string[];
+	githubAutomationFiles: string[];
 }
 
 /**
@@ -50,8 +58,8 @@ export class ProjectOptimizer {
 			gitIgnoreStatus: 'not-configured',
 			viteIgnoreStatus: 'not-configured',
 			gitHooksStatus: 'none',
-			githubWorkflowsStatus: 'none',
-			githubWorkflowFiles: [],
+			githubAutomationStatus: 'none',
+			githubAutomationFiles: [],
 		};
 
 		const projectRoot = this.resolveProjectRoot();
@@ -112,66 +120,85 @@ export class ProjectOptimizer {
 		// Check for git hooks (husky, simple-git-hooks, lefthook, etc.)
 		status.gitHooksStatus = this.detectGitHooks(projectRoot);
 
-		// Check for GitHub Actions workflows (block push without `workflow` PAT scope)
-		const workflowFiles = this.listGithubWorkflowFiles(projectRoot);
-		if (workflowFiles.length > 0) {
-			status.githubWorkflowsStatus = 'detected';
-			status.githubWorkflowFiles = workflowFiles;
+		// Check for GitHub automation files (workflows block push without
+		// `workflow` PAT scope; dependabot.yml auto-creates PRs on push).
+		const automationFiles = this.listGithubAutomationFiles(projectRoot);
+		if (automationFiles.length > 0) {
+			status.githubAutomationStatus = 'detected';
+			status.githubAutomationFiles = automationFiles;
 		}
 
 		return status;
 	}
 
 	/**
-	 * Returns the absolute paths of all .yml/.yaml files inside the project's
-	 * `.github/workflows/` directory. These are the files that force a PAT to
-	 * have the `workflow` scope before push.
+	 * Returns the absolute paths of GitHub automation files we offer to remove
+	 * before the initial push. Currently:
+	 *
+	 *   - All `.yml`/`.yaml` files inside `.github/workflows/`
+	 *   - `.github/dependabot.yml` (or `.yaml`)
+	 *
+	 * Issue templates, PR templates, CODEOWNERS, and FUNDING.yml are NOT
+	 * included — they don't block the initial push or auto-create PRs.
 	 */
-	private listGithubWorkflowFiles(projectRoot: string): string[] {
+	private listGithubAutomationFiles(projectRoot: string): string[] {
+		const files: string[] = [];
+
+		// 1. Workflow files
 		const workflowsDir = path.join(projectRoot, '.github', 'workflows');
-		if (!fs.existsSync(workflowsDir)) return [];
-		try {
-			return fs
-				.readdirSync(workflowsDir)
-				.filter((name) => /\.ya?ml$/i.test(name))
-				.map((name) => path.join(workflowsDir, name));
-		} catch {
-			return [];
+		if (fs.existsSync(workflowsDir)) {
+			try {
+				for (const name of fs.readdirSync(workflowsDir)) {
+					if (/\.ya?ml$/i.test(name)) {
+						files.push(path.join(workflowsDir, name));
+					}
+				}
+			} catch (e) {
+				console.debug('[Vault CMS] Could not list workflows dir:', e);
+			}
 		}
+
+		// 2. Dependabot config (either extension)
+		for (const name of ['dependabot.yml', 'dependabot.yaml']) {
+			const dependabotPath = path.join(projectRoot, '.github', name);
+			if (fs.existsSync(dependabotPath)) files.push(dependabotPath);
+		}
+
+		return files;
 	}
 
 	/**
-	 * Removes all GitHub Actions workflow files in `.github/workflows/`.
-	 * Removes the directory itself if it ends up empty. Other `.github/`
-	 * contents (issue templates, dependabot, PR template, etc.) are left in
-	 * place — they don't trigger the PAT-scope rejection.
+	 * Removes the GitHub automation files listed by `listGithubAutomationFiles`.
+	 * Cleans up `.github/workflows/` if it ends up empty. Other `.github/`
+	 * contents (issue templates, PR template, CODEOWNERS, FUNDING.yml, etc.)
+	 * are left untouched.
 	 *
 	 * Returns the count of files removed.
 	 */
-	public removeGithubWorkflows(): number {
+	public removeGithubAutomation(): number {
 		const projectRoot = this.resolveProjectRoot();
 		if (!projectRoot) return 0;
 
-		const workflowsDir = path.join(projectRoot, '.github', 'workflows');
-		if (!fs.existsSync(workflowsDir)) return 0;
-
-		const files = this.listGithubWorkflowFiles(projectRoot);
+		const files = this.listGithubAutomationFiles(projectRoot);
 		let removed = 0;
 		for (const filePath of files) {
 			try {
 				fs.unlinkSync(filePath);
 				removed++;
 			} catch (e) {
-				console.error('[Vault CMS] Failed to remove workflow file:', filePath, e);
+				console.error('[Vault CMS] Failed to remove automation file:', filePath, e);
 			}
 		}
 
-		// Clean up the now-empty workflows directory if possible.
-		try {
-			const remaining = fs.readdirSync(workflowsDir);
-			if (remaining.length === 0) fs.rmdirSync(workflowsDir);
-		} catch (e) {
-			console.debug('[Vault CMS] Could not remove empty workflows dir:', e);
+		// Clean up the workflows dir if it's now empty.
+		const workflowsDir = path.join(projectRoot, '.github', 'workflows');
+		if (fs.existsSync(workflowsDir)) {
+			try {
+				const remaining = fs.readdirSync(workflowsDir);
+				if (remaining.length === 0) fs.rmdirSync(workflowsDir);
+			} catch (e) {
+				console.debug('[Vault CMS] Could not remove empty workflows dir:', e);
+			}
 		}
 
 		return removed;

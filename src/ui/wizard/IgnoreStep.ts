@@ -42,12 +42,13 @@ export class IgnoreStep extends BaseWizardStep {
 			this.updateHooksSetting(status.gitHooksStatus);
 		}
 
-		// GitHub Actions Workflow Setting (only show if workflows are present —
-		// they force the PAT `workflow` scope and cause first-push to be
-		// rejected if the user's token only has `repo`).
-		if (status.githubWorkflowsStatus !== 'none') {
+		// GitHub automation setting (only show if workflows or dependabot.yml
+		// are present). Workflows force the PAT `workflow` scope to push;
+		// dependabot.yml auto-creates dependency-bump PRs the moment the
+		// repo lands on GitHub. Most Vault CMS users want neither.
+		if (status.githubAutomationStatus !== 'none') {
 			this.workflowsSetting = new Setting(containerEl);
-			this.updateWorkflowsSetting(status.githubWorkflowsStatus, status.githubWorkflowFiles);
+			this.updateWorkflowsSetting(status.githubAutomationStatus, status.githubAutomationFiles);
 		}
 
 		return Promise.resolve();
@@ -125,19 +126,21 @@ export class IgnoreStep extends BaseWizardStep {
 	}
 
 	private updateWorkflowsSetting(status: 'detected' | 'removed' | 'none', files: string[]) {
-		// Show just the basenames so the description doesn't get unwieldy on
-		// projects with several workflow files.
+		// Show just the basenames so the description doesn't get unwieldy
+		// when several files would be removed.
 		const basenames = files.map((p) => p.replace(/\\/g, '/').split('/').pop()).filter(Boolean) as string[];
 		const fileList = basenames.length > 0
 			? basenames.slice(0, 4).join(', ') + (basenames.length > 4 ? `, +${basenames.length - 4} more` : '')
 			: '';
 
 		this.workflowsSetting
-			.setName('Remove GitHub Actions workflows')
+			.setName('Remove GitHub automation files')
 			.setDesc(
-				`This project ships GitHub Actions workflow files (${fileList || '.github/workflows/*.yml'}) ` +
-				`that require a special "workflow" PAT scope to push. Removing them lets the initial push succeed ` +
-				`with a basic "repo"-scope token. Other .github/ files (issue templates, dependabot, PR template) are kept.`
+				`This project ships GitHub automation files (${fileList || 'workflows, dependabot.yml'}). ` +
+				`GitHub Actions workflow files require a special "workflow" PAT scope to push. ` +
+				`Dependabot auto-creates dependency-bump pull requests as soon as the repo is on GitHub. ` +
+				`Removing them gives you a clean initial push and an empty PR list. ` +
+				`Issue templates, PR template, CODEOWNERS, and FUNDING.yml are kept.`
 			)
 			.clear();
 
@@ -147,12 +150,12 @@ export class IgnoreStep extends BaseWizardStep {
 					.setWarning()
 					.onClick(async () => {
 						try {
-							const removed = this.optimizer.removeGithubWorkflows();
-							new Notice(`Removed ${removed} workflow file${removed === 1 ? '' : 's'} from .github/workflows/`);
+							const removed = this.optimizer.removeGithubAutomation();
+							new Notice(`Removed ${removed} GitHub automation file${removed === 1 ? '' : 's'}`);
 							const newStatus = await this.optimizer.getStatus();
-							this.updateWorkflowsSetting(newStatus.githubWorkflowsStatus, newStatus.githubWorkflowFiles);
+							this.updateWorkflowsSetting(newStatus.githubAutomationStatus, newStatus.githubAutomationFiles);
 						} catch (error) {
-							new Notice(`Failed to remove workflow files: ${error instanceof Error ? error.message : String(error)}`);
+							new Notice(`Failed to remove GitHub automation files: ${error instanceof Error ? error.message : String(error)}`);
 						}
 					});
 			});
