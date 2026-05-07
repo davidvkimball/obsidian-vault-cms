@@ -8,6 +8,7 @@ export class IgnoreStep extends BaseWizardStep {
 	private gitSetting: Setting;
 	private viteSetting: Setting;
 	private hooksSetting: Setting;
+	private workflowsSetting: Setting;
 
 	constructor(app: App, containerEl: HTMLElement, state: WizardState, onNext: () => void, onBack: () => void, onCancel: () => void) {
 		super(app, containerEl, state, onNext, onBack, onCancel);
@@ -39,6 +40,14 @@ export class IgnoreStep extends BaseWizardStep {
 		if (status.gitHooksStatus !== 'none') {
 			this.hooksSetting = new Setting(containerEl);
 			this.updateHooksSetting(status.gitHooksStatus);
+		}
+
+		// GitHub Actions Workflow Setting (only show if workflows are present —
+		// they force the PAT `workflow` scope and cause first-push to be
+		// rejected if the user's token only has `repo`).
+		if (status.githubWorkflowsStatus !== 'none') {
+			this.workflowsSetting = new Setting(containerEl);
+			this.updateWorkflowsSetting(status.githubWorkflowsStatus, status.githubWorkflowFiles);
 		}
 
 		return Promise.resolve();
@@ -113,6 +122,43 @@ export class IgnoreStep extends BaseWizardStep {
 		}
 
 		this.optimizer.renderStatus(this.hooksSetting.controlEl, status === 'neutralized' ? 'configured' : 'not-configured');
+	}
+
+	private updateWorkflowsSetting(status: 'detected' | 'removed' | 'none', files: string[]) {
+		// Show just the basenames so the description doesn't get unwieldy on
+		// projects with several workflow files.
+		const basenames = files.map((p) => p.replace(/\\/g, '/').split('/').pop()).filter(Boolean) as string[];
+		const fileList = basenames.length > 0
+			? basenames.slice(0, 4).join(', ') + (basenames.length > 4 ? `, +${basenames.length - 4} more` : '')
+			: '';
+
+		this.workflowsSetting
+			.setName('Remove GitHub Actions workflows')
+			.setDesc(
+				`This project ships GitHub Actions workflow files (${fileList || '.github/workflows/*.yml'}) ` +
+				`that require a special "workflow" PAT scope to push. Removing them lets the initial push succeed ` +
+				`with a basic "repo"-scope token. Other .github/ files (issue templates, dependabot, PR template) are kept.`
+			)
+			.clear();
+
+		if (status === 'detected') {
+			this.workflowsSetting.addButton(button => {
+				button.setButtonText('Remove')
+					.setWarning()
+					.onClick(async () => {
+						try {
+							const removed = this.optimizer.removeGithubWorkflows();
+							new Notice(`Removed ${removed} workflow file${removed === 1 ? '' : 's'} from .github/workflows/`);
+							const newStatus = await this.optimizer.getStatus();
+							this.updateWorkflowsSetting(newStatus.githubWorkflowsStatus, newStatus.githubWorkflowFiles);
+						} catch (error) {
+							new Notice(`Failed to remove workflow files: ${error instanceof Error ? error.message : String(error)}`);
+						}
+					});
+			});
+		}
+
+		this.optimizer.renderStatus(this.workflowsSetting.controlEl, status === 'detected' ? 'not-configured' : 'configured');
 	}
 
 	validate(): boolean {

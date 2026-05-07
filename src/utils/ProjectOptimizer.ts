@@ -11,6 +11,15 @@ export interface OptimizationStatus {
 	gitIgnoreStatus: 'configured' | 'not-configured';
 	viteIgnoreStatus: 'configured' | 'not-configured';
 	gitHooksStatus: 'detected' | 'neutralized' | 'none';
+	/**
+	 * Whether the project ships GitHub Actions workflow files
+	 * (`.github/workflows/*.yml`). These require the `workflow` PAT scope to
+	 * push — without that scope, GitHub rejects the initial push entirely.
+	 * Removing them is opt-in via the wizard.
+	 */
+	githubWorkflowsStatus: 'detected' | 'removed' | 'none';
+	/** Files that would be removed if the user opts in. */
+	githubWorkflowFiles: string[];
 }
 
 /**
@@ -40,7 +49,9 @@ export class ProjectOptimizer {
 		const status: OptimizationStatus = {
 			gitIgnoreStatus: 'not-configured',
 			viteIgnoreStatus: 'not-configured',
-			gitHooksStatus: 'none'
+			gitHooksStatus: 'none',
+			githubWorkflowsStatus: 'none',
+			githubWorkflowFiles: [],
 		};
 
 		const projectRoot = this.resolveProjectRoot();
@@ -101,7 +112,69 @@ export class ProjectOptimizer {
 		// Check for git hooks (husky, simple-git-hooks, lefthook, etc.)
 		status.gitHooksStatus = this.detectGitHooks(projectRoot);
 
+		// Check for GitHub Actions workflows (block push without `workflow` PAT scope)
+		const workflowFiles = this.listGithubWorkflowFiles(projectRoot);
+		if (workflowFiles.length > 0) {
+			status.githubWorkflowsStatus = 'detected';
+			status.githubWorkflowFiles = workflowFiles;
+		}
+
 		return status;
+	}
+
+	/**
+	 * Returns the absolute paths of all .yml/.yaml files inside the project's
+	 * `.github/workflows/` directory. These are the files that force a PAT to
+	 * have the `workflow` scope before push.
+	 */
+	private listGithubWorkflowFiles(projectRoot: string): string[] {
+		const workflowsDir = path.join(projectRoot, '.github', 'workflows');
+		if (!fs.existsSync(workflowsDir)) return [];
+		try {
+			return fs
+				.readdirSync(workflowsDir)
+				.filter((name) => /\.ya?ml$/i.test(name))
+				.map((name) => path.join(workflowsDir, name));
+		} catch {
+			return [];
+		}
+	}
+
+	/**
+	 * Removes all GitHub Actions workflow files in `.github/workflows/`.
+	 * Removes the directory itself if it ends up empty. Other `.github/`
+	 * contents (issue templates, dependabot, PR template, etc.) are left in
+	 * place — they don't trigger the PAT-scope rejection.
+	 *
+	 * Returns the count of files removed.
+	 */
+	public removeGithubWorkflows(): number {
+		const projectRoot = this.resolveProjectRoot();
+		if (!projectRoot) return 0;
+
+		const workflowsDir = path.join(projectRoot, '.github', 'workflows');
+		if (!fs.existsSync(workflowsDir)) return 0;
+
+		const files = this.listGithubWorkflowFiles(projectRoot);
+		let removed = 0;
+		for (const filePath of files) {
+			try {
+				fs.unlinkSync(filePath);
+				removed++;
+			} catch (e) {
+				console.error('[Vault CMS] Failed to remove workflow file:', filePath, e);
+			}
+		}
+
+		// Clean up the now-empty workflows directory if possible.
+		try {
+			const remaining = fs.readdirSync(workflowsDir);
+			if (remaining.length === 0) fs.rmdirSync(workflowsDir);
+		} catch (e) {
+			console.debug('[Vault CMS] Could not remove empty workflows dir:', e);
+		}
+
+		return removed;
 	}
 
 	/**

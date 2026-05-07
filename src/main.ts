@@ -39,14 +39,14 @@ export default class VaultCMSPlugin extends Plugin {
 		// Open wizard on startup if configured.
 		//
 		// On first vault open, Obsidian's "Trust author and enable plugins" flow
-		// often leaves the Settings panel mounted (typically on Community Plugins).
-		// Settings is a top-level overlay that renders ABOVE Modals — so if the
-		// wizard opens while Settings is up, the wizard is invisible to the user.
+		// often leaves the Settings panel mounted (or pops it open AFTER the
+		// wizard opens). Settings is a top-level overlay that renders ABOVE
+		// Modals — so any time it shows up, the wizard becomes invisible.
 		//
-		// Two mitigations applied together:
-		//   1. Wait 3s instead of 2 — past most of Obsidian's startup auto-opens.
-		//   2. Close the Settings panel if it's currently open before opening the
-		//      wizard, so the wizard becomes the topmost overlay.
+		// We keep the original 2s delay (don't punish startup with extra waiting),
+		// and instead install a MutationObserver while the wizard is open: any
+		// time Settings appears, we immediately close it. This is robust against
+		// settings popping up before, during, or after the wizard launches.
 		if (this.settings.runWizardOnStartup) {
 			this.app.workspace.onLayoutReady(() => {
 				this.startupTimeoutId = window.setTimeout(() => {
@@ -57,9 +57,10 @@ export default class VaultCMSPlugin extends Plugin {
 
 						this.closeSettingsPanelIfOpen();
 						const wizard = new SetupWizardModal(this.app, undefined, this);
+						this.guardWizardZOrder(wizard);
 						wizard.open();
 					})();
-				}, 3000);
+				}, 2000);
 			});
 		}
 	}
@@ -74,19 +75,12 @@ export default class VaultCMSPlugin extends Plugin {
 	 * If Obsidian's Settings panel is currently open, close it. Used right
 	 * before opening the wizard on startup so the wizard isn't hidden behind
 	 * the post-trust Settings overlay.
-	 *
-	 * Settings is exposed on the (untyped) `app.setting` object. Failing to
-	 * find or close it is non-fatal — worst case the wizard renders behind
-	 * Settings and the user can close Settings manually.
 	 */
 	private closeSettingsPanelIfOpen() {
 		try {
 			const setting = (this.app as any).setting;
 			if (!setting) return;
 
-			// Heuristic: the settings overlay's container is mounted in the DOM
-			// while the panel is visible. `containerEl` and a visible
-			// `.modal-container.mod-settings` both indicate it's open.
 			const isOpen =
 				(setting.containerEl && setting.containerEl.parentElement) ||
 				document.body.querySelector('.modal-container.mod-settings');
@@ -98,6 +92,70 @@ export default class VaultCMSPlugin extends Plugin {
 		} catch (e) {
 			console.debug('VaultCMS: closeSettingsPanelIfOpen failed (non-fatal):', e);
 		}
+	}
+
+	/**
+	 * Keep the wizard the topmost overlay for as long as it's open. Obsidian's
+	 * Settings panel can pop up at any time during startup (post-"Trust author"
+	 * flow, other plugins triggering it, etc.) and renders above Modals.
+	 *
+	 * Strategy: observe document.body for a `.modal-container.mod-settings`
+	 * being added, and close it the moment it appears while the wizard is up.
+	 * The observer self-disconnects when the wizard's contentEl detaches, when
+	 * the wizard's onClose runs, or after 60 seconds — whichever comes first.
+	 *
+	 * This is robust against the Settings panel appearing before, during, or
+	 * after the wizard opens.
+	 */
+	private guardWizardZOrder(wizard: SetupWizardModal) {
+		let stopped = false;
+
+		const closeSettingsIfOpen = () => {
+			const visible = document.body.querySelector('.modal-container.mod-settings');
+			if (!visible) return;
+			const setting = (this.app as any).setting;
+			if (setting && typeof setting.close === 'function') {
+				setting.close();
+				console.debug('VaultCMS: closed Settings overlay covering wizard');
+			}
+		};
+
+		const observer = new MutationObserver(() => {
+			if (stopped) return;
+			// If the wizard has detached from the DOM, we're done.
+			if (!wizard.contentEl || !wizard.contentEl.isConnected) {
+				stop();
+				return;
+			}
+			closeSettingsIfOpen();
+		});
+
+		const stop = () => {
+			if (stopped) return;
+			stopped = true;
+			observer.disconnect();
+		};
+
+		try {
+			observer.observe(document.body, { childList: true });
+		} catch (e) {
+			console.debug('VaultCMS: guardWizardZOrder observe failed (non-fatal):', e);
+			return;
+		}
+
+		// Also catch the case where Settings is already up at the moment we attach.
+		closeSettingsIfOpen();
+
+		// Belt-and-suspenders cleanup so a stuck wizard doesn't leak the observer.
+		window.setTimeout(stop, 60_000);
+
+		// Hook into the wizard's close so we stop immediately when the user
+		// finishes / cancels the wizard, rather than waiting for the timeout.
+		const originalOnClose = wizard.onClose.bind(wizard);
+		wizard.onClose = () => {
+			stop();
+			return originalOnClose();
+		};
 	}
 
 	async loadSettings() {

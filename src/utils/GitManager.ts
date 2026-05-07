@@ -249,7 +249,20 @@ export class GitManager {
                     { cwd: projectRoot, maxBuffer: 10 * 1024 * 1024 }
                 );
             } catch (pushError) {
-                throw new Error(`git push failed: ${this.extractGitError(pushError)}`);
+                const gitMsg = this.extractGitError(pushError);
+                // Detect the specific "missing workflow scope" rejection so the
+                // wizard's notice can include actionable recovery instructions
+                // instead of just the raw git diagnostic.
+                if (/workflow\s+scope/i.test(gitMsg) || /\.github\/workflows\//i.test(gitMsg)) {
+                    throw new Error(
+                        `git push failed: your GitHub PAT is missing the "workflow" scope, which is required ` +
+                        `to push GitHub Actions files (.github/workflows/*.yml). ` +
+                        `Regenerate the token at https://github.com/settings/tokens/new?scopes=repo,workflow ` +
+                        `(check BOTH "repo" and "workflow"), paste the new token in the wizard, click Verify, ` +
+                        `then click "Initialize & Push" again. Original error: ${gitMsg}`
+                    );
+                }
+                throw new Error(`git push failed: ${gitMsg}`);
             }
         } finally {
             // Always restore the clean URL — even if push threw — so the token
@@ -365,9 +378,21 @@ export class GitManager {
     }
 
     /**
-     * Verifies if the GitHub PAT is valid and returns the username.
+     * Verifies a GitHub PAT and returns the username + granted scopes.
+     *
+     * Backwards-compat note: callers that just want the username can read
+     * `result.login`. The `scopes` array enables upfront validation that the
+     * token has `workflow` (required to push files under .github/workflows/),
+     * which we can't detect from API errors until the push step has already
+     * failed.
+     *
+     * Caveats:
+     *   - Classic PATs return scopes via the `x-oauth-scopes` header.
+     *   - Fine-grained PATs do NOT populate that header. When `scopes` comes
+     *     back empty, treat scope validation as inconclusive — proceed and
+     *     rely on the push-time error if a permission is missing.
      */
-    static async verifyToken(token: string): Promise<string | null> {
+    static async verifyToken(token: string): Promise<{ login: string; scopes: string[] } | null> {
         try {
             const params: RequestUrlParam = {
                 url: 'https://api.github.com/user',
@@ -379,11 +404,26 @@ export class GitManager {
             };
             const response = await requestUrl(params);
             if (response.status === 200) {
-                return response.json?.login || null;
+                const login = response.json?.login || '';
+                const scopesHeader = this.readHeader(response.headers, 'x-oauth-scopes');
+                const scopes = scopesHeader
+                    ? scopesHeader.split(',').map((s) => s.trim()).filter(Boolean)
+                    : [];
+                return { login, scopes };
             }
             return null;
         } catch {
             return null;
         }
+    }
+
+    /** Case-insensitive header lookup — Obsidian normalizes inconsistently across versions. */
+    private static readHeader(headers: Record<string, string> | undefined, name: string): string | null {
+        if (!headers) return null;
+        const lower = name.toLowerCase();
+        for (const key of Object.keys(headers)) {
+            if (key.toLowerCase() === lower) return headers[key] || null;
+        }
+        return null;
     }
 }

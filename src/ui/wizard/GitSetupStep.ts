@@ -110,13 +110,17 @@ export class GitSetupStep extends BaseWizardStep {
         tokenLink.createSpan({ text: '2. ' });
         tokenLink.createEl('a', {
             text: 'Generate a new GitHub Personal access token',
-            href: `https://github.com/settings/tokens/new?scopes=repo&description=${encodeURIComponent((this.state.gitConfig.repoName || 'Project') + ' (Vault CMS)')}`
+            // Pre-checks both `repo` (for repo creation + push) and `workflow`
+            // (required to push files under .github/workflows/, which most
+            // modern Astro starters ship). Without `workflow`, the push fails
+            // with "refusing to allow a Personal Access Token to update workflow".
+            href: `https://github.com/settings/tokens/new?scopes=repo,workflow&description=${encodeURIComponent((this.state.gitConfig.repoName || 'Project') + ' (Vault CMS)')}`
         });
 
         const tokenHelp = instructions.createEl('ul');
         tokenHelp.createEl('li', { text: `Set a Note (like "${this.state.gitConfig.repoName || 'Project'} (Vault CMS)")` });
         tokenHelp.createEl('li', { text: 'Set Expiration to "No expiration"' });
-        tokenHelp.createEl('li', { text: 'Check the "repo" box (so all top options are selected)' });
+        tokenHelp.createEl('li', { text: 'Check both the "repo" box AND the "workflow" box (the link above pre-checks them — required for Astro starters with GitHub Actions)' });
         tokenHelp.createEl('li', { text: 'Click "Generate token" at the bottom, copy it, and paste it below.' });
 
         if (!remoteUrl) {
@@ -134,7 +138,7 @@ export class GitSetupStep extends BaseWizardStep {
                     .setTooltip('Generate a new Personal access token on GitHub')
                     .onClick(() => {
                         const description = encodeURIComponent((this.state.gitConfig.repoName || 'Project') + ' (Vault CMS)');
-                        window.open(`https://github.com/settings/tokens/new?scopes=repo&description=${description}`);
+                        window.open(`https://github.com/settings/tokens/new?scopes=repo,workflow&description=${description}`);
                     });
             });
 
@@ -182,11 +186,37 @@ export class GitSetupStep extends BaseWizardStep {
 
                     patStatus.empty();
                     try {
-                        const username = await this.gitManager.verifyToken(token);
-                        if (username) {
+                        const verified = await this.gitManager.verifyToken(token);
+                        if (verified && verified.login) {
+                            const username = verified.login;
                             new Notice(`Token verified successfully as ${username}!`);
                             patStatus.createSpan({ text: `✓ Verified as `, attr: { style: 'color: var(--text-success);' } });
                             patStatus.createEl('b', { text: username });
+
+                            // Classic PAT → scopes are reported. Fine-grained PATs report no
+                            // scopes (length 0) — skip validation in that case and let the
+                            // push-time error surface any missing permission.
+                            const scopes = verified.scopes;
+                            if (scopes.length > 0 && !scopes.includes('workflow')) {
+                                const description = encodeURIComponent((this.state.gitConfig.repoName || 'Project') + ' (Vault CMS)');
+                                const regenLink = `https://github.com/settings/tokens/new?scopes=repo,workflow&description=${description}`;
+                                patStatus.createEl('br');
+                                const warn = patStatus.createSpan({
+                                    text: '⚠ Token is missing the `workflow` scope. ',
+                                    attr: { style: 'color: var(--text-warning); display: inline-block; margin-top: 0.4rem;' },
+                                });
+                                warn.createEl('a', {
+                                    text: 'Regenerate with `repo` + `workflow`',
+                                    href: regenLink,
+                                });
+                                warn.appendChild(document.createTextNode(
+                                    ' — required to push GitHub Actions files (`.github/workflows/*.yml`) that most Astro starters ship with.'
+                                ));
+                                new Notice(
+                                    'Token verified, but it is missing the `workflow` scope. ' +
+                                    'Regenerate with both `repo` and `workflow` checked, or the initial push will fail.'
+                                );
+                            }
 
                             if ((this.app as any).secretStorage) {
                                 await (this.app as any).secretStorage.setSecret('vault-cms-github-pat', token);
