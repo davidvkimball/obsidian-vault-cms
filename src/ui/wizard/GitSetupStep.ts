@@ -359,13 +359,27 @@ export class GitSetupStep extends BaseWizardStep {
                 console.warn('GitSetupStep: Early configuration flush failed, but continuing with sync:', flushError);
             }
 
+            // Initial commit + push. Any failure here propagates to the outer
+            // catch so the wizard surfaces the real error to the user instead
+            // of silently advancing to a "Success!" state with an empty remote.
+            await this.gitManager.initialCommitAndPush(projectRoot, branch, 'origin', token);
+            new Notice('Successfully synced with GitHub!');
+
+            // Align GitHub's default branch with the branch the user typed —
+            // otherwise an empty `main` placeholder branch ends up the default
+            // when the user picked `master` (or any custom name), and Netlify
+            // auto-deploys the empty branch.
             try {
-                await this.gitManager.initialCommitAndPush(projectRoot, branch, 'origin', token);
-                new Notice('Successfully synced with GitHub!');
-            } catch (pushError) {
-                console.error('Sync failed:', pushError);
-                new Notice('Initial sync failed. Please ensure you have Git configured locally and your credentials are set up (like Git Credential Manager).');
-                // Don't throw, let them finish setup and sync manually if needed
+                await this.gitManager.setDefaultBranch(token, repoInfo.full_name, branch);
+                console.debug(`GitSetupStep: Set default branch on ${repoInfo.full_name} to ${branch}`);
+            } catch (defaultBranchError) {
+                // Non-fatal: push already succeeded, the repo has content. Worst
+                // case the user has to flip the default branch manually on GitHub.
+                console.warn('GitSetupStep: Could not set default branch on GitHub:', defaultBranchError);
+                new Notice(
+                    `Pushed to GitHub, but could not set "${branch}" as the default branch. ` +
+                    `You may need to change the default branch manually in repo settings.`
+                );
             }
 
             // 4. Configure Obsidian Git

@@ -9,6 +9,8 @@ const execAsync = promisify(exec);
 export interface GitHubRepoResponse {
     clone_url: string;
     html_url: string;
+    /** "owner/repo" — used to PATCH default_branch after the initial push. */
+    full_name: string;
 }
 
 export class GitManager {
@@ -96,71 +98,180 @@ export class GitManager {
     }
 
     /**
-     * Creates an initial commit and pushes to the remote, setting the upstream.
+     * Whether the local repo has any commits yet (HEAD exists).
      */
-    static async initialCommitAndPush(projectRoot: string, branch: string, remoteName: string = 'origin', token?: string): Promise<void> {
+    private static async hasHead(projectRoot: string): Promise<boolean> {
         try {
-            console.debug('GitManager.initialCommitAndPush: starting', { projectRoot, branch, remoteName, hasToken: !!token });
+            await execAsync('git rev-parse --verify HEAD', { cwd: projectRoot });
+            return true;
+        } catch {
+            return false;
+        }
+    }
 
-            // 1. Ensure user identity is set (git commit fails without it)
-            try {
-                await execAsync('git config user.name', { cwd: projectRoot });
-            } catch {
-                console.debug('GitManager: Setting local git user.name');
-                await execAsync('git config user.name "Vault CMS User"', { cwd: projectRoot });
-                await execAsync('git config user.email "vault-cms@example.com"', { cwd: projectRoot });
+    /**
+     * Get the SHA of `branch` on the given remote, or null if it doesn't exist.
+     * Uses `ls-remote` (one network round-trip) — the only reliable way to
+     * confirm content actually reached the server. Upstream config alone can
+     * lie when the push silently failed earlier.
+     */
+    private static async getRemoteBranchSha(
+        projectRoot: string,
+        remoteName: string,
+        branch: string
+    ): Promise<string | null> {
+        try {
+            const { stdout } = await execAsync(
+                `git ls-remote --heads ${remoteName} ${branch}`,
+                { cwd: projectRoot }
+            );
+            const line = stdout.trim().split('\n')[0];
+            if (!line) return null;
+            const sha = line.split(/\s+/)[0];
+            return sha && sha.length >= 40 ? sha : null;
+        } catch {
+            return null;
+        }
+    }
+
+    /**
+     * Creates an initial commit (or uses an existing one), pushes to the
+     * remote, and sets the upstream. Designed to never silently succeed when
+     * something actually went wrong:
+     *
+     *   - "git add . + commit" with no files AND no existing HEAD = throws.
+     *   - Push uses a temporary authenticated remote URL (the `git -c
+     *     url.X.insteadOf=Y` trick is unreliable on Windows). The token is
+     *     scrubbed from the remote URL on disk in a `finally`, even on push
+     *     failure, so it never persists.
+     *   - After push, verifies via `git ls-remote --heads` that the remote
+     *     branch actually has a SHA. Upstream-config presence is NOT trusted
+     *     as proof of a successful push.
+     */
+    static async initialCommitAndPush(
+        projectRoot: string,
+        branch: string,
+        remoteName: string = 'origin',
+        token?: string
+    ): Promise<void> {
+        console.debug('GitManager.initialCommitAndPush: starting', { projectRoot, branch, remoteName, hasToken: !!token });
+
+        // 1. Ensure user identity is set (git commit fails without it)
+        try {
+            await execAsync('git config user.name', { cwd: projectRoot });
+        } catch {
+            console.debug('GitManager: Setting local git user.name');
+            await execAsync('git config user.name "Vault CMS User"', { cwd: projectRoot });
+            await execAsync('git config user.email "vault-cms@example.com"', { cwd: projectRoot });
+        }
+
+        // 2. Stage all files
+        await execAsync('git add .', { cwd: projectRoot });
+
+        // 3. Commit, distinguishing "nothing to commit" cases:
+        //    - HEAD exists already → fine, push the existing commits
+        //    - HEAD doesn't exist  → real failure (project empty / .gitignore eats everything)
+        const hadHeadBefore = await this.hasHead(projectRoot);
+        try {
+            await execAsync('git commit -m "Initial commit from Vault CMS"', { cwd: projectRoot });
+        } catch (commitError) {
+            const msg = commitError instanceof Error ? commitError.message : String(commitError);
+            const looksClean = msg.includes('nothing to commit') || msg.includes('working tree clean');
+            if (!looksClean) throw commitError;
+            if (!hadHeadBefore) {
+                throw new Error(
+                    `No files to commit in "${projectRoot}". The project appears empty, ` +
+                    `or .gitignore is excluding everything. Add some content and try again.`
+                );
             }
+            console.debug('GitManager: No new changes; using existing HEAD');
+        }
 
-            // 2. Add all files
-            await execAsync('git add .', { cwd: projectRoot });
+        // 4. Force the branch to whatever the user picked. `-M` is rename-or-create
+        //    and works whether the local branch was main, master, or anything else.
+        await execAsync(`git branch -M ${branch}`, { cwd: projectRoot });
 
-            // 3. Commit
+        // 5. Push using a temporary authenticated remote URL (reset in `finally`
+        //    so the token never persists on disk).
+        console.debug('GitManager: Pushing to remote...');
+        const cleanUrl = await this.getRemoteUrl(projectRoot, remoteName);
+        if (!cleanUrl) {
+            throw new Error(`No "${remoteName}" remote configured for "${projectRoot}".`);
+        }
+
+        const usingTokenAuth = !!token && cleanUrl.startsWith('https://');
+        if (usingTokenAuth) {
+            const authedUrl = cleanUrl.replace('https://', `https://x-access-token:${token}@`);
+            await execAsync(`git remote set-url ${remoteName} ${authedUrl}`, { cwd: projectRoot });
+        }
+
+        try {
             try {
-                await execAsync('git commit -m "Initial commit from Vault CMS"', { cwd: projectRoot });
-            } catch (commitError) {
-                const errorMessage = commitError instanceof Error ? commitError.message : String(commitError);
-                if (errorMessage.includes('nothing to commit') || errorMessage.includes('working tree clean')) {
-                    console.debug('GitManager: Nothing to commit');
-                } else {
-                    throw commitError;
+                await execAsync(
+                    `git push -u ${remoteName} ${branch}`,
+                    { cwd: projectRoot, maxBuffer: 10 * 1024 * 1024 }
+                );
+            } catch (pushError) {
+                const raw = pushError instanceof Error ? pushError.message : String(pushError);
+                // Surface the first useful line of git's error rather than the wrapper noise.
+                const firstLine = raw.split('\n').find((l) => l.trim().length > 0) || raw;
+                throw new Error(
+                    `git push failed: ${firstLine.trim()}. ` +
+                    `If credentials are the issue, regenerate your GitHub PAT with the "repo" scope. ` +
+                    `Manual recovery: cd "${projectRoot}" && git push -u ${remoteName} ${branch}`
+                );
+            }
+        } finally {
+            // Always restore the clean URL — even if push threw — so the token
+            // is never saved on disk.
+            if (usingTokenAuth) {
+                try {
+                    await execAsync(`git remote set-url ${remoteName} ${cleanUrl}`, { cwd: projectRoot });
+                } catch (resetError) {
+                    console.error('GitManager: Failed to reset remote URL after push attempt:', resetError);
                 }
             }
+        }
 
-            // 4. Ensure branch name is set locally
-            await execAsync(`git branch -M ${branch}`, { cwd: projectRoot });
+        // 6. Real verification: confirm the remote actually has the branch with a SHA.
+        const remoteSha = await this.getRemoteBranchSha(projectRoot, remoteName, branch);
+        if (!remoteSha) {
+            throw new Error(
+                `git push reported success, but the remote branch "${branch}" still has no commits. ` +
+                `Try manually: cd "${projectRoot}" && git push -u ${remoteName} ${branch}`
+            );
+        }
+        console.debug('GitManager: Push verified. Remote SHA:', remoteSha);
+    }
 
-            // 5. Push and set upstream
-            // Pass credentials inline via git -c so we never modify the remote URL
-            console.debug('GitManager: Pushing to remote...');
-
-            if (token) {
-                const remoteUrl = await this.getRemoteUrl(projectRoot, remoteName);
-                if (remoteUrl && remoteUrl.startsWith('https://')) {
-                    // Use url.insteadOf to inject token without modifying the stored remote
-                    const authenticatedUrl = remoteUrl.replace('https://', `https://${token}@`);
-                    const escaped = authenticatedUrl.replace(/"/g, '\\"');
-                    const original = remoteUrl.replace(/"/g, '\\"');
-                    await execAsync(
-                        `git -c "url.${escaped}.insteadOf=${original}" push -u ${remoteName} ${branch}`,
-                        { cwd: projectRoot, maxBuffer: 10 * 1024 * 1024 }
-                    );
-                } else {
-                    await execAsync(`git push -u ${remoteName} ${branch}`, { cwd: projectRoot, maxBuffer: 10 * 1024 * 1024 });
-                }
-            } else {
-                await execAsync(`git push -u ${remoteName} ${branch}`, { cwd: projectRoot, maxBuffer: 10 * 1024 * 1024 });
-            }
-
-            // 6. Verify the push succeeded
+    /**
+     * PATCH the GitHub repo to set its default branch. Must be called AFTER
+     * the branch has been pushed — GitHub rejects default_branch values that
+     * don't already exist on the remote. Keeps GitHub's default branch in
+     * sync with what the user typed in the wizard, which Netlify and clones
+     * then auto-pick up.
+     */
+    static async setDefaultBranch(token: string, fullName: string, branch: string): Promise<void> {
+        const params: RequestUrlParam = {
+            url: `https://api.github.com/repos/${fullName}`,
+            method: 'PATCH',
+            headers: {
+                'Authorization': `token ${token}`,
+                'Accept': 'application/vnd.github.v3+json',
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ default_branch: branch }),
+        };
+        const response = await requestUrl(params);
+        if (response.status !== 200) {
+            let msg = `Failed to set default branch: HTTP ${response.status}`;
             try {
-                const { stdout: trackingInfo } = await execAsync(`git rev-parse --abbrev-ref ${branch}@{upstream}`, { cwd: projectRoot });
-                console.debug('GitManager: Push verified. Upstream:', trackingInfo.trim());
+                const data = typeof response.json === 'string' ? JSON.parse(response.json) : response.json;
+                if (data?.message) msg += ` (${data.message})`;
             } catch {
-                throw new Error(`Push failed. The repository was created but files could not be uploaded. Try pushing manually with: git push -u origin ${branch}`);
+                // ignore parse error
             }
-        } catch (error) {
-            console.error('GitManager.initialCommitAndPush failed:', error);
-            throw error;
+            throw new Error(msg);
         }
     }
 
