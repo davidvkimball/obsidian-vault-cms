@@ -120,7 +120,7 @@ export class GitSetupStep extends BaseWizardStep {
         const tokenHelp = instructions.createEl('ul');
         tokenHelp.createEl('li', { text: `Set a Note (like "${this.state.gitConfig.repoName || 'Project'} (Vault CMS)")` });
         tokenHelp.createEl('li', { text: 'Set Expiration to "No expiration"' });
-        tokenHelp.createEl('li', { text: 'Check both the "repo" box AND the "workflow" box (the link above pre-checks them — required for Astro starters with GitHub Actions)' });
+        tokenHelp.createEl('li', { text: 'Check both the "repo" box AND the "workflow" box (the link above pre-checks them, required for Astro starters with GitHub Actions)' });
         tokenHelp.createEl('li', { text: 'Click "Generate token" at the bottom, copy it, and paste it below.' });
 
         if (!remoteUrl) {
@@ -210,7 +210,7 @@ export class GitSetupStep extends BaseWizardStep {
                                     href: regenLink,
                                 });
                                 warn.appendChild(document.createTextNode(
-                                    ' — required to push GitHub Actions files (`.github/workflows/*.yml`) that most Astro starters ship with.'
+                                    '. Required to push GitHub Actions files (`.github/workflows/*.yml`) that most Astro starters ship with.'
                                 ));
                                 new Notice(
                                     'Token verified, but it is missing the `workflow` scope. ' +

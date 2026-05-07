@@ -110,17 +110,34 @@ export class SafeConfigWriter {
 				await this.app.vault.modify(dataFile, content);
 				console.debug(`SafeConfigWriter: Successfully updated ${pluginId} config`);
 			} else {
-				// Create new file
+				// Create new file via the DataAdapter rather than the Vault API.
+				//
+				// Why: Obsidian's vault index does NOT reliably track paths under
+				// `.obsidian/` (where plugin configs live). `getAbstractFileByPath`
+				// returns `null` for an installed plugin's folder/data.json even
+				// when both exist on disk, which sends us down this "create new"
+				// branch. The Vault API's `createFolder`/`create` then throw
+				// "Folder already exists" / "File already exists" because the
+				// items ARE there on disk, just not in the index.
+				//
+				// The adapter writes directly to the filesystem, and `mkdir` and
+				// `write` are both idempotent for the existence cases we care
+				// about (mkdir tolerates an existing dir, write overwrites).
 				const pluginDir = `${this.app.vault.configDir}/plugins/${pluginId}`;
-				const pluginDirFile = this.app.vault.getAbstractFileByPath(pluginDir);
+				const adapter = this.app.vault.adapter;
 
-				if (!pluginDirFile) {
-					await this.app.vault.createFolder(pluginDir);
+				try {
+					if (!(await adapter.exists(pluginDir))) {
+						await adapter.mkdir(pluginDir);
+					}
+				} catch (folderError) {
+					const folderMsg = folderError instanceof Error ? folderError.message : String(folderError);
+					if (!/already exists/i.test(folderMsg)) throw folderError;
 				}
 
 				const content = JSON.stringify(data, null, 2);
-				await this.app.vault.create(configPath, content);
-				console.debug(`SafeConfigWriter: Successfully created ${pluginId} config`);
+				await adapter.write(configPath, content);
+				console.debug(`SafeConfigWriter: Successfully created ${pluginId} config via adapter`);
 			}
 
 			return true;
