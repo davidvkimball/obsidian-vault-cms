@@ -29,6 +29,10 @@ const entryPoint = hasSrcMain ? "src/main.ts" : "main.ts";
 // Always build to root for simplicity
 const outfile = "main.js";
 
+// Production builds (pnpm build) emit no sourcemap so the released main.js is
+// byte-for-byte reproducible from source; dev keeps an inline sourcemap.
+const isProduction = process.argv.slice(2).includes("build") || process.argv.slice(2).includes("production");
+
 const context = await esbuild.context({
 	banner: {
 		js: banner,
@@ -53,7 +57,7 @@ const context = await esbuild.context({
 	format: "cjs",
 	target: "es2018",
 	logLevel: "info",
-	sourcemap: "inline",
+	sourcemap: isProduction ? false : "inline",
 	treeShaking: true,
 	outfile: outfile,
 	minify: false,
