@@ -3,14 +3,26 @@ import { VaultCMSSettings, DEFAULT_SETTINGS } from './settings';
 import { SettingsTab } from './ui/SettingsTab';
 import { SetupWizardModal } from './ui/SetupWizardModal';
 import { registerCommands } from './commands';
+import { createApi, type VaultCMSAPI } from './api';
 import * as path from 'path';
 
 export default class VaultCMSPlugin extends Plugin {
 	settings: VaultCMSSettings;
+	/**
+	 * Public API for other plugins. See src/api/public/vault-cms.d.ts for the
+	 * consumer surface; that file is the canonical reference and is meant to
+	 * be copied into downstream plugin projects for type-safe access.
+	 *
+	 * Access pattern: `app.plugins.plugins['vault-cms']?.api as VaultCMSAPI`.
+	 */
+	public api!: VaultCMSAPI;
 	private startupTimeoutId?: number;
 
 	async onload() {
 		await this.loadSettings();
+
+		// Build the public API after settings load so it can read projectRoot.
+		this.api = createApi(this);
 
 		// Migrate absolute projectRoot to vault-relative for portability
 		if (this.settings.projectRoot && path.isAbsolute(this.settings.projectRoot)) {
@@ -167,11 +179,14 @@ export default class VaultCMSPlugin extends Plugin {
 	}
 
 	/**
-	 * Public API: Resolve an absolute image path (e.g. /images/blog/1.jpg)
-	 * against the Astro project's public/ folder.
-	 * Returns a file:// resource URL if the file exists, null otherwise.
-	 * Other plugins (Image Manager, Bases CMS) can call this via:
-	 *   app.plugins.plugins['vault-cms']?.resolvePublicPath('/images/blog/1.jpg')
+	 * Resolve an absolute image path (e.g. /images/blog/1.jpg) against the
+	 * Astro project's public/ folder. Returns a file:// resource URL if the
+	 * file exists, null otherwise.
+	 *
+	 * Preserved at the top level for back-compat with consumers written
+	 * before the namespaced API existed (Image Manager, Bases CMS). New
+	 * consumers should prefer `api.assets.resolvePublicPath()` for the
+	 * type-safe surface documented in src/api/public/vault-cms.d.ts.
 	 */
 	resolvePublicPath(absolutePath: string): string | null {
 		if (!this.settings.resolvePublicImages || !this.settings.projectRoot) return null;

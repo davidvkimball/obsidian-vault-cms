@@ -90,6 +90,33 @@ Vault CMS supports curated configuration presets for popular Astro themes. These
 - **Instant Setup**: Automatically maps content types, properties, and folder structures to match your theme's expectations.
 - **Remote Sync**: Fetch the latest curated configurations from the [Vault CMS Presets](https://github.com/davidvkimball/vault-cms-presets) repository.
 
+## Public API
+
+Vault CMS exposes a typed public API for other Obsidian plugins. The canonical surface lives in [`src/api/public/vault-cms.d.ts`](src/api/public/vault-cms.d.ts) — copy that file into your project for type-safe access.
+
+```ts
+import type { VaultCMSAPI } from './vault-cms';
+
+const vc = app.plugins.plugins['vault-cms']?.api as VaultCMSAPI | undefined;
+if (vc) {
+  // Detected dynamic-route → collection mappings (cached; pass {refresh:true} to re-scan)
+  const routes = await vc.routes.getRoutes();
+
+  // URL prefix for a specific collection ('/posts/' or '/' for flat URLs, null when unrouted)
+  const prefix = await vc.routes.getUrlPrefixForCollection('posts');
+
+  // Astro content collections in src/content/
+  const collections = await vc.collections.list();
+
+  // Resolve an absolute asset path against the project's public/ folder
+  const url = vc.assets.resolvePublicPath('/images/blog/1.jpg');
+}
+```
+
+Feature-detect with `vc.version` — the API follows semver, so a minor bump adds methods and a major bump removes or changes them. On mobile (no filesystem access) and unconfigured projects, async methods return `[]` / `null` rather than throwing.
+
+The top-level `resolvePublicPath()` is preserved for back-compat with consumers written before the namespaced API (e.g. Image Manager, Bases CMS); new consumers should prefer `api.assets.resolvePublicPath()`.
+
 ## Troubleshooting
 
 - **Wizard not appearing**: Check "Run wizard on startup" setting in plugin settings, or run manually via Command Palette → "Open setup wizard"
