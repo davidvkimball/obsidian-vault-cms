@@ -38,21 +38,24 @@ export class OptionalPluginsStep extends BaseWizardStep {
 		});
 
 		const allPlugins: PluginInfo[] = [
-			{ id: 'astro-composer', name: 'Astro Composer', category: 'essential', source: 'brat', repo: 'davidvkimball/obsidian-astro-composer' },
-			{ id: 'bases-cms', name: 'Bases CMS', category: 'essential', source: 'brat', repo: 'davidvkimball/obsidian-bases-cms' },
+			// Essential: all in the official community directory.
+			{ id: 'astro-composer', name: 'Astro Composer', category: 'essential', source: 'community' },
+			{ id: 'bases-cms', name: 'Bases CMS', category: 'essential', source: 'community' },
 			{ id: 'editing-toolbar', name: 'Editing Toolbar', category: 'essential', source: 'community' },
-			{ id: 'home-base', name: 'Home Base', category: 'essential', source: 'brat', repo: 'davidvkimball/obsidian-home-base' },
-			{ id: 'image-manager', name: 'Image Manager', category: 'essential', source: 'brat', repo: 'davidvkimball/obsidian-image-manager' },
-			{ id: 'property-over-file-name', name: 'Property Over File Name', category: 'essential', source: 'brat', repo: 'davidvkimball/obsidian-property-over-file-name' },
-			{ id: 'seo', name: 'SEO', category: 'essential', source: 'brat', repo: 'davidvkimball/obsidian-seo' },
-			{ id: 'ui-tweaker', name: 'UI Tweaker', category: 'essential', source: 'brat', repo: 'davidvkimball/obsidian-ui-tweaker' },
+			{ id: 'home-base', name: 'Home Base', category: 'essential', source: 'community' },
+			{ id: 'image-manager', name: 'Image Manager', category: 'essential', source: 'community' },
+			{ id: 'property-over-file-name', name: 'Property Over File Name', category: 'essential', source: 'community' },
+			{ id: 'seo', name: 'SEO', category: 'essential', source: 'community' },
+			{ id: 'ui-tweaker', name: 'UI Tweaker', category: 'essential', source: 'community' },
+			// Nice to have: also all in the official community directory.
 			{ id: 'omnisearch', name: 'Omnisearch', category: 'nice-to-have', source: 'community' },
-			{ id: 'file-name-history', name: 'File Name History', category: 'nice-to-have', source: 'brat', repo: 'davidvkimball/obsidian-file-name-history' },
-			{ id: 'data-files-editor', name: 'Data Files Editor', category: 'nice-to-have', source: 'brat', repo: 'davidvkimball/obsidian-data-files-editor' },
+			{ id: 'file-name-history', name: 'File Name History', category: 'nice-to-have', source: 'community' },
+			{ id: 'data-files-editor', name: 'Data Files Editor', category: 'nice-to-have', source: 'community' },
 			{ id: 'settings-search', name: 'Settings Search', category: 'nice-to-have', source: 'community' },
 			{ id: 'tag-wrangler', name: 'Tag Wrangler', category: 'nice-to-have', source: 'community' },
-			{ id: 'zenmode', name: 'Zen Mode', category: 'nice-to-have', source: 'brat', repo: 'davidvkimball/obsidian-zenmode' },
-			{ id: 'explorer-focus', name: 'Explorer Focus', category: 'nice-to-have', source: 'brat', repo: 'davidvkimball/obsidian-explorer-focus' }
+			{ id: 'vault-nickname', name: 'Vault Nickname', category: 'nice-to-have', source: 'community' },
+			{ id: 'zenmode', name: 'Zen Mode', category: 'nice-to-have', source: 'community' },
+			{ id: 'explorer-focus', name: 'Explorer Focus', category: 'nice-to-have', source: 'community' }
 		];
 
 		const plugins = (this.app as { plugins?: { plugins?: Record<string, unknown>; enabledPlugins?: Set<string> } }).plugins;
