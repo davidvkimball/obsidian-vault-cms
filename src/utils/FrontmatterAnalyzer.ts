@@ -274,18 +274,33 @@ export class FrontmatterAnalyzer {
 	}
 
 	autoDetectDateProperty(frontmatter: Record<string, unknown>): string | null {
-		const dateProperties = ['date', 'pubDate', 'publishedDate', 'publishDate', 'created', 'modified', 'updated'];
+		// Canonical date property names. Includes the AstroPaper-style
+		// `pubDatetime` so it matches without falling through to the second
+		// pass. Compared case-insensitively against the actual keys, so
+		// theme variants like `pubDateTime` or `PublishedDate` also match.
+		const dateProperties = [
+			'date', 'pubDate', 'pubDatetime', 'publishedDate', 'publishDate',
+			'publishedDatetime', 'modDatetime', 'created', 'modified', 'updated'
+		];
 
-		// First pass: Check for exact property names with valid date values
+		const keys = Object.keys(frontmatter);
+
+		// First pass: exact name (case-insensitive). Wins regardless of value,
+		// since callers may pass a "keys-only" dummy frontmatter built from
+		// aggregated property names across files (values all null).
 		for (const prop of dateProperties) {
-			if (frontmatter.hasOwnProperty(prop)) {
-				return prop;
-			}
+			const match = keys.find(k => k.toLowerCase() === prop.toLowerCase());
+			if (match) return match;
 		}
 
-		// Second pass: Catch anything with "date" in the name that looks like a date
-		for (const prop in frontmatter) {
-			if (prop.toLowerCase().includes('date') && this.looksLikeDate(frontmatter[prop])) {
+		// Second pass: any property whose name contains 'date'. Trust the name
+		// when the value is null/undefined (dummy frontmatter); otherwise
+		// require the value to actually look like a date so we don't false-
+		// match things like `dateFormat: "ISO"` from real frontmatter.
+		for (const prop of keys) {
+			if (!prop.toLowerCase().includes('date')) continue;
+			const val = frontmatter[prop];
+			if (val === null || val === undefined || this.looksLikeDate(val)) {
 				return prop;
 			}
 		}
