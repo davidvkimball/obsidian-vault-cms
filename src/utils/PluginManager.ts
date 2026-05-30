@@ -55,7 +55,6 @@ export class PluginManager {
 			'homepage',
 			'new-tab-default-page',
 			'property-over-file-name',
-			'settings-search',
 			'statusbar-organizer',
 			'seo',
 			'ui-tweaker',
