@@ -75,33 +75,30 @@ export class DataFilesEditorConfigurator {
     }
 
     private applySettings(settings: DataFilesEditorSettings | Record<string, unknown>, enabled: boolean): void {
-        // Set JSON and Astro based on the toggle
+        // JSON and Astro are the minimum-viable set for an Astro vault, so they
+        // follow the Extended File Types toggle directly.
         settings.doLoadJson = enabled;
         settings.doCreateJson = enabled;
         settings.doLoadAstro = enabled;
         settings.doCreateAstro = enabled;
 
-        // Default all other "load/create" settings to false as requested
-        settings.doLoadTxt = false;
-        settings.doCreateTxt = false;
-        settings.doLoadXml = false;
-        settings.doCreateXml = false;
-        settings.doLoadYaml = false;
-        settings.doCreateYaml = false;
-        settings.doLoadTs = false;
-        settings.doCreateTs = false;
-        settings.doLoadCss = false;
-        settings.doCreateCss = false;
-        settings.doLoadHtml = false;
-        settings.doCreateHtml = false;
-        settings.doLoadJs = false;
-        settings.doCreateJs = false;
-        settings.doLoadMjs = false;
-        settings.doCreateMjs = false;
+        // Every other file type is the user's to manage in the Data Files Editor
+        // settings tab. Only seed a clean "off" default for keys that have never
+        // been set, so re-running the wizard never clobbers a user's manual
+        // additions (e.g. enabling .yaml or .css themselves).
+        const otherKeys = [
+            'doLoadTxt', 'doCreateTxt', 'doLoadXml', 'doCreateXml',
+            'doLoadYaml', 'doCreateYaml', 'doLoadTs', 'doCreateTs',
+            'doLoadCss', 'doCreateCss', 'doLoadHtml', 'doCreateHtml',
+            'doLoadJs', 'doCreateJs', 'doLoadMjs', 'doCreateMjs',
+        ];
+        for (const key of otherKeys) {
+            if (settings[key] === undefined) settings[key] = false;
+        }
 
-        // Ensure these are true as requested
-        settings.doAutosaveFiles = true;
-        settings.lineWrapping = true;
+        // Sensible global defaults, but don't override an existing user choice.
+        if (settings.doAutosaveFiles === undefined) settings.doAutosaveFiles = true;
+        if (settings.lineWrapping === undefined) settings.lineWrapping = true;
     }
 
     private async saveConfigFallback(enabled: boolean): Promise<void> {

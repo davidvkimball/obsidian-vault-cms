@@ -50,7 +50,7 @@ export class OptionalPluginsStep extends BaseWizardStep {
 			// Nice to have: also all in the official community directory.
 			{ id: 'omnisearch', name: 'Omnisearch', category: 'nice-to-have', source: 'community' },
 			{ id: 'file-name-history', name: 'File Name History', category: 'nice-to-have', source: 'community' },
-			{ id: 'data-files-editor', name: 'Data Files Editor', category: 'nice-to-have', source: 'community' },
+			{ id: 'data-files-editor', name: 'Data Files Editor', category: 'nice-to-have', source: 'brat', repo: 'davidvkimball/obsidian-data-files-editor' },
 			{ id: 'tag-wrangler', name: 'Tag Wrangler', category: 'nice-to-have', source: 'community' },
 			{ id: 'vault-nickname', name: 'Vault Nickname', category: 'nice-to-have', source: 'community' },
 			{ id: 'zenmode', name: 'Zen Mode', category: 'nice-to-have', source: 'community' },
@@ -134,10 +134,13 @@ export class OptionalPluginsStep extends BaseWizardStep {
 								window.open(`obsidian://show-plugin?id=${plugin.id}`);
 							}));
 					} else if (plugin.source === 'brat' && plugin.repo) {
+						// BRAT is pre-installed in Vault CMS vaults, so a one-click deep
+						// link adds the plugin to BRAT directly (no manual repo paste).
 						setting.addButton(btn => btn
-							.setButtonText('GitHub')
+							.setButtonText('Install via BRAT')
+							.setCta()
 							.onClick(() => {
-								window.open(`https://github.com/${plugin.repo}`);
+								window.open(`obsidian://brat?plugin=${plugin.repo}`);
 							}));
 					}
 				}
