@@ -15,12 +15,14 @@ import { WizardState } from '../../types';
 import { ProjectDetector } from '../../utils/ProjectDetector';
 import { MdxDetector } from '../../utils/MdxDetector';
 import { ContentTypeDetector } from '../../utils/ContentTypeDetector';
+import { VaultNicknameConfigurator } from '../../utils/VaultNicknameConfig';
 import { toVaultRelative, getVaultPath } from '../../utils/VaultPathHelper';
 
 export class ProjectDetectionStep extends BaseWizardStep {
 	private projectDetector: ProjectDetector;
 	private mdxDetector: MdxDetector;
 	private contentTypeDetector: ContentTypeDetector;
+	private vaultNicknameConfigurator: VaultNicknameConfigurator;
 	private detected: boolean = false;
 	private projectRootDisplay: HTMLElement | null = null;
 	private configFileDisplay: HTMLElement | null = null;
@@ -30,6 +32,23 @@ export class ProjectDetectionStep extends BaseWizardStep {
 		this.projectDetector = new ProjectDetector(app);
 		this.mdxDetector = new MdxDetector(app);
 		this.contentTypeDetector = new ContentTypeDetector(app);
+		this.vaultNicknameConfigurator = new VaultNicknameConfigurator(app);
+	}
+
+	/** Renders the optional vault nickname field, seeding from the saved value the first time the step is shown. */
+	private async renderVaultNicknameSetting(containerEl: HTMLElement): Promise<void> {
+		if (this.state.vaultNickname === undefined) {
+			this.state.vaultNickname = await this.vaultNicknameConfigurator.getNickname();
+		}
+		new Setting(containerEl)
+			.setName('Vault nickname')
+			.setDesc('Display name for this vault, shown instead of the folder name. Leave blank to keep the folder name.')
+			.addText(text => text
+				.setPlaceholder('Vault CMS')
+				.setValue(this.state.vaultNickname ?? '')
+				.onChange(value => {
+					this.state.vaultNickname = value;
+				}));
 	}
 
 	async display(): Promise<void> {
@@ -230,6 +249,7 @@ export class ProjectDetectionStep extends BaseWizardStep {
 						this.state.enableExtendedFileTypes = value;
 					});
 			});
+			await this.renderVaultNicknameSetting(containerEl);
 		} else {
 			containerEl.empty();
 			containerEl.createEl('h2', { text: 'Project detection failed' });

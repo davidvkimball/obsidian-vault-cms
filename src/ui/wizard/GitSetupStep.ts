@@ -430,7 +430,7 @@ export class GitSetupStep extends BaseWizardStep {
             new Notice('Git setup complete!');
 
             // Show deploy button if a platform was selected
-            const selectedPlatform = (this.state as any).deploymentPlatform as string || '';
+            const selectedPlatform = this.state.deploymentPlatform || '';
             if (selectedPlatform) {
                 const platformName = DeploymentStep.getPlatformName(selectedPlatform);
                 const deployUrl = DeploymentStep.getDeployUrl(selectedPlatform);

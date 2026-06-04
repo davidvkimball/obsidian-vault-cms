@@ -99,8 +99,13 @@ export class DeploymentStep extends BaseWizardStep {
             text: 'Choose where you want to host your site. A config file will be created for your chosen platform.'
         });
 
-        // Restore previous selection if any
-        this.selectedPlatform = (this.state as any).deploymentPlatform || '';
+        // Restore the previous selection: prefer the persisted choice, otherwise
+        // detect an existing platform config file on disk so a vault configured
+        // earlier still shows as selected (and we never regenerate that file).
+        this.selectedPlatform = this.state.deploymentPlatform || this.detectConfiguredPlatform();
+        if (this.selectedPlatform) {
+            this.state.deploymentPlatform = this.selectedPlatform;
+        }
 
         const platforms = this.getPlatforms();
 
@@ -117,7 +122,7 @@ export class DeploymentStep extends BaseWizardStep {
 
                 btn.onClick(async () => {
                     this.selectedPlatform = platform.id;
-                    (this.state as any).deploymentPlatform = platform.id;
+                    this.state.deploymentPlatform = platform.id;
 
                     // Generate config file if applicable
                     if (platform.configFile && platform.configContent) {
@@ -129,6 +134,31 @@ export class DeploymentStep extends BaseWizardStep {
                 });
             });
         }
+    }
+
+    /**
+     * Detect a platform whose config file already exists in the project root.
+     * Used as a fallback so a previously configured vault still shows as
+     * selected even when no choice was persisted, and we never overwrite or
+     * regenerate the existing config file.
+     */
+    private detectConfiguredPlatform(): Platform | '' {
+        const projectRoot = this.getAbsoluteProjectRoot();
+        if (!projectRoot) return '';
+
+        try {
+            const fs = require('fs');
+            for (const platform of this.getPlatforms()) {
+                if (!platform.configFile) continue;
+                if (fs.existsSync(path.join(projectRoot, platform.configFile))) {
+                    return platform.id;
+                }
+            }
+        } catch {
+            // Ignore detection failures and fall back to no selection.
+        }
+
+        return '';
     }
 
     private async generateConfigFile(filename: string, content: string): Promise<void> {

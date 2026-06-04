@@ -51,6 +51,7 @@ export class OptionalPluginsStep extends BaseWizardStep {
 			{ id: 'omnisearch', name: 'Omnisearch', category: 'nice-to-have', source: 'community' },
 			{ id: 'file-name-history', name: 'File Name History', category: 'nice-to-have', source: 'community' },
 			{ id: 'data-files-editor', name: 'Data Files Editor', category: 'nice-to-have', source: 'brat', repo: 'davidvkimball/obsidian-data-files-editor' },
+			{ id: 'link-as', name: 'Link As', category: 'nice-to-have', source: 'community' },
 			{ id: 'tag-wrangler', name: 'Tag Wrangler', category: 'nice-to-have', source: 'community' },
 			{ id: 'vault-nickname', name: 'Vault Nickname', category: 'nice-to-have', source: 'community' },
 			{ id: 'zenmode', name: 'Zen Mode', category: 'nice-to-have', source: 'community' },

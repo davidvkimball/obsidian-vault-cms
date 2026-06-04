@@ -65,6 +65,7 @@ export class WizardStateManager {
 			enableEditingToolbar: settings.enableEditingToolbar ?? (settings as any).enableWYSIWYG ?? false,
 			enableMdxSupport: settings.enableMdxSupport,
 			enableExtendedFileTypes: settings.enableExtendedFileTypes,
+			deploymentPlatform: settings.deploymentPlatform || '',
 			enabledPlugins: settings.enabledPlugins || [],
 			disabledPlugins: settings.disabledPlugins || [],
 			theme: settings.theme || '',
@@ -191,6 +192,7 @@ export class WizardStateManager {
 
 		this.state.enableMdxSupport = settings.enableMdxSupport;
 		this.state.enableExtendedFileTypes = settings.enableExtendedFileTypes;
+		this.state.deploymentPlatform = settings.deploymentPlatform || '';
 		this.state.enabledPlugins = settings.enabledPlugins || [];
 		this.state.disabledPlugins = settings.disabledPlugins || [];
 		this.state.theme = settings.theme || '';
@@ -289,6 +291,7 @@ export class WizardStateManager {
 		}
 		settings.enableMdxSupport = this.state.enableMdxSupport ?? false;
 		settings.enableExtendedFileTypes = this.state.enableExtendedFileTypes ?? false;
+		settings.deploymentPlatform = this.state.deploymentPlatform || '';
 		settings.enabledPlugins = this.state.enabledPlugins;
 		settings.disabledPlugins = this.state.disabledPlugins;
 		settings.theme = this.state.theme;

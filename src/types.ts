@@ -42,6 +42,8 @@ export interface WizardState {
 	enableEditingToolbar: boolean;
 	enableMdxSupport?: boolean; // MDX file support flag (optional to allow auto-detection)
 	enableExtendedFileTypes?: boolean; // Extended file types support flag (optional)
+	vaultNickname?: string; // Vault display name for the Vault Nickname plugin (undefined = not yet loaded from its data.json)
+	deploymentPlatform?: 'netlify' | 'vercel' | 'cloudflare' | 'github-pages' | ''; // Hosting platform chosen on the Deployment step
 	enabledPlugins: string[];
 	disabledPlugins: string[];
 	theme: string;

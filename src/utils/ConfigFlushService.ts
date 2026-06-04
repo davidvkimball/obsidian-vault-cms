@@ -9,6 +9,7 @@ import { ImageManagerConfigurator } from './ImageManagerConfig';
 import { HomeBaseConfigurator } from './HomeBaseConfig';
 import { ExplorerFocusConfigurator } from './ExplorerFocusConfig';
 import { DataFilesEditorConfigurator } from './DataFilesEditorConfig';
+import { VaultNicknameConfigurator } from './VaultNicknameConfig';
 import { EditingToolbarConfigurator } from './EditingToolbarConfig';
 import { FileNameHistoryConfigurator } from './FileNameHistoryConfig';
 
@@ -22,6 +23,7 @@ export class ConfigFlushService {
     private homeBaseConfigurator: HomeBaseConfigurator;
     private explorerFocusConfigurator: ExplorerFocusConfigurator;
     private dataFilesEditorConfigurator: DataFilesEditorConfigurator;
+    private vaultNicknameConfigurator: VaultNicknameConfigurator;
     private editingToolbarConfigurator: EditingToolbarConfigurator;
     private fileNameHistoryConfigurator: FileNameHistoryConfigurator;
 
@@ -35,6 +37,7 @@ export class ConfigFlushService {
         this.homeBaseConfigurator = new HomeBaseConfigurator(app);
         this.explorerFocusConfigurator = new ExplorerFocusConfigurator(app);
         this.dataFilesEditorConfigurator = new DataFilesEditorConfigurator(app);
+        this.vaultNicknameConfigurator = new VaultNicknameConfigurator(app);
         this.editingToolbarConfigurator = new EditingToolbarConfigurator(app);
         this.fileNameHistoryConfigurator = new FileNameHistoryConfigurator(app);
     }
@@ -151,6 +154,9 @@ export class ConfigFlushService {
 
         // 10. Configure Data Files Editor
         await this.dataFilesEditorConfigurator.saveConfig(state.enableExtendedFileTypes === true);
+
+        // 11. Configure Vault Nickname (blank keeps the folder name)
+        await this.vaultNicknameConfigurator.saveNickname(state.vaultNickname ?? '');
 
         console.debug('ConfigFlushService: Configuration flush complete');
     }
