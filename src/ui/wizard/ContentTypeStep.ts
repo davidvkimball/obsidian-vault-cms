@@ -461,8 +461,8 @@ export class ContentTypeStep extends BaseWizardStep {
 
 		// Public image path resolution
 		new Setting(stepContentWrapper)
-			.setName('Resolve cover images from public folder')
-			.setDesc('Enable this if your theme uses absolute image paths (like /images/photo.jpg) that reference the Astro project\'s public/ folder. This lets banners and card thumbnails display correctly in Obsidian.')
+			.setName('Resolve cover images from project folders')
+			.setDesc('Enable this if your content uses absolute image paths (like /images/photo.jpg) that map to an image folder in your project. Searches public/, src/assets/, static/, and assets/. This lets banners and card thumbnails display correctly in Obsidian, even when the build pipeline (e.g. Astro\'s src/assets) optimizes the images at build time.')
 			.addToggle(toggle => toggle
 				.setValue(this.state.resolvePublicImages ?? false)
 				.onChange(value => {

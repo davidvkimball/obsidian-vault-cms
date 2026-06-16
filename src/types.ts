@@ -35,7 +35,7 @@ export interface WizardState {
 	defaultContentTypeId?: string; // ID of the default content type
 	attachmentHandlingMode: 'specified-folder' | 'same-folder' | 'subfolder'; // Global attachment handling
 	attachmentFolderName?: string; // Folder name for specified-folder or subfolder modes (defaults to "attachments")
-	resolvePublicImages: boolean; // Resolve absolute image paths from the Astro project's public/ folder
+	resolvePublicImages: boolean; // Resolve absolute image paths (e.g. /images/x.jpg) against project image folders: public/, src/assets/, static/, assets/
 	preset: 'vanilla' | 'opinionated' | 'custom';
 	presetName: string;
 	presetsRepo: string;

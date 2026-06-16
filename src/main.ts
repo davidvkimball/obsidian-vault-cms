@@ -180,8 +180,11 @@ export default class VaultCMSPlugin extends Plugin {
 
 	/**
 	 * Resolve an absolute image path (e.g. /images/blog/1.jpg) against the
-	 * Astro project's public/ folder. Returns a file:// resource URL if the
-	 * file exists, null otherwise.
+	 * project's image folders. Tries, in order: public/, src/assets/,
+	 * static/, assets/ (relative to the configured project root). This means
+	 * a path like /images/foo.jpg works whether the framework serves it raw
+	 * from public/ OR optimizes it from a build-pipeline dir like Astro's
+	 * src/assets/. Returns a file:// resource URL if found, null otherwise.
 	 *
 	 * Preserved at the top level for back-compat with consumers written
 	 * before the namespaced API existed (Image Manager, Bases CMS). New
