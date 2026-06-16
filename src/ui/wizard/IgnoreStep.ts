@@ -126,21 +126,17 @@ export class IgnoreStep extends BaseWizardStep {
 	}
 
 	private updateWorkflowsSetting(status: 'detected' | 'removed' | 'none', files: string[]) {
-		// Show just the basenames so the description doesn't get unwieldy
-		// when several files would be removed.
 		const basenames = files.map((p) => p.replace(/\\/g, '/').split('/').pop()).filter(Boolean) as string[];
-		const fileList = basenames.length > 0
-			? basenames.slice(0, 4).join(', ') + (basenames.length > 4 ? `, +${basenames.length - 4} more` : '')
-			: '';
+		const fileList = basenames.length > 0 ? basenames.join(', ') : 'dependabot.yml';
 
 		this.workflowsSetting
-			.setName('Remove GitHub automation files')
+			.setName('Remove Dependabot config')
 			.setDesc(
-				`This project ships GitHub automation files (${fileList || 'workflows, dependabot.yml'}). ` +
-				`GitHub Actions workflow files require a special "workflow" PAT scope to push. ` +
-				`Dependabot auto-creates dependency-bump pull requests as soon as the repo is on GitHub. ` +
-				`Removing them gives you a clean initial push and an empty PR list. ` +
-				`Issue templates, PR template, CODEOWNERS, and FUNDING.yml are kept.`
+				`This project ships a Dependabot config (${fileList}), which auto-creates ` +
+				`dependency-bump pull requests as soon as the repo is on GitHub. Removing it gives ` +
+				`you an empty PR list. GitHub Actions workflows are left in place, since they can be ` +
+				`genuine features (like media optimization); push them with a PAT that has the ` +
+				`"workflow" scope, which the token link in the Git step pre-selects for you.`
 			)
 			.clear();
 
@@ -151,11 +147,11 @@ export class IgnoreStep extends BaseWizardStep {
 					.onClick(async () => {
 						try {
 							const removed = this.optimizer.removeGithubAutomation();
-							new Notice(`Removed ${removed} GitHub automation file${removed === 1 ? '' : 's'}`);
+							new Notice(`Removed Dependabot config (${removed} file${removed === 1 ? '' : 's'})`);
 							const newStatus = await this.optimizer.getStatus();
 							this.updateWorkflowsSetting(newStatus.githubAutomationStatus, newStatus.githubAutomationFiles);
 						} catch (error) {
-							new Notice(`Failed to remove GitHub automation files: ${error instanceof Error ? error.message : String(error)}`);
+							new Notice(`Failed to remove Dependabot config: ${error instanceof Error ? error.message : String(error)}`);
 						}
 					});
 			});

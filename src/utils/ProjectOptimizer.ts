@@ -12,21 +12,25 @@ export interface OptimizationStatus {
 	viteIgnoreStatus: 'configured' | 'not-configured';
 	gitHooksStatus: 'detected' | 'neutralized' | 'none';
 	/**
-	 * Whether the project ships any "GitHub automation" files that the
-	 * average Vault CMS user doesn't want when starting fresh:
+	 * Whether the project ships a Dependabot config (`.github/dependabot.yml`).
+	 * Dependabot opens dependency-bump pull requests the moment the repo lands
+	 * on GitHub, which is noise for a typical Vault CMS user. Removal is opt-in.
 	 *
-	 *   - `.github/workflows/*.yml` — GitHub Actions workflow files. Require
-	 *     the PAT `workflow` scope to push, otherwise the initial push is
-	 *     rejected.
-	 *   - `.github/dependabot.yml` — Dependabot config that opens dependency
-	 *     bump PRs the moment the repo is created on GitHub.
+	 * NOTE: We intentionally do NOT touch `.github/workflows/*.yml`. Workflow
+	 * files can be genuine features (e.g. a video/media optimization pipeline),
+	 * not just CI noise, and the plugin can't reliably tell them apart. The
+	 * reason workflows were once removed here was the PAT push error
+	 * ("refusing to allow a Personal Access Token to create or update workflow
+	 * ... without `workflow` scope"). That is handled the correct way in the
+	 * Git setup step: the PAT generation link pre-checks the `workflow` scope
+	 * and a missing scope is detected up front. Deleting useful workflows to
+	 * dodge a token-scope requirement is the wrong tradeoff.
 	 *
 	 * Other `.github/` content (ISSUE_TEMPLATE/, pull_request_template.md,
-	 * CODEOWNERS, FUNDING.yml) is left in place — those don't interfere
-	 * with the initial push or auto-create PRs.
+	 * CODEOWNERS, FUNDING.yml) is also left in place.
 	 */
 	githubAutomationStatus: 'detected' | 'removed' | 'none';
-	/** Files that would be removed if the user opts in. */
+	/** Dependabot config files that would be removed if the user opts in. */
 	githubAutomationFiles: string[];
 }
 
@@ -120,8 +124,9 @@ export class ProjectOptimizer {
 		// Check for git hooks (husky, simple-git-hooks, lefthook, etc.)
 		status.gitHooksStatus = this.detectGitHooks(projectRoot);
 
-		// Check for GitHub automation files (workflows block push without
-		// `workflow` PAT scope; dependabot.yml auto-creates PRs on push).
+		// Check for a Dependabot config (auto-creates dependency-bump PRs).
+		// Workflow files are intentionally left alone; see the note on
+		// OptimizationStatus.githubAutomationStatus.
 		const automationFiles = this.listGithubAutomationFiles(projectRoot);
 		if (automationFiles.length > 0) {
 			status.githubAutomationStatus = 'detected';
@@ -132,33 +137,18 @@ export class ProjectOptimizer {
 	}
 
 	/**
-	 * Returns the absolute paths of GitHub automation files we offer to remove
-	 * before the initial push. Currently:
+	 * Returns the absolute path(s) of the project's Dependabot config
+	 * (`.github/dependabot.yml` or `.yaml`), which we offer to remove because
+	 * it auto-creates dependency-bump pull requests as soon as the repo is on
+	 * GitHub.
 	 *
-	 *   - All `.yml`/`.yaml` files inside `.github/workflows/`
-	 *   - `.github/dependabot.yml` (or `.yaml`)
-	 *
-	 * Issue templates, PR templates, CODEOWNERS, and FUNDING.yml are NOT
-	 * included — they don't block the initial push or auto-create PRs.
+	 * Workflow files (`.github/workflows/*.yml`), issue templates, PR
+	 * templates, CODEOWNERS, and FUNDING.yml are NOT touched.
 	 */
 	private listGithubAutomationFiles(projectRoot: string): string[] {
 		const files: string[] = [];
 
-		// 1. Workflow files
-		const workflowsDir = path.join(projectRoot, '.github', 'workflows');
-		if (fs.existsSync(workflowsDir)) {
-			try {
-				for (const name of fs.readdirSync(workflowsDir)) {
-					if (/\.ya?ml$/i.test(name)) {
-						files.push(path.join(workflowsDir, name));
-					}
-				}
-			} catch (e) {
-				console.debug('[Vault CMS] Could not list workflows dir:', e);
-			}
-		}
-
-		// 2. Dependabot config (either extension)
+		// Dependabot config (either extension)
 		for (const name of ['dependabot.yml', 'dependabot.yaml']) {
 			const dependabotPath = path.join(projectRoot, '.github', name);
 			if (fs.existsSync(dependabotPath)) files.push(dependabotPath);
@@ -168,10 +158,8 @@ export class ProjectOptimizer {
 	}
 
 	/**
-	 * Removes the GitHub automation files listed by `listGithubAutomationFiles`.
-	 * Cleans up `.github/workflows/` if it ends up empty. Other `.github/`
-	 * contents (issue templates, PR template, CODEOWNERS, FUNDING.yml, etc.)
-	 * are left untouched.
+	 * Removes the Dependabot config listed by `listGithubAutomationFiles`.
+	 * Workflow files and all other `.github/` contents are left untouched.
 	 *
 	 * Returns the count of files removed.
 	 */
@@ -186,18 +174,7 @@ export class ProjectOptimizer {
 				fs.unlinkSync(filePath);
 				removed++;
 			} catch (e) {
-				console.error('[Vault CMS] Failed to remove automation file:', filePath, e);
-			}
-		}
-
-		// Clean up the workflows dir if it's now empty.
-		const workflowsDir = path.join(projectRoot, '.github', 'workflows');
-		if (fs.existsSync(workflowsDir)) {
-			try {
-				const remaining = fs.readdirSync(workflowsDir);
-				if (remaining.length === 0) fs.rmdirSync(workflowsDir);
-			} catch (e) {
-				console.debug('[Vault CMS] Could not remove empty workflows dir:', e);
+				console.error('[Vault CMS] Failed to remove Dependabot config:', filePath, e);
 			}
 		}
 
