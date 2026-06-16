@@ -97,8 +97,12 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 				const detectedTitle = this.frontmatterAnalyzer.autoDetectTitleProperty(dummyFrontmatter);
 				const detectedDate = this.frontmatterAnalyzer.autoDetectDateProperty(dummyFrontmatter);
 
-				// If underscore files exist, prefer underscore mode (don't auto-fill draftProperty)
-				const useDraftProperty = hasUnderscoreFiles ? undefined : detectedDraft?.property;
+				// Prefer a detected draft property: if posts actually use a `draft:`
+				// key, that's the convention, regardless of stray underscore-prefixed
+				// files (e.g. `_template-post.md`, `_index.md`, which Astro ignores at
+				// build and which are not drafts). Underscore-prefix draft mode is only
+				// inferred as a fallback when no draft property exists in the content.
+				const useDraftProperty = detectedDraft?.property ?? undefined;
 
 				this.state.frontmatterProperties[contentType.id] = {
 					titleProperty: detectedTitle || undefined,
@@ -264,8 +268,10 @@ export class FrontmatterPropertiesStep extends BaseWizardStep {
 				.onChange(value => {
 					props.hasDraftStatus = value;
 					if (value && !props.draftProperty) {
-						// Only auto-detect property when underscore files don't exist
-						const detectedDraft = (!hasUnderscoreFiles && example) ? this.frontmatterAnalyzer.autoDetectDraftProperty(example.frontmatter) : null;
+						// Auto-detect the draft property from the example when the user
+						// enables draft status. A `draft:` key in the content wins over
+						// the presence of underscore-prefixed files (templates/indexes).
+						const detectedDraft = example ? this.frontmatterAnalyzer.autoDetectDraftProperty(example.frontmatter) : null;
 						props.draftProperty = detectedDraft?.property;
 						// Fix logic only when we have a concrete property
 						if (props.draftProperty) {
