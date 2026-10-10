@@ -364,6 +364,7 @@ export class GitSetupStep extends BaseWizardStep {
 
         button.setDisabled(true);
         button.setButtonText(alreadyHasRemote ? 'Updating...' : 'Initializing...');
+        button.buttonEl.parentElement?.querySelector('.git-setup-error')?.remove();
 
         try {
             // 1. Git Init (only if not already a repo)
@@ -379,6 +380,23 @@ export class GitSetupStep extends BaseWizardStep {
 
             await this.gitManager.setRemote(projectRoot, repoInfo.clone_url);
             new Notice(`Successfully ${alreadyHasRemote ? 'updated' : 'connected'} to ${repoInfo.html_url}`);
+
+            // Save the token in the system credential store for Obsidian Git's
+            // later pushes and pulls. Without it, every sync prompts for a login.
+            const githubUser = repoInfo.full_name.split('/')[0];
+            let credentialsSaved = false;
+            try {
+                credentialsSaved = await this.gitManager.saveCredentialsToSystem(projectRoot, githubUser, token);
+            } catch (credentialError) {
+                console.warn('GitSetupStep: Could not save Git credentials:', credentialError);
+            }
+            if (!credentialsSaved) {
+                new Notice(
+                    'Your computer has no Git credential manager, so your GitHub token was not saved. ' +
+                    `When Obsidian Git asks, enter "${githubUser}" as the username and paste your token as the password.`,
+                    0
+                );
+            }
 
             // 3. Early Flush: Save configurations to disk BEFORE committing
             // This ensures the initial commit contains the user's wizard settings
@@ -414,7 +432,7 @@ export class GitSetupStep extends BaseWizardStep {
 
             // 4. Configure Obsidian Git
             if (this.state.gitConfig.autoConfigureObsidianGit) {
-                await this.configureObsidianGit(token, projectRoot, branch);
+                await this.configureObsidianGit(projectRoot, branch);
             }
 
             // 5. Securely save token if it was just entered
@@ -458,21 +476,30 @@ export class GitSetupStep extends BaseWizardStep {
         } catch (error) {
             console.error('Git integration failed:', error);
             const errorMessage = error instanceof Error ? error.message : String(error);
-            new Notice(`Setup failed: ${errorMessage}`);
+            // Duration 0 keeps the notice until clicked: the message often holds
+            // recovery steps, and the default 5 seconds is too short to read them.
+            new Notice(`Setup failed: ${errorMessage}`, 0);
+            const actionContainer = button.buttonEl.parentElement;
+            if (actionContainer) {
+                actionContainer.querySelector('.git-setup-error')?.remove();
+                actionContainer.createEl('p', {
+                    cls: 'git-setup-error',
+                    text: `Setup failed: ${errorMessage}`,
+                    attr: { style: 'color: var(--text-error); margin-top: 1rem; user-select: text; white-space: pre-wrap;' }
+                });
+            }
             button.setDisabled(false);
             button.setButtonText(alreadyHasRemote ? 'Update Settings & Sync' : 'Initialize & Push to GitHub');
         }
     }
 
-    private async configureObsidianGit(pat: string, projectRoot: string, branch: string) {
+    private async configureObsidianGit(projectRoot: string, branch: string) {
         console.debug('GitSetupStep: Configuring Obsidian Git plugin...');
 
-        // 1. Set credentials in localStorage (standard fallback for Obsidian Git)
-        try {
-            (this.app as any).saveLocalStorage('obsidian-git:password', pat);
-        } catch (e) {
-            localStorage.setItem('obsidian-git:password', pat);
-        }
+        // 1. The token is NOT written to Obsidian Git's local storage. Only its
+        //    mobile mode reads that key, local storage never leaves this device,
+        //    and it is stored unencrypted. Desktop auth goes through the system
+        //    credential store (see GitManager.saveCredentialsToSystem).
 
         const adapter = this.app.vault.adapter as any;
         const vaultRoot = adapter.getBasePath ? adapter.getBasePath() : '';

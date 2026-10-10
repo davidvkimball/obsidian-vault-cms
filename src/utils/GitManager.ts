@@ -1,10 +1,11 @@
 import { requestUrl, RequestUrlParam } from 'obsidian';
-import { exec } from 'child_process';
+import { exec, execFile } from 'child_process';
 import { promisify } from 'util';
 import * as path from 'path';
 import * as fs from 'fs';
 
 const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 export interface GitHubRepoResponse {
     clone_url: string;
@@ -86,6 +87,56 @@ export class GitManager {
     }
 
     /**
+     * Hands the PAT to the system's Git credential helper (Git Credential
+     * Manager on Windows, Keychain on macOS, libsecret on Linux) so Obsidian
+     * Git's later pushes and pulls authenticate without prompting. Obsidian
+     * Git stores nothing itself on desktop: with no saved login it shows
+     * "Username for 'https://github.com'" prompts on every sync.
+     *
+     * Never writes the token to disk in plain text. Returns false when no
+     * helper accepted it (common on Linux), so the caller can tell the user
+     * to paste the token when Obsidian Git asks.
+     */
+    static async saveCredentialsToSystem(projectRoot: string, username: string, token: string): Promise<boolean> {
+        // Pin the username for this repo. A global
+        // `credential.https://github.com.username` (common with the GitHub CLI)
+        // would otherwise make lookups ask for a different user than the one
+        // saved, and fall through to a prompt.
+        await execFileAsync('git', ['config', '--local', 'credential.https://github.com.username', username], { cwd: projectRoot });
+
+        const credential = `protocol=https\nhost=github.com\nusername=${username}\n`;
+        try {
+            await this.runCredentialCommand(projectRoot, 'approve', `${credential}password=${token}\n\n`);
+            // Read it back: "approve" succeeds silently when no helper exists.
+            const stored = await this.runCredentialCommand(projectRoot, 'fill', `${credential}\n`);
+            return stored.split('\n').includes(`password=${token}`);
+        } catch {
+            return false;
+        }
+    }
+
+    /**
+     * Runs `git credential <action>` with the given stdin, with every prompt
+     * disabled: a helper with nothing saved must fail, not pop up a dialog.
+     */
+    private static runCredentialCommand(projectRoot: string, action: 'approve' | 'fill', input: string): Promise<string> {
+        const env = {
+            ...globalThis.process?.env,
+            GIT_TERMINAL_PROMPT: '0',
+            GIT_ASKPASS: '',
+            SSH_ASKPASS: '',
+            GCM_INTERACTIVE: 'never',
+        };
+        return new Promise((resolve, reject) => {
+            const child = execFile('git', ['-c', 'core.askPass=', 'credential', action], { cwd: projectRoot, env, timeout: 15000 }, (error: Error | null, stdout: string) => {
+                if (error) reject(error);
+                else resolve(String(stdout));
+            });
+            child.stdin?.end(input);
+        });
+    }
+
+    /**
      * Gets the current local branch name.
      */
     static async getCurrentBranch(projectRoot: string): Promise<string> {
@@ -150,12 +201,12 @@ export class GitManager {
      */
     private static async getRemoteBranchSha(
         projectRoot: string,
-        remoteName: string,
+        remoteOrUrl: string,
         branch: string
     ): Promise<string | null> {
         try {
             const { stdout } = await execAsync(
-                `git ls-remote --heads ${remoteName} ${branch}`,
+                `git ls-remote --heads ${remoteOrUrl} ${branch}`,
                 { cwd: projectRoot }
             );
             const line = stdout.trim().split('\n')[0];
@@ -237,8 +288,8 @@ export class GitManager {
         // is for GitHub App installation tokens only; using it with a PAT silently
         // fails authentication on push even though the PAT is valid for the API.
         const usingTokenAuth = !!token && cleanUrl.startsWith('https://');
+        const authedUrl = usingTokenAuth ? cleanUrl.replace('https://', `https://${token}@`) : cleanUrl;
         if (usingTokenAuth) {
-            const authedUrl = cleanUrl.replace('https://', `https://${token}@`);
             await execAsync(`git remote set-url ${remoteName} ${authedUrl}`, { cwd: projectRoot });
         }
 
@@ -277,7 +328,10 @@ export class GitManager {
         }
 
         // 6. Real verification: confirm the remote actually has the branch with a SHA.
-        const remoteSha = await this.getRemoteBranchSha(projectRoot, remoteName, branch);
+        //    Query the authenticated URL directly: the remote now holds the clean
+        //    URL, and new repos are private by default, so an unauthenticated
+        //    ls-remote fails on any machine without a credential helper.
+        const remoteSha = await this.getRemoteBranchSha(projectRoot, authedUrl, branch);
         if (!remoteSha) {
             throw new Error(
                 `git push reported success, but the remote branch "${branch}" still has no commits. ` +
